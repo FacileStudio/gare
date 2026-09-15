@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] - 2026-09-15
+
+### Fixed
+
+- Caddy static site `try_files` directive nesting: `try_files {path} /index.html` must be inside `file_server` block for valid Caddy v2 configuration.
+
 ## [0.4.0] - 2026-09-15
 
 ### Added

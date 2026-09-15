@@ -19,8 +19,9 @@ const snippetTemplate = `{{.Domain}} {
 
 const staticSnippetTemplate = `{{.Domain}} {
 	root * "{{.RootDir}}"
-	file_server
-	try_files {path} /index.html
+	file_server {
+		try_files {path} /index.html
+	}
 }
 `
 
