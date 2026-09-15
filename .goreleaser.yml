@@ -2,8 +2,13 @@ version: 2
 
 project_name: gare
 
+before:
+  hooks:
+    - go mod tidy
+
 builds:
-  - main: ./cmd/gare
+  - id: gare
+    main: ./cmd/gare
     binary: gare
     env:
       - CGO_ENABLED=0
@@ -13,8 +18,12 @@ builds:
     goarch:
       - amd64
       - arm64
+    flags:
+      - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s
+      - -w
+      - -X main.version={{.Version}}
 
 archives:
   - formats:
@@ -26,24 +35,3 @@ checksum:
 
 changelog:
   sort: asc
-
-homebrew_casks:
-  - name: gare
-    homepage: https://github.com/FacileStudio/gare
-    description: Zero-daemon Podman and Kubernetes GitOps orchestrator
-    binaries:
-      - gare
-    repository:
-      owner: FacileStudio
-      name: homebrew-tap
-      branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    hooks:
-      post:
-        install: |
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/gare"]
-          end
