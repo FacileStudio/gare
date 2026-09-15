@@ -29,9 +29,14 @@ func NewDestroyCmd() *cobra.Command {
 			baseDir := storage.DefaultBaseDir()
 			appDir := storage.GetAppDir(baseDir, name)
 
-			teardownServices(ctx, name)
-			removeArtifacts(ctx, name, appDir)
-			reloadDaemons(ctx)
+			cfg, _ := storage.LoadConfig(appDir)
+			isStatic := cfg != nil && cfg.IsStatic()
+
+			if !isStatic {
+				teardownServices(ctx, name)
+			}
+			removeArtifacts(ctx, name, appDir, isStatic)
+			reloadDaemons(ctx, isStatic)
 
 			printSuccess(fmt.Sprintf("App %s completely destroyed.", name))
 			return nil
@@ -56,16 +61,18 @@ func teardownServices(ctx context.Context, name string) {
 	}
 }
 
-func removeArtifacts(ctx context.Context, name, appDir string) {
+func removeArtifacts(ctx context.Context, name, appDir string, isStatic bool) {
 	printInfo("Removing Caddy snippet...")
 	if err := caddy.RemoveSnippet(caddy.DefaultConfDir, name); err != nil {
 		printWarning(fmt.Sprintf("removing caddy snippet returned error: %v", err))
 	}
 
-	imageName := fmt.Sprintf("localhost/%s:latest", name)
-	printInfo(fmt.Sprintf("Removing container image %s...", imageName))
-	if err := builder.RemoveImage(ctx, imageName); err != nil {
-		printWarning(fmt.Sprintf("removing container image returned error: %v", err))
+	if !isStatic {
+		imageName := fmt.Sprintf("localhost/%s:latest", name)
+		printInfo(fmt.Sprintf("Removing container image %s...", imageName))
+		if err := builder.RemoveImage(ctx, imageName); err != nil {
+			printWarning(fmt.Sprintf("removing container image returned error: %v", err))
+		}
 	}
 
 	printInfo(fmt.Sprintf("Removing app storage at %s...", appDir))
@@ -74,10 +81,12 @@ func removeArtifacts(ctx context.Context, name, appDir string) {
 	}
 }
 
-func reloadDaemons(ctx context.Context) {
-	printInfo("Reloading systemd daemon...")
-	if err := systemd.DaemonReload(ctx); err != nil {
-		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
+func reloadDaemons(ctx context.Context, isStatic bool) {
+	if !isStatic {
+		printInfo("Reloading systemd daemon...")
+		if err := systemd.DaemonReload(ctx); err != nil {
+			printWarning(fmt.Sprintf("daemon-reload error: %v", err))
+		}
 	}
 
 	printInfo("Reloading Caddy...")

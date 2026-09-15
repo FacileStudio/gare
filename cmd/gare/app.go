@@ -4,24 +4,25 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/builder"
-	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
-	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
 type appCreateOptions struct {
-	repo   string
-	domain string
-	port   int
-	branch string
+	repo          string
+	domain        string
+	port          int
+	branch        string
+	appType       string
+	containerfile string
+	contextDir    string
+	staticDir     string
+	buildCmd      string
 }
 
 // NewAppCmd builds the app command group.
@@ -50,6 +51,11 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.domain, "domain", "d", "", "Domain name")
 	cmd.Flags().IntVarP(&opts.port, "port", "p", 0, "Port to allocate (0 for auto-discovery)")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "main", "Git branch")
+	cmd.Flags().StringVarP(&opts.appType, "type", "t", "", "Application type (container or static)")
+	cmd.Flags().StringVarP(&opts.containerfile, "containerfile", "f", "", "Path to Containerfile/Dockerfile")
+	cmd.Flags().StringVar(&opts.contextDir, "context", "", "Build context directory relative to repository root")
+	cmd.Flags().StringVar(&opts.staticDir, "static", "", "Static assets directory to serve (relative to repository root)")
+	cmd.Flags().StringVar(&opts.buildCmd, "build-cmd", "", "Command to run during build/deployment")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
 		return cmd
@@ -64,6 +70,7 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	if err := validateCreateInputs(name, opts); err != nil {
 		return err
 	}
+	opts.appType = strings.ToLower(opts.appType)
 
 	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Minute)
 	defer cancel()
@@ -74,16 +81,26 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 		return fmt.Errorf("app %q already exists at %s", name, appDir)
 	}
 
-	port, err := storage.DiscoverAvailablePort(baseDir, opts.port)
-	if err != nil {
-		return fmt.Errorf("failed to discover port: %w", err)
-	}
-
 	if err := cloneAppRepo(ctx, appDir, opts); err != nil {
 		return err
 	}
 
-	return writeAppArtifacts(name, appDir, port, opts)
+	resolvedOpts, err := resolveAppOptions(appDir, opts)
+	if err != nil {
+		return err
+	}
+
+	if resolvedOpts.appType == "static" {
+		return writeStaticArtifacts(name, appDir, resolvedOpts)
+	}
+
+	port, err := storage.DiscoverAvailablePort(baseDir, resolvedOpts.port)
+	if err != nil {
+		return fmt.Errorf("failed to discover port: %w", err)
+	}
+	resolvedOpts.port = port
+
+	return writeAppArtifacts(name, appDir, resolvedOpts)
 }
 
 func validateCreateInputs(name string, opts appCreateOptions) error {
@@ -95,6 +112,10 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	}
 	if opts.domain == "" {
 		return fmt.Errorf("--domain is required")
+	}
+	appType := strings.ToLower(opts.appType)
+	if appType != "" && appType != "container" && appType != "static" {
+		return fmt.Errorf("invalid app type %q: must be container or static", opts.appType)
 	}
 	if strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
 		return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
@@ -121,43 +142,22 @@ func cloneAppRepo(ctx context.Context, appDir string, opts appCreateOptions) err
 	return builder.Clone(ctx, cloneOpts)
 }
 
-func writeAppArtifacts(name, appDir string, port int, opts appCreateOptions) error {
-	manifestPath := storage.GetManifestPath(appDir)
-	if err := resolveManifest(name, appDir, manifestPath, port); err != nil {
-		return err
+func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, error) {
+	repoDir := storage.GetRepoDir(appDir)
+	gf, err := storage.LoadGareFile(repoDir)
+	if err != nil {
+		return opts, fmt.Errorf("failed to load gare configuration: %w", err)
 	}
-	if err := systemd.WriteUnit(name, manifestPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
-	}
-	if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, opts.domain, port); err != nil {
-		printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-	}
-	return saveAppMetadata(name, appDir, port, opts)
-}
 
-func resolveManifest(name, appDir, manifestPath string, port int) error {
-	repoManifest := filepath.Join(storage.GetRepoDir(appDir), "manifest.yaml")
-	if data, err := os.ReadFile(repoManifest); err == nil {
-		if err := atomicfile.WriteFile(manifestPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to copy manifest: %w", err)
-		}
-		return nil
+	resolved := mergeGareFileDefaults(opts, gf)
+	if resolved.staticDir != "" && resolved.appType == "" {
+		resolved.appType = "static"
 	}
-	return storage.GenerateDefaultManifest(name, port, manifestPath)
-}
-
-func saveAppMetadata(name, appDir string, port int, opts appCreateOptions) error {
-	appCfg := &storage.AppConfig{
-		Name:      name,
-		RepoURL:   opts.repo,
-		Domain:    opts.domain,
-		Port:      port,
-		Branch:    opts.branch,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	if resolved.appType == "" {
+		resolved.appType = "container"
 	}
-	if err := storage.SaveConfig(appDir, appCfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	if resolved.appType == "static" && resolved.staticDir == "" {
+		resolved.staticDir = "."
 	}
-	printSuccess(fmt.Sprintf("App %q successfully created on port %d (%s)", name, port, opts.domain))
-	return nil
+	return resolved, nil
 }

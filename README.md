@@ -53,6 +53,43 @@ gare app create myapp --repo https://github.com/example/webapp.git --domain myap
 
 Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and a systemd user unit, and writes the Caddy ingress configuration.
 
+#### Custom Containerfile or monorepos
+
+Specify a custom Containerfile and build context path:
+
+```sh
+gare app create api --repo https://github.com/example/monorepo.git --domain api.example.com \
+  --containerfile apps/api/Dockerfile --context .
+```
+
+#### Static applications
+
+Host a static site directly via Caddy without Podman, containers, or open ports:
+
+```sh
+gare app create blog --repo https://github.com/example/blog.git --domain blog.example.com \
+  --static dist --build-cmd "bun run build"
+```
+
+#### Repository configuration (`gare.yml`)
+
+Repositories can optionally define build and workload configuration in `gare.yml` or `gare.yaml` at the root:
+
+```yaml
+# For container workloads:
+type: container
+containerfile: apps/web/Dockerfile
+context: .
+build_cmd: make assets
+
+# For static workloads:
+type: static
+static_dir: dist
+build_cmd: bun run build
+```
+
+CLI flags always take precedence over `gare.yml` settings.
+
 ### 3. Deploy the application
 
 ```sh

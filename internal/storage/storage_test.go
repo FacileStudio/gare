@@ -51,6 +51,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	cfg := &AppConfig{
 		Name: "myapp", RepoURL: "https://github.com/example/repo.git",
 		Domain: "myapp.example.com", Port: 8080, Branch: "main", CreatedAt: "2026-09-15T00:00:00Z",
+		AppType: "static", Containerfile: "Dockerfile", ContextDir: ".", StaticDir: "dist", BuildCmd: "make",
 	}
 	if err := SaveConfig(appDir, cfg); err != nil {
 		t.Fatalf("SaveConfig failed: %v", err)
@@ -71,7 +72,9 @@ func TestSaveAndLoadConfig(t *testing.T) {
 
 func assertConfigEqual(t *testing.T, got, want *AppConfig) {
 	if got.Name != want.Name || got.RepoURL != want.RepoURL || got.Domain != want.Domain ||
-		got.Port != want.Port || got.Branch != want.Branch || got.CreatedAt != want.CreatedAt {
+		got.Port != want.Port || got.Branch != want.Branch || got.CreatedAt != want.CreatedAt ||
+		got.AppType != want.AppType || got.Containerfile != want.Containerfile ||
+		got.ContextDir != want.ContextDir || got.StaticDir != want.StaticDir || got.BuildCmd != want.BuildCmd {
 		t.Errorf("config mismatch:\ngot:  %+v\nwant: %+v", got, want)
 	}
 }

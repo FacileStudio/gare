@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
@@ -44,7 +43,57 @@ func RunDeploy(ctx context.Context, name string) error {
 	}
 
 	repoDir := storage.GetRepoDir(appDir)
-	if err := buildAppImage(ctx, name, repoDir); err != nil {
+	printInfo(fmt.Sprintf("Pulling latest git changes for %s...", name))
+	if err := builder.Pull(ctx, repoDir, os.Stdout, os.Stderr); err != nil {
+		return fmt.Errorf("git pull failed: %w", err)
+	}
+
+	syncGareFileConfig(repoDir, cfg)
+	if err := storage.SaveConfig(appDir, cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not persist updated config (%v)", err))
+	}
+
+	if cfg.IsStatic() {
+		return deployStaticApp(ctx, name, repoDir, cfg)
+	}
+	return deployContainerApp(ctx, name, appDir, repoDir, cfg)
+}
+
+
+func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
+	if cfg.BuildCmd != "" {
+		printInfo(fmt.Sprintf("Running build command: %s", cfg.BuildCmd))
+		if err := builder.RunBuildCommand(ctx, repoDir, cfg.BuildCmd, os.Stdout, os.Stderr); err != nil {
+			return fmt.Errorf("build command failed: %w", err)
+		}
+	}
+
+	staticPath := filepath.Join(repoDir, cfg.StaticDir)
+	if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, cfg.Domain, staticPath); err != nil {
+		printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
+	}
+
+	if err := caddy.Reload(ctx); err != nil {
+		printWarning(fmt.Sprintf("Caddy reload returned error: %v", err))
+	}
+
+	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
+	if commitHash == "" {
+		commitHash = "-"
+	}
+	printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, cfg.Domain))
+	return nil
+}
+
+func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
+	if cfg.BuildCmd != "" {
+		printInfo(fmt.Sprintf("Running build command: %s", cfg.BuildCmd))
+		if err := builder.RunBuildCommand(ctx, repoDir, cfg.BuildCmd, os.Stdout, os.Stderr); err != nil {
+			return fmt.Errorf("build command failed: %w", err)
+		}
+	}
+
+	if err := buildAppImage(ctx, name, repoDir, cfg); err != nil {
 		return err
 	}
 
@@ -60,37 +109,18 @@ func RunDeploy(ctx context.Context, name string) error {
 	return nil
 }
 
-func syncRepoManifest(appDir, repoDir string) error {
-	repoManifest := filepath.Join(repoDir, "manifest.yaml")
-	data, err := os.ReadFile(repoManifest)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to read repo manifest: %w", err)
-	}
-
-	appManifest := storage.GetManifestPath(appDir)
-	if err := atomicfile.WriteFile(appManifest, data, 0644); err != nil {
-		return fmt.Errorf("failed to sync manifest: %w", err)
-	}
-	printSuccess("Synced manifest.yaml from repository")
-	return nil
-}
-
-func buildAppImage(ctx context.Context, name, repoDir string) error {
-	printInfo(fmt.Sprintf("Pulling latest git changes for %s...", name))
-	if err := builder.Pull(ctx, repoDir, os.Stdout, os.Stderr); err != nil {
-		return fmt.Errorf("git pull failed: %w", err)
-	}
-
-	if _, err := builder.DetectContainerfile(repoDir); err != nil {
-		return fmt.Errorf("containerfile detection failed: %w", err)
-	}
-
+func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
 	imageName := fmt.Sprintf("localhost/%s:latest", name)
 	printInfo(fmt.Sprintf("Building container image %s...", imageName))
-	if err := builder.Build(ctx, repoDir, imageName, os.Stdout, os.Stderr); err != nil {
+	buildOpts := builder.BuildOptions{
+		RepoDir:       repoDir,
+		ImageName:     imageName,
+		Containerfile: cfg.Containerfile,
+		ContextDir:    cfg.ContextDir,
+		Stdout:        os.Stdout,
+		Stderr:        os.Stderr,
+	}
+	if err := builder.Build(ctx, buildOpts); err != nil {
 		return fmt.Errorf("container build failed: %w", err)
 	}
 	return nil

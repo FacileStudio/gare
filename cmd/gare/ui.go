@@ -49,7 +49,7 @@ func printWarning(msg string) {
 
 func statusStyle(status string) lipgloss.Style {
 	switch strings.ToLower(status) {
-	case "active":
+	case "active", "static":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(colorSuccess)).Bold(true)
 	case "failed":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(colorError)).Bold(true)
@@ -82,7 +82,11 @@ func renderAppTable(rows []AppRow) string {
 			}
 		})
 	for _, r := range rows {
-		t.Row(r.Name, fmt.Sprintf("%d", r.Port), r.Domain, r.Commit, r.Status)
+		portStr := fmt.Sprintf("%d", r.Port)
+		if r.Port == 0 {
+			portStr = "-"
+		}
+		t.Row(r.Name, portStr, r.Domain, r.Commit, r.Status)
 	}
 	return t.Render()
 }

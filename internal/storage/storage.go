@@ -16,12 +16,17 @@ var appNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`)
 
 // AppConfig represents an application's configuration and deployment metadata.
 type AppConfig struct {
-	Name      string `json:"name"`
-	RepoURL   string `json:"repo_url"`
-	Domain    string `json:"domain"`
-	Port      int    `json:"port"`
-	Branch    string `json:"branch"`
-	CreatedAt string `json:"created_at"`
+	Name          string `json:"name"`
+	RepoURL       string `json:"repo_url"`
+	Domain        string `json:"domain"`
+	Port          int    `json:"port"`
+	Branch        string `json:"branch"`
+	CreatedAt     string `json:"created_at"`
+	AppType       string `json:"app_type,omitempty"`
+	Containerfile string `json:"containerfile,omitempty"`
+	ContextDir    string `json:"context_dir,omitempty"`
+	StaticDir     string `json:"static_dir,omitempty"`
+	BuildCmd      string `json:"build_cmd,omitempty"`
 }
 
 // DefaultBaseDir returns the default directory path for app storage.
