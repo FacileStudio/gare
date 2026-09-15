@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `scripts/check.sh` — suite quality gate for `go vet`, `go test`, and `filet check`.
+- `.gitattributes` — Go language detection and line ending specification.
+
 ## [0.4.1] - 2026-09-15
 
 ### Fixed
