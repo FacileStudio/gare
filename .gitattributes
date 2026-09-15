@@ -1,0 +1,7 @@
+*.go linguist-detectable=true
+*.go linguist-language=Go
+*.go diff=go
+
+# Line endings
+* text eol=lf
+*.go text diff=go
