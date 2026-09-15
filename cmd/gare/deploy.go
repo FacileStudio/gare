@@ -59,7 +59,6 @@ func RunDeploy(ctx context.Context, name string) error {
 	return deployContainerApp(ctx, name, appDir, repoDir, cfg)
 }
 
-
 func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
 	if cfg.BuildCmd != "" {
 		printInfo(fmt.Sprintf("Running build command: %s", cfg.BuildCmd))
@@ -69,8 +68,10 @@ func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.App
 	}
 
 	staticPath := filepath.Join(repoDir, cfg.StaticDir)
-	if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, cfg.Domain, staticPath); err != nil {
-		printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
+	if cfg.Domain != "" {
+		if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, cfg.Domain, staticPath); err != nil {
+			printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
+		}
 	}
 
 	if err := caddy.Reload(ctx); err != nil {

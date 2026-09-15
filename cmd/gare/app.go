@@ -39,7 +39,7 @@ func NewAppCmd() *cobra.Command {
 func newAppCreateCmd() *cobra.Command {
 	opts := appCreateOptions{}
 	cmd := &cobra.Command{
-		Use:   "create <name> --repo <git-url> --domain <domain>",
+		Use:   "create <name> --repo <git-url> [--domain <domain>]",
 		Short: "Create a new application",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
@@ -58,9 +58,6 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.buildCmd, "build-cmd", "", "Command to run during build/deployment")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
-		return cmd
-	}
-	if err := cmd.MarkFlagRequired("domain"); err != nil {
 		return cmd
 	}
 	return cmd
@@ -103,6 +100,8 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	return writeAppArtifacts(name, appDir, resolvedOpts)
 }
 
+// validateCreateInputs checks name, repo, and optional domain.
+// Domain is optional and can be configured later.
 func validateCreateInputs(name string, opts appCreateOptions) error {
 	if err := storage.ValidateAppName(name); err != nil {
 		return err
@@ -110,21 +109,16 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	if opts.repo == "" {
 		return fmt.Errorf("--repo is required")
 	}
-	if opts.domain == "" {
-		return fmt.Errorf("--domain is required")
-	}
-	appType := strings.ToLower(opts.appType)
-	if appType != "" && appType != "container" && appType != "static" {
-		return fmt.Errorf("invalid app type %q: must be container or static", opts.appType)
-	}
-	if strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
-		return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
-	}
-	domainPattern := `^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)*` +
-		`[a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?(:[0-9]{1,5})?$`
-	domainRe := regexp.MustCompile(domainPattern)
-	if !domainRe.MatchString(opts.domain) {
-		return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
+	if opts.domain != "" {
+		if strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
+			return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
+		}
+		domainPattern := `^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)*` +
+			`[a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?(:[0-9]{1,5})?$`
+		domainRe := regexp.MustCompile(domainPattern)
+		if !domainRe.MatchString(opts.domain) {
+			return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
+		}
 	}
 	return nil
 }

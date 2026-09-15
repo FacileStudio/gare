@@ -20,8 +20,10 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 	if err := systemd.WriteUnit(name, manifestPath); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
-	if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, opts.domain, opts.port); err != nil {
-		printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
+	if opts.domain != "" {
+		if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, opts.domain, opts.port); err != nil {
+			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
+		}
 	}
 	return saveAppMetadata(name, appDir, opts)
 }
@@ -29,8 +31,10 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	staticPath := filepath.Join(repoDir, opts.staticDir)
-	if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, opts.domain, staticPath); err != nil {
-		printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
+	if opts.domain != "" {
+		if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, opts.domain, staticPath); err != nil {
+			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
+		}
 	}
 	appCfg := &storage.AppConfig{
 		Name:      name,

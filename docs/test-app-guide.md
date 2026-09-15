@@ -135,7 +135,9 @@ gare app create test-app \
 
 You can optionally specify `--port <port>`. If omitted or set to 0, `gare` scans ports starting from 8000 to find an unused port.
 
-`gare app create` performs six operations:
+The `--domain` flag is optional. If omitted, the app is created without ingress and the domain can be added by editing `config.json` under the app directory and re-deploying.
+
+`gare app create` performs up to six operations:
 
 1. Clones the repository into `~/.local/share/gare/apps/test-app/repo`.
 2. Resolves or generates the Kubernetes Pod manifest at `~/.local/share/gare/apps/test-app/manifest.yaml`.
@@ -317,12 +319,12 @@ context: .
 build_cmd: make assets
 ```
 
-For static applications served directly by Caddy:
+For static applications served directly by Caddy, `build_cmd` is optional:
 
 ```yaml
 type: static
 static_dir: dist
-build_cmd: bun run build
+# build_cmd is optional; omit if no build step is needed
 ```
 
 When creating the application:

@@ -77,9 +77,6 @@ func testMissingRequired(t *testing.T) {
 	if err := validateCreateInputs("myapp", appCreateOptions{domain: "example.com"}); err == nil {
 		t.Error("expected error when --repo is empty")
 	}
-	if err := validateCreateInputs("myapp", appCreateOptions{repo: "https://example.com"}); err == nil {
-		t.Error("expected error when --domain is empty")
-	}
 }
 
 func TestRootCmdVersion(t *testing.T) {
