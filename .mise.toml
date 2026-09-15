@@ -1,0 +1,26 @@
+[tools]
+go = "1.26"
+
+[tasks.build]
+description = "Compile the gare binary"
+run = "go build -o bin/gare ./cmd/gare"
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks.all]
+depends = ["build", "test"]
+description = "Build and run tests"
+
+[tasks.dev]
+description = "Run the application"
+run = "go run ./cmd/gare"
+
+[tasks.lint]
+description = "Run code analysis"
+run = "go vet ./..."
+
+[tasks.help]
+description = "List available tasks"
+run = "mise tasks"

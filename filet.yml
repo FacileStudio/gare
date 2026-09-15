@@ -1,0 +1,39 @@
+kind: cli
+
+ignore:
+  - .git
+  - dist
+  - build
+  - vendor
+  - coverage
+
+extensions: [.go]
+
+limits:
+  fileLines: 250
+  funcsPerFile: 8
+  funcLines: 30
+  funcStatements: 25
+  lineLength: 120
+  params: 5
+  returns: 3
+  nesting: 4
+  complexity: 10
+  structFields: 12
+  interfaceMethods: 4
+
+architecture:
+  requiredDirs: [cmd, internal]
+
+style:
+  banInlineComments: true
+  banTODO: true
+  requireDocComments: true
+  banGlobalMutable: true
+  banInit: true
+  banTrailingSpace: true
+
+disabled:
+  - gen.line.long
+
+failOn: info
