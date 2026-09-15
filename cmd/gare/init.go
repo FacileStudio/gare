@@ -57,7 +57,7 @@ func checkPrereqs() error {
 func checkLingerStatus(ctx context.Context) {
 	lingering, err := systemd.CheckLinger(ctx, "")
 	if err != nil || !lingering {
-		printWarning("Lingering is not enabled for the current user.")
+		printWarning("Lingering is not enabled for the current user")
 		printInfo("Run: loginctl enable-linger $USER")
 		return
 	}
@@ -114,6 +114,9 @@ func checkCaddyPermissions() {
 		printWarning(fmt.Sprintf("Could not remove test file: %v", rmErr))
 	}
 	printSuccess("Directory " + confDir + " is writable")
+	if err := caddy.EnsureCaddyfile(); err != nil {
+		printWarning(fmt.Sprintf("Could not create default Caddyfile: %v", err))
+	}
 }
 
 func printCaddyInstructions() {

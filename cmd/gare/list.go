@@ -113,7 +113,7 @@ func outputJSON(w io.Writer, items []appListItem) error {
 
 func outputTable(w io.Writer, items []appListItem) error {
 	if len(items) == 0 {
-		fmt.Fprintln(w, "No applications configured.")
+		fmt.Fprintln(w, "No applications configured")
 		return nil
 	}
 

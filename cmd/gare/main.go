@@ -4,10 +4,10 @@ import (
 	"os"
 )
 
-const appVersion = "0.3.0"
+var version = "0.4.0"
 
 func main() {
-	if err := Execute(appVersion); err != nil {
+	if err := Execute(version); err != nil {
 		os.Exit(1)
 	}
 }

@@ -38,7 +38,7 @@ func NewDestroyCmd() *cobra.Command {
 			removeArtifacts(ctx, name, appDir, isStatic)
 			reloadDaemons(ctx, isStatic)
 
-			printSuccess(fmt.Sprintf("App %s completely destroyed.", name))
+			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
 			return nil
 		},
 	}

@@ -44,7 +44,7 @@ func printInfo(msg string) {
 
 func printWarning(msg string) {
 	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(colorWarning)).Bold(true).Render("!")
-	lipgloss.Println(icon, msg)
+	lipgloss.Fprintln(os.Stderr, icon, msg)
 }
 
 func statusStyle(status string) lipgloss.Style {

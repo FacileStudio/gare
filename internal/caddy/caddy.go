@@ -27,6 +27,12 @@ const staticSnippetTemplate = `{{.Domain}} {
 // DefaultConfDir defines the default filesystem path for Caddy drop-in configuration snippets.
 const DefaultConfDir = "/etc/caddy/conf.d"
 
+// DefaultCaddyfile is the root Caddyfile that imports gare's drop-in configuration snippets.
+const DefaultCaddyfile = `/etc/caddy/Caddyfile`
+
+const defaultCaddyfileContent = `import /etc/caddy/conf.d/*.caddy
+`
+
 // SnippetData holds the template parameters for generating a Caddy reverse proxy snippet.
 type SnippetData struct {
 	Domain string
@@ -120,11 +126,10 @@ func RemoveSnippet(confDir, name string) error {
 
 // Reload instructs Caddy to reload its configuration, falling back to systemctl if needed.
 func Reload(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", "/etc/caddy/Caddyfile")
+	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", DefaultCaddyfile)
 	if err := cmd.Run(); err == nil {
 		return nil
 	}
-
 	fallbackCmd := exec.CommandContext(ctx, "systemctl", "reload", "caddy")
 	return fallbackCmd.Run()
 }

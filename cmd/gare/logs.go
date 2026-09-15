@@ -11,6 +11,7 @@ import (
 // NewLogsCmd builds the logs command.
 func NewLogsCmd() *cobra.Command {
 	var follow bool
+	var lines int
 	cmd := &cobra.Command{
 		Use:   "logs <name>",
 		Short: "Stream application logs from journalctl",
@@ -20,10 +21,17 @@ func NewLogsCmd() *cobra.Command {
 			if err := storage.ValidateAppName(name); err != nil {
 				return err
 			}
-			return systemd.StreamLogs(c.Context(), name, follow, os.Stdout, os.Stderr)
+			opts := systemd.LogOptions{
+				Follow: follow,
+				Lines:  lines,
+				Stdout: os.Stdout,
+				Stderr: os.Stderr,
+			}
+			return systemd.StreamLogs(c.Context(), name, opts)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log stream in real-time")
+	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "Number of journal lines to show")
 	return cmd
 }

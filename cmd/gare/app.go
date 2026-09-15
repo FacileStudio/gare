@@ -13,6 +13,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var domainRegex = regexp.MustCompile(`^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)*` +
+	`[a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?(:[0-9]{1,5})?$`)
+
 type appCreateOptions struct {
 	repo          string
 	domain        string
@@ -79,29 +82,31 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	}
 
 	if err := cloneAppRepo(ctx, appDir, opts); err != nil {
+		if rmErr := storage.DeleteAppStorage(appDir); rmErr != nil {
+			return err
+		}
 		return err
 	}
 
+	return setupAppWorkload(baseDir, name, appDir, opts)
+}
+
+func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error {
 	resolvedOpts, err := resolveAppOptions(appDir, opts)
 	if err != nil {
 		return err
 	}
-
 	if resolvedOpts.appType == "static" {
 		return writeStaticArtifacts(name, appDir, resolvedOpts)
 	}
-
 	port, err := storage.DiscoverAvailablePort(baseDir, resolvedOpts.port)
 	if err != nil {
 		return fmt.Errorf("failed to discover port: %w", err)
 	}
 	resolvedOpts.port = port
-
 	return writeAppArtifacts(name, appDir, resolvedOpts)
 }
 
-// validateCreateInputs checks name, repo, and optional domain.
-// Domain is optional and can be configured later.
 func validateCreateInputs(name string, opts appCreateOptions) error {
 	if err := storage.ValidateAppName(name); err != nil {
 		return err
@@ -113,10 +118,7 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 		if strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
 			return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
 		}
-		domainPattern := `^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)*` +
-			`[a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?(:[0-9]{1,5})?$`
-		domainRe := regexp.MustCompile(domainPattern)
-		if !domainRe.MatchString(opts.domain) {
+		if !domainRegex.MatchString(opts.domain) {
 			return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
 		}
 	}

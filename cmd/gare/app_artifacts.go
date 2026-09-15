@@ -50,7 +50,11 @@ func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
-	printSuccess(fmt.Sprintf("App %q successfully created as static site (%s)", name, opts.domain))
+	if opts.domain != "" {
+		printSuccess(fmt.Sprintf("App %q successfully created as static site (%s)", name, opts.domain))
+	} else {
+		printSuccess(fmt.Sprintf("App %q successfully created as static site", name))
+	}
 	return nil
 }
 
@@ -81,7 +85,11 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
-	printSuccess(fmt.Sprintf("App %q successfully created on port %d (%s)", name, opts.port, opts.domain))
+	if opts.domain != "" {
+		printSuccess(fmt.Sprintf("App %q successfully created on port %d (%s)", name, opts.port, opts.domain))
+	} else {
+		printSuccess(fmt.Sprintf("App %q successfully created on port %d", name, opts.port))
+	}
 	return nil
 }
 

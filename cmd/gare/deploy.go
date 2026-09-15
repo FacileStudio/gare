@@ -82,7 +82,11 @@ func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.App
 	if commitHash == "" {
 		commitHash = "-"
 	}
-	printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, cfg.Domain))
+	if cfg.Domain != "" {
+		printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, cfg.Domain))
+	} else {
+		printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s)", name, commitHash))
+	}
 	return nil
 }
 
@@ -100,6 +104,12 @@ func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *
 
 	if err := syncRepoManifest(appDir, repoDir); err != nil {
 		return err
+	}
+
+	if cfg.Domain != "" && cfg.Port > 0 {
+		if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, cfg.Domain, cfg.Port); err != nil {
+			printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
+		}
 	}
 
 	if err := restartAppServices(ctx, name); err != nil {
@@ -151,5 +161,9 @@ func cleanupAppDeploy(ctx context.Context, repoDir, name, domain string, port in
 	if err != nil || commitHash == "" {
 		commitHash = "-"
 	}
-	printSuccess(fmt.Sprintf("Successfully deployed %s (%s) on port %d -> %s", name, commitHash, port, domain))
+	if domain != "" {
+		printSuccess(fmt.Sprintf("Successfully deployed %s (%s) on port %d -> %s", name, commitHash, port, domain))
+	} else {
+		printSuccess(fmt.Sprintf("Successfully deployed %s (%s) on port %d", name, commitHash, port))
+	}
 }
