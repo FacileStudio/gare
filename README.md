@@ -39,7 +39,7 @@ Specify a custom Containerfile and build context path:
 
 ```sh
 gare app create api --repo https://github.com/example/monorepo.git --domain api.example.com \
-  --containerfile apps/api/Dockerfile --context .
+  --containerfile apps/api/Containerfile --context .
 ```
 
 #### Static applications
@@ -58,7 +58,7 @@ Repositories can optionally define build, workload, and health check configurati
 ```yaml
 # For container workloads:
 type: container
-containerfile: apps/web/Dockerfile
+containerfile: apps/web/Containerfile
 context: .
 build_cmd: make assets
 healthcheck: /health
