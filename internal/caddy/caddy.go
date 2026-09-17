@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,9 +21,8 @@ const snippetTemplate = `{{.Domain}} {
 
 const staticSnippetTemplate = `{{.Domain}} {
 	root * "{{.RootDir}}"
-	file_server {
-		try_files {path} /index.html
-	}
+	try_files {path} /index.html
+	file_server
 }
 `
 
@@ -125,12 +126,33 @@ func RemoveSnippet(confDir, name string) error {
 	return nil
 }
 
-// Reload instructs Caddy to reload its configuration, falling back to systemctl if needed.
+// Reload instructs Caddy to reload its configuration using the CLI or Admin API.
 func Reload(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", DefaultCaddyfile)
 	if err := cmd.Run(); err == nil {
 		return nil
 	}
-	fallbackCmd := exec.CommandContext(ctx, "systemctl", "reload", "caddy")
-	return fallbackCmd.Run()
+	return reloadViaAdminAPI(ctx, DefaultCaddyfile)
+}
+
+func reloadViaAdminAPI(ctx context.Context, configPath string) error {
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:2019/load", bytes.NewReader(content))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/caddyfile")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	body, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("caddy admin api returned %s: %s", resp.Status, string(body))
 }

@@ -2,10 +2,23 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-17
+
 ### Added
 
+- Automatic user and runtime session detection (`os/user.Current()`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`) for rootless systemd user commands.
+- Non-interactive passwordless Git credential auto-detection (`GIT_TERMINAL_PROMPT=0`, `GIT_SSH_COMMAND`, GitHub CLI `gh`, GitLab CLI `glab`, token env vars).
+- Caddy Admin API reload fallback (`http://127.0.0.1:2019/load`) avoiding Polkit password prompts.
+- Systemd user unit cgroup delegation (`Delegate=yes`) and stop timeout (`TimeoutStopSec=70s`).
+- Global CLI configuration flags and YAML file loader (`~/.gare.yml`).
 - `scripts/check.sh` — suite quality gate for `go vet`, `go test`, and `filet check`.
 - `.gitattributes` — Go language detection and line ending specification.
+
+### Fixed
+
+- Caddy static site snippet template syntax (`try_files` placed outside `file_server`).
+- Removed duplicate symbol declarations and stubs across `cmd/gare`.
+- Resolved all Filet linter errors and in-body comment rule violations.
 
 ## [0.4.1] - 2026-09-15
 

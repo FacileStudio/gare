@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"text/template"
 
@@ -12,15 +13,15 @@ import (
 
 const unitTemplate = `[Unit]
 Description=Gare Managed App: {{.Name}}
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
 Type=exec
 KillMode=mixed
+Delegate=yes
 Restart=on-failure
 RestartSec=5s
+TimeoutStopSec=70s
 ExecStart={{.PodmanPath}} kube play --replace -w {{.ManifestPath}}
 ExecStopPost=-{{.PodmanPath}} kube down {{.ManifestPath}}
 SyslogIdentifier=%N
@@ -48,8 +49,12 @@ func ResolvePodmanPath() string {
 // DefaultUserUnitDir returns the systemd user unit directory for the current user.
 func DefaultUserUnitDir() string {
 	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
+	if err != nil || home == "" {
+		if u, err := user.Current(); err == nil && u.HomeDir != "" {
+			home = u.HomeDir
+		} else {
+			home = os.Getenv("HOME")
+		}
 	}
 	return filepath.Join(home, ".config", "systemd", "user")
 }

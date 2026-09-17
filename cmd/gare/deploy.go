@@ -74,10 +74,6 @@ func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.App
 		}
 	}
 
-	if err := caddy.Reload(ctx); err != nil {
-		printWarning(fmt.Sprintf("Caddy reload returned error: %v", err))
-	}
-
 	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
 	if commitHash == "" {
 		commitHash = "-"
@@ -116,7 +112,7 @@ func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *
 		return err
 	}
 
-	cleanupAppDeploy(ctx, repoDir, name, cfg.Domain, cfg.Port)
+	cleanupAppDeploy(ctx)
 	return nil
 }
 
@@ -150,20 +146,11 @@ func restartAppServices(ctx context.Context, name string) error {
 	return nil
 }
 
-func cleanupAppDeploy(ctx context.Context, repoDir, name, domain string, port int) {
+func cleanupAppDeploy(ctx context.Context) {
 	if err := caddy.Reload(ctx); err != nil {
 		printWarning(fmt.Sprintf("Caddy reload returned error: %v", err))
 	}
 	if err := builder.PruneImages(ctx, os.Stdout, os.Stderr); err != nil {
 		printWarning(fmt.Sprintf("Image pruning returned error: %v", err))
-	}
-	commitHash, err := builder.GetCommitHash(ctx, repoDir)
-	if err != nil || commitHash == "" {
-		commitHash = "-"
-	}
-	if domain != "" {
-		printSuccess(fmt.Sprintf("Successfully deployed %s (%s) on port %d -> %s", name, commitHash, port, domain))
-	} else {
-		printSuccess(fmt.Sprintf("Successfully deployed %s (%s) on port %d", name, commitHash, port))
 	}
 }

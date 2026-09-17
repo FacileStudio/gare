@@ -64,7 +64,7 @@ func TestGenerateStaticSnippet(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expected := "example.com {\n\troot * \"/var/www/html\"\n\tfile_server {\n\t\ttry_files {path} /index.html\n\t}\n}\n"
+	expected := "example.com {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}
@@ -86,7 +86,7 @@ func TestWriteStaticSnippet(t *testing.T) {
 		t.Fatalf("failed to read static snippet file: %v", err)
 	}
 
-	expected := "static.example.com {\n\troot * \"/var/www/site\"\n\tfile_server {\n\t\ttry_files {path} /index.html\n\t}\n}\n"
+	expected := "static.example.com {\n\troot * \"/var/www/site\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
 	if string(content) != expected {
 		t.Errorf("got %q, want %q", string(content), expected)
 	}

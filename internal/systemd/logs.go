@@ -25,6 +25,7 @@ func StreamLogs(ctx context.Context, name string, opts LogOptions) error {
 		args = append(args, "-n", strconv.Itoa(opts.Lines))
 	}
 	cmd := exec.CommandContext(ctx, "journalctl", args...)
+	cmd.Env = userEnviron()
 	cmd.Stdout = opts.Stdout
 	cmd.Stderr = opts.Stderr
 	return cmd.Run()

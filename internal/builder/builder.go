@@ -31,13 +31,14 @@ type BuildOptions struct {
 
 // Clone clones a git repository using the provided options.
 func Clone(ctx context.Context, opts CloneOptions) error {
-	var args []string
+	args := gitAuthArgs()
 	if opts.Branch != "" {
-		args = []string{"clone", "--branch", opts.Branch, opts.RepoURL, opts.TargetDir}
+		args = append(args, "clone", "--branch", opts.Branch, opts.RepoURL, opts.TargetDir)
 	} else {
-		args = []string{"clone", opts.RepoURL, opts.TargetDir}
+		args = append(args, "clone", opts.RepoURL, opts.TargetDir)
 	}
 	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Env = gitEnviron()
 	cmd.Stdout = opts.Stdout
 	cmd.Stderr = opts.Stderr
 	return cmd.Run()
@@ -45,7 +46,11 @@ func Clone(ctx context.Context, opts CloneOptions) error {
 
 // Pull updates the git repository at repoDir by running git pull.
 func Pull(ctx context.Context, repoDir string, stdout, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "pull")
+	args := []string{"-C", repoDir}
+	args = append(args, gitAuthArgs()...)
+	args = append(args, "pull")
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Env = gitEnviron()
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()

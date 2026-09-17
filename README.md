@@ -1,39 +1,16 @@
 # gare
 
-Zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Kubernetes workloads on Linux.
+A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Kubernetes workloads on Linux.
 
-## Overview
+## Features
 
-`gare` provides lightweight, self-contained application management by embracing native Linux primitives:
-
-- **Zero Docker**: Runs natively with rootless Podman. Workloads are standard Kubernetes Pod manifests executed via `podman kube play`.
-- **Direct systemd supervision**: Process supervision, auto-restarts, boot behavior, and cgroup resource limits are managed natively by systemd user units synthesized directly without Quadlet.
-- **Automatic Caddy ingress**: Caddy provides automatic Let's Encrypt TLS and reverse proxy routing by importing drop-in snippets from `/etc/caddy/conf.d/*.caddy`.
-- **Stateless & file-driven**: All state is stored predictably on the filesystem (no central daemon, database, or Redis).
-- **Built-in GitOps webhook**: A lightweight HTTP daemon triggers deployments upon receiving authenticated Git webhooks (GitHub HMAC-SHA256 and GitLab tokens).
-
-## Architecture
-
-- **Base App Store**: `~/.local/share/gare/apps/<app-name>/`
-  - `repo/`: Git working copy of the project.
-  - `manifest.yaml`: Kubernetes YAML file defining the pod.
-  - `config.json`: Metadata tracking the assigned port, domain, repository URL, and branch.
-- **Systemd User Units**: `~/.config/systemd/user/<app-name>.service`
-- **Caddy Ingress**: `/etc/caddy/conf.d/<app-name>.caddy`
-
-## Install
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash
-```
-
-Installs to `~/.local/bin` via [facile](https://github.com/FacileStudio/facile), the suite installer. Pass `--bin-dir <dir>` to change that, `--source` to build from source, `--no-skill` to skip AI agent skill registration.
-
-Already have `facile`:
-
-```sh
-facile install gare
-```
+- **Rootless user space**: Runs under unprivileged user accounts with `systemctl --user` and Podman.
+- **Direct systemd supervision**: Synthesizes systemd user units directly at `~/.config/systemd/user/<app>.service`.
+- **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`.
+- **Automatic ingress**: Writes Caddy drop-in configuration snippets to `/etc/caddy/conf.d/<app>.caddy`.
+- **Static sites**: Serves static assets directly with Caddy without containers or allocated ports.
+- **GitOps webhooks**: Built-in HTTP daemon verifying GitHub HMAC-SHA256 and GitLab tokens.
+- **Passwordless operations**: Auto-detects user session buses (`XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`) and Git credentials.
 
 ## Quickstart
 
@@ -43,7 +20,7 @@ facile install gare
 gare init
 ```
 
-Verifies that `podman`, `caddy`, and `git` are available, checks systemd user lingering (`loginctl enable-linger`), validates pause container setup, and ensures base directories exist.
+Verifies that `podman`, `caddy`, and `git` are available, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage directories.
 
 ### 2. Create an application
 
@@ -88,7 +65,7 @@ static_dir: dist
 build_cmd: bun run build
 ```
 
-CLI flags always take precedence over `gare.yml` settings.
+CLI flags take precedence over `gare.yml` settings.
 
 ### 3. Deploy the application
 
@@ -96,7 +73,7 @@ CLI flags always take precedence over `gare.yml` settings.
 gare deploy myapp
 ```
 
-Pulls latest Git changes, re-synchronizes Kubernetes manifests, builds the container image with rootless Podman, and reloads systemd and Caddy.
+Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, and reloads systemd and Caddy.
 
 ### 4. Inspect status and logs
 
@@ -119,6 +96,27 @@ gare destroy myapp
 ```
 
 Stops and disables the systemd service, removes the unit file, removes the Caddy snippet, prunes container images, and cleans up app storage.
+
+## Global Configuration (`~/.gare.yml`)
+
+Gare optionally loads settings from `~/.gare.yml`:
+
+```yaml
+verbose: false
+config_path: ~/.gare.yml
+git_provider: github
+use_github_cli: true
+use_gitlab_cli: false
+credential_helper: ""
+```
+
+All configuration values can be overridden via CLI flags:
+- `-c, --config`: Path to config file (default: `~/.gare.yml`)
+- `-p, --git-provider`: Override git provider (`github`, `gitlab`)
+- `--use-github-cli`: Force use of GitHub CLI
+- `--use-gitlab-cli`: Force use of GitLab CLI
+- `-H, --credential-helper`: Override credential helper
+- `-v, --verbose`: Enable verbose logging
 
 ## GitOps Webhook Daemon
 
