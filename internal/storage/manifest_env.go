@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -66,20 +65,11 @@ func UnsetManifestEnv(manifestPath string, keys []string) error {
 
 // LoadDotEnv reads key-value pairs from an env file.
 func LoadDotEnv(filePath string) (map[string]string, error) {
-	file, err := os.Open(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	res := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		k, v, ok := parseDotEnvLine(scanner.Text())
-		if ok {
-			res[k] = v
-		}
-	}
-	return res, scanner.Err()
+	return ParseDotEnv(string(data))
 }
 
 // ParseEnvAssignments parses KEY=VALUE string slices into a map.
@@ -93,24 +83,6 @@ func ParseEnvAssignments(args []string) (map[string]string, error) {
 		res[strings.TrimSpace(k)] = v
 	}
 	return res, nil
-}
-
-func parseDotEnvLine(line string) (string, string, bool) {
-	line = strings.TrimSpace(line)
-	if line == "" || strings.HasPrefix(line, "#") {
-		return "", "", false
-	}
-	line = strings.TrimPrefix(line, "export ")
-	k, v, ok := strings.Cut(line, "=")
-	if !ok {
-		return "", "", false
-	}
-	k = strings.TrimSpace(k)
-	v = strings.TrimSpace(v)
-	if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
-		v = v[1 : len(v)-1]
-	}
-	return k, v, true
 }
 
 func extractEnvMap(envSeq *yaml.Node) map[string]string {

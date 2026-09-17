@@ -21,7 +21,7 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
 	if opts.domain != "" {
-		if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, opts.domain, opts.port); err != nil {
+		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port); err != nil {
 			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
 		}
 	}
@@ -31,39 +31,23 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	staticPath := filepath.Join(repoDir, opts.staticDir)
+	if err := systemd.WriteStaticUnit(name, opts.port, staticPath); err != nil {
+		return fmt.Errorf("failed to write systemd unit: %w", err)
+	}
 	if opts.domain != "" {
-		if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, opts.domain, staticPath); err != nil {
+		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port); err != nil {
 			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
 		}
 	}
-	appCfg := &storage.AppConfig{
-		Name:        name,
-		RepoURL:     opts.repo,
-		Domain:      opts.domain,
-		Port:        0,
-		Branch:      opts.branch,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		AppType:     "static",
-		StaticDir:   opts.staticDir,
-		BuildCmd:    opts.buildCmd,
-		Healthcheck: opts.healthcheck,
-	}
-	if err := storage.SaveConfig(appDir, appCfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-	if opts.domain != "" {
-		printSuccess(fmt.Sprintf("App %q successfully created as static site (%s)", name, opts.domain))
-	} else {
-		printSuccess(fmt.Sprintf("App %q successfully created as static site", name))
-	}
-	return nil
+	opts.appType = "static"
+	return saveAppMetadata(name, appDir, opts)
 }
 
 func resolveManifest(name, appDir, manifestPath string, port int) error {
 	repoManifest := filepath.Join(storage.GetRepoDir(appDir), "manifest.yaml")
 	if data, err := os.ReadFile(repoManifest); err == nil {
 		if err := atomicfile.WriteFile(manifestPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to copy manifest: %w", err)
+			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 		return nil
 	}
@@ -78,9 +62,10 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 		Port:          opts.port,
 		Branch:        opts.branch,
 		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
-		AppType:       "container",
+		AppType:       opts.appType,
 		Containerfile: opts.containerfile,
 		ContextDir:    opts.contextDir,
+		StaticDir:     opts.staticDir,
 		BuildCmd:      opts.buildCmd,
 		Healthcheck:   opts.healthcheck,
 	}
@@ -105,8 +90,14 @@ func syncRepoManifest(appDir, repoDir string) error {
 		return fmt.Errorf("failed to read repo manifest: %w", err)
 	}
 	appManifest := storage.GetManifestPath(appDir)
+	existingEnvs, _ := storage.GetManifestEnv(appManifest)
 	if err := atomicfile.WriteFile(appManifest, data, 0644); err != nil {
 		return fmt.Errorf("failed to sync manifest: %w", err)
+	}
+	if len(existingEnvs) > 0 {
+		if err := storage.SetManifestEnv(appManifest, existingEnvs); err != nil {
+			return fmt.Errorf("failed to restore manifest environment: %w", err)
+		}
 	}
 	printSuccess("Synced manifest.yaml from repository")
 	return nil
@@ -134,13 +125,19 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreat
 	if opts.healthcheck == "" {
 		opts.healthcheck = gf.ResolveHealthcheck()
 	}
+	if opts.port == 0 {
+		opts.port = gf.ResolvePort()
+	}
+	if opts.domain == "" {
+		opts.domain = gf.ResolveDomain()
+	}
 	return opts
 }
 
-func syncGareFileConfig(repoDir string, cfg *storage.AppConfig) {
+func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	gf, err := storage.LoadGareFile(repoDir)
 	if err != nil || gf == nil {
-		return
+		return err
 	}
 	if cfg.BuildCmd == "" {
 		cfg.BuildCmd = gf.ResolveBuildCmd()
@@ -148,7 +145,18 @@ func syncGareFileConfig(repoDir string, cfg *storage.AppConfig) {
 	if cfg.Healthcheck == "" {
 		cfg.Healthcheck = gf.ResolveHealthcheck()
 	}
+	if cfg.Domain == "" {
+		cfg.Domain = gf.ResolveDomain()
+	}
+	reqPort := gf.ResolvePort()
+	if reqPort > 0 && reqPort != cfg.Port {
+		if _, err := storage.DiscoverAvailablePort(baseDir, reqPort); err != nil {
+			return fmt.Errorf("port %d in gare.yml is not available: %w", reqPort, err)
+		}
+		cfg.Port = reqPort
+	}
 	applyGareWorkloadConfig(cfg, gf)
+	return nil
 }
 
 func applyGareWorkloadConfig(cfg *storage.AppConfig, gf *storage.GareFile) {

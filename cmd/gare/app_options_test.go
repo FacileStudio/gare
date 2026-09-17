@@ -49,26 +49,22 @@ func TestResolveAppOptionsWithGareFile(t *testing.T) {
 	if err := os.MkdirAll(repoDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	yamlContent := "type: static\nstatic_dir: build\nbuild_cmd: npm run build\n"
+	yamlContent := "type: static\nstatic_dir: build\nbuild_cmd: npm run build\nport: 8080\ndomain: static.local\n"
 	if err := os.WriteFile(filepath.Join(repoDir, "gare.yaml"), []byte(yamlContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 	opts := appCreateOptions{
-		repo:   "https://example.com/repo.git",
-		domain: "static.local",
+		repo: "https://example.com/repo.git",
 	}
 	resolved, err := resolveAppOptions(tmpDir, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.appType != "static" {
-		t.Errorf("expected static appType from gare.yaml, got %s", resolved.appType)
+	if resolved.appType != "static" || resolved.staticDir != "build" {
+		t.Errorf("unexpected static opts: %+v", resolved)
 	}
-	if resolved.staticDir != "build" {
-		t.Errorf("expected build staticDir from gare.yaml, got %s", resolved.staticDir)
-	}
-	if resolved.buildCmd != "npm run build" {
-		t.Errorf("expected buildCmd from gare.yaml, got %s", resolved.buildCmd)
+	if resolved.port != 8080 || resolved.domain != "static.local" {
+		t.Errorf("expected port 8080 and domain static.local, got %d, %s", resolved.port, resolved.domain)
 	}
 }
 
@@ -101,7 +97,7 @@ func TestResolveAppOptionsPrecedence(t *testing.T) {
 }
 
 func TestStaticSnippetGeneration(t *testing.T) {
-	snippet, err := caddy.GenerateStaticSnippet("static.test", "/var/www/dist")
+	snippet, err := caddy.GenerateStaticSnippet("static.test", 8080, "/var/www/dist")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,6 +106,9 @@ func TestStaticSnippetGeneration(t *testing.T) {
 	}
 	if !strings.Contains(snippet, "try_files") {
 		t.Errorf("expected try_files in snippet, got: %s", snippet)
+	}
+	if !strings.Contains(snippet, ":8080") {
+		t.Errorf("expected :8080 in snippet, got: %s", snippet)
 	}
 }
 

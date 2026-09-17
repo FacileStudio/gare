@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/FacileStudio/gare/internal/storage"
@@ -106,11 +105,25 @@ func TestEnvLoad(t *testing.T) {
 	}
 }
 
-func TestEnvStaticAppError(t *testing.T) {
-	setupTestApp(t, "staticapp", true)
+func TestEnvStaticApp(t *testing.T) {
+	_, appDir := setupTestApp(t, "staticapp", true)
 	cmdSet := NewEnvCmd()
 	cmdSet.SetArgs([]string{"set", "staticapp", "FOO=BAR"})
-	if err := cmdSet.Execute(); err == nil || !strings.Contains(err.Error(), "static") {
-		t.Fatalf("expected static app error, got: %v", err)
+	if err := cmdSet.Execute(); err != nil {
+		t.Fatalf("expected static app env set to succeed, got: %v", err)
+	}
+	envs, err := storage.GetStaticEnv(appDir)
+	if err != nil || envs["FOO"] != "BAR" {
+		t.Fatalf("expected FOO=BAR in static env, got: %+v, err: %v", envs, err)
+	}
+
+	cmdUnset := NewEnvCmd()
+	cmdUnset.SetArgs([]string{"unset", "staticapp", "FOO"})
+	if err := cmdUnset.Execute(); err != nil {
+		t.Fatalf("expected static app env unset to succeed, got: %v", err)
+	}
+	envs, _ = storage.GetStaticEnv(appDir)
+	if _, ok := envs["FOO"]; ok {
+		t.Fatalf("expected FOO to be unset, got: %+v", envs)
 	}
 }

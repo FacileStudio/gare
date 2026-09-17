@@ -317,23 +317,27 @@ type: container
 containerfile: apps/web/Dockerfile
 context: .
 build_cmd: make assets
+port: 3000
+domain: web.example.com
 ```
 
-For static applications served directly by Caddy, `build_cmd` is optional:
+For static applications served directly by Caddy, specify `type: static`. You can configure an optional `port`, `domain`, and `build_cmd`:
 
 ```yaml
 type: static
 static_dir: dist
+port: 8080
+domain: blog.example.com
 # build_cmd is optional; omit if no build step is needed
 ```
 
 When creating the application:
 
 ```sh
-gare app create blog --repo https://github.com/example/blog.git --domain blog.example.com
+gare app create blog --repo https://github.com/example/blog.git
 ```
 
-Gare reads `gare.yml` automatically, routes traffic through Caddy's `file_server`, runs the optional build command, and skips Podman container synthesis entirely. CLI flags override `gare.yml` values when specified.
+Gare reads `gare.yml` automatically, assigns the port (or discovers an unused one), routes traffic through Caddy's `file_server`, runs the optional build command, and skips Podman container synthesis entirely. CLI flags override `gare.yml` values when specified. Both the public domain and local port are served by Caddy.
 
 ## Automated webhook deployments
 

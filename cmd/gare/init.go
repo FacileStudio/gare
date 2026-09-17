@@ -100,7 +100,7 @@ func initDirectories() error {
 }
 
 func checkCaddyPermissions() {
-	confDir := caddy.DefaultConfDir
+	confDir := caddy.ResolveConfDir()
 	testFile := filepath.Join(confDir, ".gare_test")
 	f, err := os.Create(testFile)
 	if err != nil {

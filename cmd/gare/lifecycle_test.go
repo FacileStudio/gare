@@ -7,7 +7,7 @@ import (
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
-func TestLifecycleStaticApp(t *testing.T) {
+func TestLifecycleUnitNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "staticapp")
@@ -18,14 +18,14 @@ func TestLifecycleStaticApp(t *testing.T) {
 
 	startCmd := NewStartCmd()
 	startCmd.SetArgs([]string{"staticapp"})
-	if err := startCmd.Execute(); err != nil {
-		t.Fatalf("start static app returned error: %v", err)
+	if err := startCmd.Execute(); err == nil {
+		t.Fatalf("expected error when unit is not found in systemd, got nil")
 	}
 
 	stopCmd := NewStopCmd()
 	stopCmd.SetArgs([]string{"staticapp"})
-	if err := stopCmd.Execute(); err != nil {
-		t.Fatalf("stop static app returned error: %v", err)
+	if err := stopCmd.Execute(); err == nil {
+		t.Fatalf("expected error when unit is not found in systemd, got nil")
 	}
 }
 

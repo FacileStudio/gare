@@ -98,14 +98,14 @@ func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error
 	if err != nil {
 		return err
 	}
-	if resolvedOpts.appType == "static" {
-		return writeStaticArtifacts(name, appDir, resolvedOpts)
-	}
 	port, err := storage.DiscoverAvailablePort(baseDir, resolvedOpts.port)
 	if err != nil {
 		return fmt.Errorf("failed to discover port: %w", err)
 	}
 	resolvedOpts.port = port
+	if resolvedOpts.appType == "static" {
+		return writeStaticArtifacts(name, appDir, resolvedOpts)
+	}
 	return writeAppArtifacts(name, appDir, resolvedOpts)
 }
 

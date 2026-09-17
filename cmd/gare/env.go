@@ -99,7 +99,12 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 		return err
 	}
 	if cfg.IsStatic() {
-		return fmt.Errorf("app %q is a static site; environment variables not supported", name)
+		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
+		if err := storage.SetStaticEnv(appDir, vars); err != nil {
+			return fmt.Errorf("failed to set static env: %w", err)
+		}
+		printSuccess(fmt.Sprintf("Updated %d environment variable(s) in static env", len(vars)))
+		return reloadIfActive(ctx, name)
 	}
 	if err := storage.SetManifestEnv(manifestPath, vars); err != nil {
 		return fmt.Errorf("failed to set environment variables: %w", err)
@@ -114,7 +119,12 @@ func runEnvUnset(ctx context.Context, name string, keys []string) error {
 		return err
 	}
 	if cfg.IsStatic() {
-		return fmt.Errorf("app %q is a static site; environment variables not supported", name)
+		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
+		if err := storage.UnsetStaticEnv(appDir, keys); err != nil {
+			return fmt.Errorf("failed to unset static env: %w", err)
+		}
+		printSuccess(fmt.Sprintf("Removed %d environment variable(s) from static env", len(keys)))
+		return reloadIfActive(ctx, name)
 	}
 	if err := storage.UnsetManifestEnv(manifestPath, keys); err != nil {
 		return fmt.Errorf("failed to unset environment variables: %w", err)
@@ -133,7 +143,12 @@ func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 		return err
 	}
 	if cfg.IsStatic() {
-		return fmt.Errorf("app %q is a static site; environment variables not supported", name)
+		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
+		if err := storage.SetStaticEnv(appDir, vars); err != nil {
+			return fmt.Errorf("failed to load static env: %w", err)
+		}
+		printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))
+		return reloadIfActive(ctx, name)
 	}
 	if err := storage.SetManifestEnv(manifestPath, vars); err != nil {
 		return fmt.Errorf("failed to load environment variables: %w", err)

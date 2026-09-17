@@ -12,6 +12,7 @@ import (
 	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/health"
 	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,6 @@ func RunDeploy(ctx context.Context, name string) error {
 
 	baseDir := storage.DefaultBaseDir()
 	appDir := storage.GetAppDir(baseDir, name)
-
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
 		return fmt.Errorf("app %q not found or invalid config: %w", name, err)
@@ -48,16 +48,31 @@ func RunDeploy(ctx context.Context, name string) error {
 	if err := builder.Pull(ctx, repoDir, os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("git pull failed: %w", err)
 	}
-
-	syncGareFileConfig(repoDir, cfg)
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
-		printWarning(fmt.Sprintf("Could not persist updated config (%v)", err))
+	if err := syncDeployConfig(baseDir, repoDir, appDir, cfg); err != nil {
+		return err
 	}
 
 	if cfg.IsStatic() {
 		return deployStaticApp(ctx, name, repoDir, cfg)
 	}
 	return deployContainerApp(ctx, name, appDir, repoDir, cfg)
+}
+
+func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) error {
+	if err := syncGareFileConfig(baseDir, repoDir, cfg); err != nil {
+		return err
+	}
+	if cfg.Port == 0 {
+		port, err := storage.DiscoverAvailablePort(baseDir, 0)
+		if err != nil {
+			return fmt.Errorf("failed to discover free port: %w", err)
+		}
+		cfg.Port = port
+	}
+	if err := storage.SaveConfig(appDir, cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not persist updated config (%v)", err))
+	}
+	return nil
 }
 
 func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
@@ -69,21 +84,28 @@ func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.App
 	}
 
 	staticPath := filepath.Join(repoDir, cfg.StaticDir)
-	if cfg.Domain != "" {
-		if err := caddy.WriteStaticSnippet(caddy.DefaultConfDir, name, cfg.Domain, staticPath); err != nil {
-			printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
-		}
+	if err := systemd.WriteStaticUnit(name, cfg.Port, staticPath); err != nil {
+		return fmt.Errorf("failed to write systemd unit: %w", err)
+	}
+
+	updateContainerIngress(name, cfg)
+
+	if err := restartAppServices(ctx, name); err != nil {
+		return err
+	}
+	if err := verifyHealth(ctx, cfg); err != nil {
+		return err
 	}
 
 	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
 	if commitHash == "" {
 		commitHash = "-"
 	}
+	target := fmt.Sprintf("port %d", cfg.Port)
 	if cfg.Domain != "" {
-		printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, cfg.Domain))
-	} else {
-		printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s)", name, commitHash))
+		target = fmt.Sprintf("%s (port %d)", cfg.Domain, cfg.Port)
 	}
+	printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, target))
 	return nil
 }
 
@@ -121,7 +143,7 @@ func executePreDeploy(ctx context.Context, name, appDir, repoDir string, cfg *st
 
 func updateContainerIngress(name string, cfg *storage.AppConfig) {
 	if cfg.Domain != "" && cfg.Port > 0 {
-		if err := caddy.WriteSnippet(caddy.DefaultConfDir, name, cfg.Domain, cfg.Port); err != nil {
+		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port); err != nil {
 			printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
 		}
 	}
@@ -130,6 +152,11 @@ func updateContainerIngress(name string, cfg *storage.AppConfig) {
 func verifyHealth(ctx context.Context, cfg *storage.AppConfig) error {
 	if cfg.Port <= 0 {
 		return nil
+	}
+	time.Sleep(100 * time.Millisecond)
+	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
+	if props != nil && props.ActiveState != "active" {
+		return fmt.Errorf("service %s failed to start (state: %s)", cfg.Name, props.ActiveState)
 	}
 	healthPath := cfg.Healthcheck
 	if healthPath == "" {

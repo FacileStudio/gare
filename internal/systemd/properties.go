@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ServiceProperties represents runtime systemd status properties for an application.
@@ -25,6 +26,26 @@ func Start(ctx context.Context, name string) error {
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+// WaitForState polls the service until it reaches the expected active state or context expires.
+func WaitForState(ctx context.Context, name, target string) error {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		props, err := GetServiceProperties(ctx, name)
+		if err == nil && props.ActiveState == target {
+			return nil
+		}
+		if err == nil && target == "active" && props.ActiveState == "failed" {
+			return fmt.Errorf("service %s entered failed state", name)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for %s to reach %s state: %w", name, target, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 // GetServiceProperties queries systemctl show for unit properties.

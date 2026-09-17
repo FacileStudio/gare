@@ -85,14 +85,14 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		CreatedAt:   cfg.CreatedAt,
 		Healthcheck: cfg.Healthcheck,
 	}
-	if !cfg.IsStatic() {
-		props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
-		details.Service = props
-		if props != nil && props.ActiveState != "" {
-			details.Status = props.ActiveState
-		} else {
-			details.Status = "inactive"
-		}
+	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
+	details.Service = props
+	if props != nil && props.ActiveState != "" {
+		details.Status = props.ActiveState
+	} else if cfg.IsStatic() {
+		details.Status = "static"
+	} else {
+		details.Status = "inactive"
 	}
 	return details
 }

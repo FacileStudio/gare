@@ -2,7 +2,24 @@
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-09-17
+## [0.7.0] - 2026-09-17
+
+### Added
+
+- Static workload systemd user unit synthesis running `caddy file-server` with automated port binding and health check verification.
+- Static application environment variable support (`~/.local/share/gare/apps/<name>/env`) injected into systemd user units via `EnvironmentFile`.
+- Automatic free port discovery starting from port 8000 and collision detection for declared ports in `gare.yml`.
+- Systemd lifecycle state verification (`WaitForState`) in `gare start`, `stop`, and `restart` with status output and 90s shutdown timeout.
+- Default limit of 100 lines for `gare logs` and clean signal handling for `SIGINT` / `Ctrl+C`.
+- Robust `.env` parser supporting inline comments, single/double quotes, escape sequences, and multiline values.
+- Preservation of configured environment variables across `gare deploy` repository manifest updates.
+
+### Fixed
+
+- Prevented `gare restart` crash on static sites attempting to reload missing `/etc/caddy/Caddyfile`.
+- Resolved no-op behavior in `gare start` and `gare stop` for static applications.
+- Suppressed `signal: interrupt` exit code 1 error when canceling `gare logs -f`.
+
 
 ### Added
 

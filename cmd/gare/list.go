@@ -71,10 +71,11 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 		appDir := storage.GetAppDir(baseDir, app.Name)
 		repoDir := storage.GetRepoDir(appDir)
 		commit, _ := builder.GetCommitHash(ctx, repoDir)
-		status := "static"
-		if !app.IsStatic() {
-			status, _ = systemd.IsActive(ctx, app.Name)
-			if status == "" {
+		status, _ := systemd.IsActive(ctx, app.Name)
+		if status == "" {
+			if app.IsStatic() {
+				status = "static"
+			} else {
 				status = "inactive"
 			}
 		}

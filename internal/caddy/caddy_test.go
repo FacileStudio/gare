@@ -59,14 +59,35 @@ func TestGetSnippetPath(t *testing.T) {
 }
 
 func TestGenerateStaticSnippet(t *testing.T) {
-	snippet, err := GenerateStaticSnippet("example.com", "/var/www/html")
+	snippet, err := GenerateStaticSnippet("example.com", 0, "/var/www/html")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	expected := "example.com {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
+	}
+
+	snippet, err = GenerateStaticSnippet("", 8080, "/var/www/html")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected = ":8080 {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	if snippet != expected {
+		t.Errorf("got %q, want %q", snippet, expected)
+	}
+
+	snippet, err = GenerateStaticSnippet("example.com", 8080, "/var/www/html")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected = "example.com, :8080 {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	if snippet != expected {
+		t.Errorf("got %q, want %q", snippet, expected)
+	}
+
+	if _, err := GenerateStaticSnippet("", 0, "/var/www/html"); err == nil {
+		t.Errorf("expected error when neither domain nor port specified")
 	}
 }
 
@@ -76,7 +97,7 @@ func TestWriteStaticSnippet(t *testing.T) {
 	domain := "static.example.com"
 	rootDir := "/var/www/site"
 
-	if err := WriteStaticSnippet(tempDir, name, domain, rootDir); err != nil {
+	if err := WriteStaticSnippet(tempDir, name, domain, 8080, rootDir); err != nil {
 		t.Fatalf("unexpected error writing static snippet: %v", err)
 	}
 
@@ -86,7 +107,7 @@ func TestWriteStaticSnippet(t *testing.T) {
 		t.Fatalf("failed to read static snippet file: %v", err)
 	}
 
-	expected := "static.example.com {\n\troot * \"/var/www/site\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	expected := "static.example.com, :8080 {\n\troot * \"/var/www/site\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
 	if string(content) != expected {
 		t.Errorf("got %q, want %q", string(content), expected)
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -32,7 +31,7 @@ func NewStopCmd() *cobra.Command {
 		Short: "Stop an application workload",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), 90*time.Second)
 			defer cancel()
 			return runStopApp(ctx, args[0])
 		},
@@ -46,7 +45,7 @@ func NewRestartCmd() *cobra.Command {
 		Short: "Restart an application workload",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), 90*time.Second)
 			defer cancel()
 			return runRestartApp(ctx, args[0])
 		},
@@ -54,53 +53,44 @@ func NewRestartCmd() *cobra.Command {
 }
 
 func runStartApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
-	if err != nil {
+	if _, err := loadAppForLifecycle(name); err != nil {
 		return err
-	}
-	if cfg.IsStatic() {
-		printInfo(fmt.Sprintf("App %q is static and served by Caddy", name))
-		return nil
 	}
 	if err := systemd.Start(ctx, name); err != nil {
 		return fmt.Errorf("failed to start %q: %w", name, err)
 	}
-	printSuccess(fmt.Sprintf("Started %s.service", name))
+	if err := systemd.WaitForState(ctx, name, "active"); err != nil {
+		return fmt.Errorf("failed to verify %q active state: %w", name, err)
+	}
+	printSuccess(fmt.Sprintf("Started %s.service (active)", name))
 	return nil
 }
 
 func runStopApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
-	if err != nil {
+	if _, err := loadAppForLifecycle(name); err != nil {
 		return err
-	}
-	if cfg.IsStatic() {
-		printInfo(fmt.Sprintf("App %q is static and served by Caddy", name))
-		return nil
 	}
 	if err := systemd.Stop(ctx, name); err != nil {
 		return fmt.Errorf("failed to stop %q: %w", name, err)
 	}
-	printSuccess(fmt.Sprintf("Stopped %s.service", name))
+	if err := systemd.WaitForState(ctx, name, "inactive"); err != nil {
+		return fmt.Errorf("failed to verify %q inactive state: %w", name, err)
+	}
+	printSuccess(fmt.Sprintf("Stopped %s.service (inactive)", name))
 	return nil
 }
 
 func runRestartApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
-	if err != nil {
+	if _, err := loadAppForLifecycle(name); err != nil {
 		return err
-	}
-	if cfg.IsStatic() {
-		if err := caddy.Reload(ctx); err != nil {
-			return fmt.Errorf("failed to reload caddy: %w", err)
-		}
-		printSuccess("Reloaded Caddy configuration for static site")
-		return nil
 	}
 	if err := systemd.Restart(ctx, name); err != nil {
 		return fmt.Errorf("failed to restart %q: %w", name, err)
 	}
-	printSuccess(fmt.Sprintf("Restarted %s.service", name))
+	if err := systemd.WaitForState(ctx, name, "active"); err != nil {
+		return fmt.Errorf("failed to verify %q active state: %w", name, err)
+	}
+	printSuccess(fmt.Sprintf("Restarted %s.service (active)", name))
 	return nil
 }
 

@@ -16,10 +16,13 @@ func runEnvList(w io.Writer, name string, opts envListOptions) error {
 	if err != nil {
 		return err
 	}
+	var envs map[string]string
 	if cfg.IsStatic() {
-		return fmt.Errorf("app %q is a static site; environment variables not supported", name)
+		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
+		envs, err = storage.GetStaticEnv(appDir)
+	} else {
+		envs, err = storage.GetManifestEnv(manifestPath)
 	}
-	envs, err := storage.GetManifestEnv(manifestPath)
 	if err != nil {
 		return fmt.Errorf("failed to read environment variables: %w", err)
 	}
@@ -75,7 +78,12 @@ func reloadIfActive(ctx context.Context, name string) error {
 		if err := systemd.Restart(ctx, name); err != nil {
 			return fmt.Errorf("failed to restart %s: %w", name, err)
 		}
-		printSuccess(fmt.Sprintf("Restarted %s.service", name))
+		if err := systemd.WaitForState(ctx, name, "active"); err != nil {
+			return fmt.Errorf("failed to verify %s active state: %w", name, err)
+		}
+		printSuccess(fmt.Sprintf("Restarted %s.service (active)", name))
+		return nil
 	}
+	printInfo(fmt.Sprintf("Service %s is not active (%s); environment saved", name, status))
 	return nil
 }

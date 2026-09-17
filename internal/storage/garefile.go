@@ -24,6 +24,8 @@ type BuildSection struct {
 // GareFile represents the configuration parsed from gare.yaml or gare.yml.
 type GareFile struct {
 	Type          string         `yaml:"type"`
+	Port          int            `yaml:"port"`
+	Domain        string         `yaml:"domain"`
 	Containerfile string         `yaml:"containerfile"`
 	Context       string         `yaml:"context"`
 	StaticDir     string         `yaml:"static_dir"`

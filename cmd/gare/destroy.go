@@ -32,11 +32,9 @@ func NewDestroyCmd() *cobra.Command {
 			cfg, _ := storage.LoadConfig(appDir)
 			isStatic := cfg != nil && cfg.IsStatic()
 
-			if !isStatic {
-				teardownServices(ctx, name)
-			}
+			teardownServices(ctx, name)
 			removeArtifacts(ctx, name, appDir, isStatic)
-			reloadDaemons(ctx, isStatic)
+			reloadDaemons(ctx)
 
 			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
 			return nil
@@ -63,7 +61,7 @@ func teardownServices(ctx context.Context, name string) {
 
 func removeArtifacts(ctx context.Context, name, appDir string, isStatic bool) {
 	printInfo("Removing Caddy snippet...")
-	if err := caddy.RemoveSnippet(caddy.DefaultConfDir, name); err != nil {
+	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err != nil {
 		printWarning(fmt.Sprintf("removing caddy snippet returned error: %v", err))
 	}
 
@@ -81,12 +79,10 @@ func removeArtifacts(ctx context.Context, name, appDir string, isStatic bool) {
 	}
 }
 
-func reloadDaemons(ctx context.Context, isStatic bool) {
-	if !isStatic {
-		printInfo("Reloading systemd daemon...")
-		if err := systemd.DaemonReload(ctx); err != nil {
-			printWarning(fmt.Sprintf("daemon-reload error: %v", err))
-		}
+func reloadDaemons(ctx context.Context) {
+	printInfo("Reloading systemd daemon...")
+	if err := systemd.DaemonReload(ctx); err != nil {
+		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
 	}
 
 	printInfo("Reloading Caddy...")

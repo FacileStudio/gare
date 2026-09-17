@@ -23,6 +23,16 @@ func TestLogsCmdFlags(t *testing.T) {
 	}
 }
 
+func TestLogsAppNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	cmd := NewLogsCmd()
+	cmd.SetArgs([]string{"nonexistent"})
+	if err := cmd.Execute(); err == nil {
+		t.Fatalf("expected error for nonexistent app, got nil")
+	}
+}
+
 func TestListCmdEmptyTable(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
