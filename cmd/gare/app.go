@@ -43,11 +43,15 @@ func NewAppCmd() *cobra.Command {
 func newAppCreateCmd() *cobra.Command {
 	opts := appCreateOptions{}
 	cmd := &cobra.Command{
-		Use:   "create <name> --repo <git-url> [--domain <domain>]",
+		Use:   "create [name] --repo <git-url> [--domain <domain>]",
 		Short: "Create a new application",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			return runCreateApp(c.Context(), args[0], opts)
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			return runCreateApp(c.Context(), name, opts)
 		},
 	}
 
@@ -69,6 +73,9 @@ func newAppCreateCmd() *cobra.Command {
 }
 
 func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions) error {
+	if name == "" {
+		name = deriveAppName(opts.repo)
+	}
 	if err := validateCreateInputs(name, opts); err != nil {
 		return err
 	}
@@ -93,6 +100,16 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	return setupAppWorkload(baseDir, name, appDir, opts)
 }
 
+func deriveAppName(repoURL string) string {
+	cleaned := strings.TrimSpace(repoURL)
+	cleaned = strings.TrimSuffix(cleaned, "/")
+	cleaned = strings.TrimSuffix(cleaned, ".git")
+	if idx := strings.LastIndexAny(cleaned, "/:"); idx != -1 {
+		cleaned = cleaned[idx+1:]
+	}
+	return strings.ToLower(cleaned)
+}
+
 func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error {
 	resolvedOpts, err := resolveAppOptions(appDir, opts)
 	if err != nil {
@@ -110,6 +127,9 @@ func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error
 }
 
 func validateCreateInputs(name string, opts appCreateOptions) error {
+	if name == "" {
+		return fmt.Errorf("app name is required as an argument or inferrable from --repo")
+	}
 	if err := storage.ValidateAppName(name); err != nil {
 		return err
 	}

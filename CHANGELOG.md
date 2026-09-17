@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-17
+
+### Added
+
+- Automatic Caddyfile and drop-in snippet directory initialization in `caddy.Reload`, `WriteSnippet`, and `WriteStaticSnippet`.
+- Automatic appending of `import /etc/caddy/conf.d/*.caddy` to existing Caddyfiles when snippet imports are absent.
+- Automatic application name inference from Git repository URLs in `gare app create` when the name argument is omitted.
+
+### Fixed
+
+- Resolved Caddy reload failure on missing `/etc/caddy/Caddyfile` during `gare destroy`, `deploy`, and lifecycle operations.
+- Resolved Cobra flag collision where root persistent flag shorthand `-p` shadowed `--port` (`-p`) on child commands.
+
 ## [0.7.0] - 2026-09-17
 
 ### Added

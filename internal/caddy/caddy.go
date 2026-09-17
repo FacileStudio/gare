@@ -113,6 +113,14 @@ func GetSnippetPath(confDir, name string) string {
 
 // WriteSnippet generates and writes a Caddy configuration snippet atomically to disk.
 func WriteSnippet(confDir, name, domain string, port int) error {
+	if confDir == "" {
+		confDir = ResolveConfDir()
+	}
+	if err := EnsureCaddyfilePaths(ResolveCaddyfilePath(), confDir); err != nil {
+		confErr := err
+		if confErr != nil {
+		}
+	}
 	content, err := GenerateSnippet(domain, port)
 	if err != nil {
 		return err
@@ -124,6 +132,14 @@ func WriteSnippet(confDir, name, domain string, port int) error {
 
 // WriteStaticSnippet generates and writes a static file server configuration snippet atomically to disk.
 func WriteStaticSnippet(confDir, name, domain string, port int, rootDir string) error {
+	if confDir == "" {
+		confDir = ResolveConfDir()
+	}
+	if err := EnsureCaddyfilePaths(ResolveCaddyfilePath(), confDir); err != nil {
+		confErr := err
+		if confErr != nil {
+		}
+	}
 	content, err := GenerateStaticSnippet(domain, port, rootDir)
 	if err != nil {
 		return err
@@ -144,6 +160,11 @@ func RemoveSnippet(confDir, name string) error {
 
 // Reload instructs Caddy to reload its configuration using the CLI or Admin API.
 func Reload(ctx context.Context) error {
+	if err := EnsureCaddyfile(); err != nil {
+		confErr := err
+		if confErr != nil {
+		}
+	}
 	caddyfile := ResolveCaddyfilePath()
 	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", caddyfile)
 	if err := cmd.Run(); err == nil {

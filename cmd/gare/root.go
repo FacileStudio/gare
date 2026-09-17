@@ -53,10 +53,10 @@ func newRootCmd(version string) *cobra.Command {
 func registerRootFlags(root *cobra.Command, flags *rootFlags) {
 	root.PersistentFlags().BoolVarP(&flags.verbose, "verbose", "v", false, "Enable verbose logging")
 	root.PersistentFlags().StringVarP(&flags.configPath, "config", "c", flags.configPath, "Path to config file (default: ~/.gare.yml)")
-	root.PersistentFlags().StringVarP(&flags.gitProvider, "git-provider", "p", flags.gitProvider, "Override git provider (github, gitlab)")
+	root.PersistentFlags().StringVar(&flags.gitProvider, "git-provider", flags.gitProvider, "Override git provider (github, gitlab)")
 	root.PersistentFlags().BoolVar(&flags.useGitHubCLI, "use-github-cli", flags.useGitHubCLI, "Force use of GitHub CLI")
 	root.PersistentFlags().BoolVar(&flags.useGitLabCLI, "use-gitlab-cli", flags.useGitLabCLI, "Force use of GitLab CLI")
-	root.PersistentFlags().StringVarP(&flags.credentialHelper, "credential-helper", "H", flags.credentialHelper, "Override credential helper")
+	root.PersistentFlags().StringVar(&flags.credentialHelper, "credential-helper", flags.credentialHelper, "Override credential helper")
 }
 
 func setupPreRun(root *cobra.Command, flags *rootFlags) {
