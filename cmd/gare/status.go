@@ -19,17 +19,18 @@ type statusOptions struct {
 
 // AppStatusDetails holds detailed status for a single application.
 type AppStatusDetails struct {
-	Name        string                     `json:"name"`
-	AppType     string                     `json:"app_type"`
-	Status      string                     `json:"status"`
-	Domain      string                     `json:"domain,omitempty"`
-	Port        int                        `json:"port,omitempty"`
-	RepoURL     string                     `json:"repo_url"`
-	Branch      string                     `json:"branch"`
-	Commit      string                     `json:"commit"`
-	CreatedAt   string                     `json:"created_at"`
-	Healthcheck string                     `json:"healthcheck,omitempty"`
-	Service     *systemd.ServiceProperties `json:"service,omitempty"`
+	Name          string                     `json:"name"`
+	AppType       string                     `json:"app_type"`
+	Status        string                     `json:"status"`
+	Domain        string                     `json:"domain,omitempty"`
+	Port          int                        `json:"port,omitempty"`
+	ContainerPort int                        `json:"container_port,omitempty"`
+	RepoURL       string                     `json:"repo_url"`
+	Branch        string                     `json:"branch"`
+	Commit        string                     `json:"commit"`
+	CreatedAt     string                     `json:"created_at"`
+	Healthcheck   string                     `json:"healthcheck,omitempty"`
+	Service       *systemd.ServiceProperties `json:"service,omitempty"`
 }
 
 // NewStatusCmd builds the status command.
@@ -74,16 +75,17 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		commit = "-"
 	}
 	details := &AppStatusDetails{
-		Name:        cfg.Name,
-		AppType:     cfg.AppType,
-		Status:      "inactive",
-		Domain:      cfg.Domain,
-		Port:        cfg.Port,
-		RepoURL:     cfg.RepoURL,
-		Branch:      cfg.Branch,
-		Commit:      commit,
-		CreatedAt:   cfg.CreatedAt,
-		Healthcheck: cfg.Healthcheck,
+		Name:          cfg.Name,
+		AppType:       cfg.AppType,
+		Status:        "inactive",
+		Domain:        cfg.Domain,
+		Port:          cfg.Port,
+		ContainerPort: cfg.ContainerPort,
+		RepoURL:       cfg.RepoURL,
+		Branch:        cfg.Branch,
+		Commit:        commit,
+		CreatedAt:     cfg.CreatedAt,
+		Healthcheck:   cfg.Healthcheck,
 	}
 	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
 	details.Service = props

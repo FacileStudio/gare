@@ -64,6 +64,11 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 		}
 		cfg.Port = port
 	}
+	if !cfg.IsStatic() && cfg.ContainerPort == 0 {
+		if exposed := builder.DetectExposedPort(repoDir, cfg.Containerfile); exposed > 0 {
+			cfg.ContainerPort = exposed
+		}
+	}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not persist updated config (%v)", err))
 	}

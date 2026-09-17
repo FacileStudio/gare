@@ -18,7 +18,7 @@ spec:
   - name: webapp
     image: localhost/webapp:latest
     ports:
-    - containerPort: 8080
+    - containerPort: 3011
       hostPort: 8080
 `
 
@@ -95,7 +95,7 @@ func testInvalidConfigs(t *testing.T, tmpDir string) {
 func TestGenerateDefaultManifest(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestFile := filepath.Join(tmpDir, "manifest.yaml")
-	if err := GenerateDefaultManifest("webapp", 8080, manifestFile); err != nil {
+	if err := GenerateDefaultManifest("webapp", 3011, 8080, manifestFile); err != nil {
 		t.Fatalf("GenerateDefaultManifest failed: %v", err)
 	}
 	content, err := os.ReadFile(manifestFile)
@@ -107,7 +107,7 @@ func TestGenerateDefaultManifest(t *testing.T) {
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := GenerateDefaultManifest("webapp2", 9000, appDir); err != nil {
+	if err := GenerateDefaultManifest("webapp2", 3011, 9000, appDir); err != nil {
 		t.Fatalf("GenerateDefaultManifest with dir failed: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(appDir, "manifest.yaml")); err != nil {

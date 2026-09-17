@@ -32,7 +32,11 @@ func appendWorkloadDetails(t *tree.Tree, d *AppStatusDetails, bold lipgloss.Styl
 	workloadNode.Child(fmt.Sprintf("Type:   %s", d.AppType))
 	workloadNode.Child(fmt.Sprintf("Status: %s", statusStyle(d.Status).Render(d.Status)))
 	if d.Port > 0 {
-		workloadNode.Child(fmt.Sprintf("Port:   %d", d.Port))
+		if d.ContainerPort > 0 && d.ContainerPort != d.Port {
+			workloadNode.Child(fmt.Sprintf("Port:   %d -> %d", d.Port, d.ContainerPort))
+		} else {
+			workloadNode.Child(fmt.Sprintf("Port:   %d", d.Port))
+		}
 	}
 	if d.Domain != "" {
 		workloadNode.Child(fmt.Sprintf("Domain: %s", d.Domain))

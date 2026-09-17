@@ -9,7 +9,7 @@ import (
 func TestManifestEnvGetAndSet(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestPath := filepath.Join(tmpDir, "manifest.yaml")
-	if err := GenerateDefaultManifest("testapp", 8080, manifestPath); err != nil {
+	if err := GenerateDefaultManifest("testapp", 8080, 8080, manifestPath); err != nil {
 		t.Fatalf("failed to generate default manifest: %v", err)
 	}
 
@@ -32,7 +32,7 @@ func TestManifestEnvGetAndSet(t *testing.T) {
 func TestManifestEnvUpdateAndUnset(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestPath := filepath.Join(tmpDir, "manifest.yaml")
-	if err := GenerateDefaultManifest("testapp", 8080, manifestPath); err != nil {
+	if err := GenerateDefaultManifest("testapp", 8080, 8080, manifestPath); err != nil {
 		t.Fatalf("failed to generate default manifest: %v", err)
 	}
 	if err := SetManifestEnv(manifestPath, map[string]string{"PORT": "8080", "SECRET": "old"}); err != nil {

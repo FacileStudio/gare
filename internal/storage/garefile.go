@@ -25,6 +25,7 @@ type BuildSection struct {
 type GareFile struct {
 	Type          string         `yaml:"type"`
 	Port          int            `yaml:"port"`
+	ContainerPort int            `yaml:"container_port,omitempty"`
 	Domain        string         `yaml:"domain"`
 	Containerfile string         `yaml:"containerfile"`
 	Context       string         `yaml:"context"`
@@ -35,7 +36,6 @@ type GareFile struct {
 	Static        *StaticSection `yaml:"static"`
 	Build         *BuildSection  `yaml:"build"`
 }
-
 
 // ResolveType returns the application type, defaulting to "container".
 func (g *GareFile) ResolveType() string {

@@ -21,6 +21,7 @@ type appCreateOptions struct {
 	repo          string
 	domain        string
 	port          int
+	containerPort int
 	branch        string
 	appType       string
 	containerfile string
@@ -59,6 +60,7 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.repo, "repo", "r", "", "Git repository URL")
 	cmd.Flags().StringVarP(&opts.domain, "domain", "d", "", "Domain name")
 	cmd.Flags().IntVarP(&opts.port, "port", "p", 0, "Port to allocate (0 for auto-discovery)")
+	cmd.Flags().IntVar(&opts.containerPort, "container-port", 0, "Container internal port (from Containerfile EXPOSE)")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "main", "Git branch")
 	cmd.Flags().StringVarP(&opts.appType, "type", "t", "", "Application type (container or static)")
 	cmd.Flags().StringVarP(&opts.containerfile, "containerfile", "f", "", "Path to Containerfile/Dockerfile")
@@ -146,13 +148,14 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	if opts.repo == "" {
 		return fmt.Errorf("--repo is required")
 	}
-	if opts.domain != "" {
-		if strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
-			return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
-		}
-		if !domainRegex.MatchString(opts.domain) {
-			return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
-		}
+	if opts.domain != "" && strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
+		return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
+	}
+	if opts.domain != "" && !domainRegex.MatchString(opts.domain) {
+		return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
+	}
+	if opts.containerPort < 0 || opts.containerPort > 65535 {
+		return fmt.Errorf("container port must be between 1 and 65535, got %d", opts.containerPort)
 	}
 	return nil
 }
@@ -186,6 +189,11 @@ func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, 
 	}
 	if resolved.appType == "static" && resolved.staticDir == "" {
 		resolved.staticDir = "."
+	}
+	if resolved.appType != "static" && resolved.containerPort == 0 {
+		if exposed := builder.DetectExposedPort(repoDir, resolved.containerfile); exposed > 0 {
+			resolved.containerPort = exposed
+		}
 	}
 	return resolved, nil
 }

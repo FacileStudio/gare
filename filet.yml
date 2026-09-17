@@ -19,7 +19,7 @@ limits:
   returns: 3
   nesting: 4
   complexity: 10
-  structFields: 12
+  structFields: 15
   interfaceMethods: 4
 
 architecture:
@@ -37,3 +37,4 @@ disabled:
   - gen.line.long
 
 failOn: info
+

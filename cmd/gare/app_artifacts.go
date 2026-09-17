@@ -13,13 +13,33 @@ import (
 
 func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 	manifestPath := storage.GetManifestPath(appDir)
-	if err := resolveManifest(name, appDir, manifestPath, opts.port); err != nil {
+	if err := resolveManifest(name, appDir, manifestPath, opts.port, opts.containerPort); err != nil {
 		return err
 	}
 	if err := systemd.WriteUnit(name, manifestPath); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
 	return saveAppMetadata(name, appDir, opts)
+}
+
+func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreateOptions {
+	if gf == nil {
+		return opts
+	}
+	opts.appType = defaultStr(opts.appType, gf.ResolveType())
+	opts.containerfile = defaultStr(opts.containerfile, gf.ResolveContainerfile())
+	opts.contextDir = defaultStr(opts.contextDir, gf.ResolveContext())
+	opts.staticDir = defaultStr(opts.staticDir, gf.ResolveStaticDir())
+	opts.buildCmd = defaultStr(opts.buildCmd, gf.ResolveBuildCmd())
+	opts.healthcheck = defaultStr(opts.healthcheck, gf.ResolveHealthcheck())
+	opts.domain = defaultStr(opts.domain, gf.ResolveDomain())
+	if opts.port == 0 {
+		opts.port = gf.ResolvePort()
+	}
+	if opts.containerPort == 0 {
+		opts.containerPort = gf.ResolveContainerPort()
+	}
+	return opts
 }
 
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
@@ -32,7 +52,7 @@ func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	return saveAppMetadata(name, appDir, opts)
 }
 
-func resolveManifest(name, appDir, manifestPath string, port int) error {
+func resolveManifest(name, appDir, manifestPath string, port int, containerPort int) error {
 	repoManifest := filepath.Join(storage.GetRepoDir(appDir), "manifest.yaml")
 	if data, err := os.ReadFile(repoManifest); err == nil {
 		if err := atomicfile.WriteFile(manifestPath, data, 0644); err != nil {
@@ -40,7 +60,10 @@ func resolveManifest(name, appDir, manifestPath string, port int) error {
 		}
 		return nil
 	}
-	return storage.GenerateDefaultManifest(name, port, manifestPath)
+	if containerPort <= 0 {
+		containerPort = port
+	}
+	return storage.GenerateDefaultManifest(name, containerPort, port, manifestPath)
 }
 
 func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
@@ -49,6 +72,7 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 		RepoURL:       opts.repo,
 		Domain:        opts.domain,
 		Port:          opts.port,
+		ContainerPort: opts.containerPort,
 		Branch:        opts.branch,
 		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
 		AppType:       opts.appType,
@@ -92,37 +116,6 @@ func syncRepoManifest(appDir, repoDir string) error {
 	return nil
 }
 
-func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreateOptions {
-	if gf == nil {
-		return opts
-	}
-	if opts.appType == "" {
-		opts.appType = gf.ResolveType()
-	}
-	if opts.containerfile == "" {
-		opts.containerfile = gf.ResolveContainerfile()
-	}
-	if opts.contextDir == "" {
-		opts.contextDir = gf.ResolveContext()
-	}
-	if opts.staticDir == "" {
-		opts.staticDir = gf.ResolveStaticDir()
-	}
-	if opts.buildCmd == "" {
-		opts.buildCmd = gf.ResolveBuildCmd()
-	}
-	if opts.healthcheck == "" {
-		opts.healthcheck = gf.ResolveHealthcheck()
-	}
-	if opts.port == 0 {
-		opts.port = gf.ResolvePort()
-	}
-	if opts.domain == "" {
-		opts.domain = gf.ResolveDomain()
-	}
-	return opts
-}
-
 func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	gf, err := storage.LoadGareFile(repoDir)
 	if err != nil || gf == nil {
@@ -143,6 +136,10 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 			return fmt.Errorf("port %d in gare.yml is not available: %w", reqPort, err)
 		}
 		cfg.Port = reqPort
+	}
+	reqCPort := gf.ResolveContainerPort()
+	if reqCPort > 0 {
+		cfg.ContainerPort = reqCPort
 	}
 	applyGareWorkloadConfig(cfg, gf)
 	return nil

@@ -20,6 +20,7 @@ type AppConfig struct {
 	RepoURL       string `json:"repo_url"`
 	Domain        string `json:"domain"`
 	Port          int    `json:"port"`
+	ContainerPort int    `json:"container_port,omitempty"`
 	Branch        string `json:"branch"`
 	CreatedAt     string `json:"created_at"`
 	AppType       string `json:"app_type,omitempty"`

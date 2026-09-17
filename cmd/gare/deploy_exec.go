@@ -51,7 +51,7 @@ func executePreDeploy(ctx context.Context, name, appDir, repoDir string, cfg *st
 	if err := buildAppImage(ctx, name, repoDir, cfg); err != nil {
 		return err
 	}
-	return syncRepoManifest(appDir, repoDir)
+	return syncManifest(name, appDir, repoDir, cfg)
 }
 
 func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {

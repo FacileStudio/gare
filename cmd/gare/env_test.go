@@ -28,7 +28,7 @@ func setupTestApp(t *testing.T, name string, isStatic bool) (string, string) {
 	}
 	manifestPath := storage.GetManifestPath(appDir)
 	if !isStatic {
-		if err := storage.GenerateDefaultManifest(name, 8080, manifestPath); err != nil {
+		if err := storage.GenerateDefaultManifest(name, 8080, 8080, manifestPath); err != nil {
 			t.Fatal(err)
 		}
 	}

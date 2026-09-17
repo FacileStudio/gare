@@ -161,3 +161,38 @@ func TestListCmdStaticTable(t *testing.T) {
 		t.Errorf("expected output to display static status, got %q", output)
 	}
 }
+
+func TestResolveAppOptionsContainerPortFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	opts := appCreateOptions{
+		repo:          "https://example.com/repo.git",
+		containerPort: 4000,
+	}
+	resolved, err := resolveAppOptions(tmpDir, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.containerPort != 4000 {
+		t.Errorf("expected containerPort 4000, got %d", resolved.containerPort)
+	}
+}
+
+func TestResolveAppOptionsContainerPortExpose(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := storage.GetRepoDir(tmpDir)
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dfContent := "FROM golang:alpine\nEXPOSE 8080\n"
+	if err := os.WriteFile(filepath.Join(repoDir, "Dockerfile"), []byte(dfContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	opts := appCreateOptions{repo: "https://example.com/repo.git"}
+	resolved, err := resolveAppOptions(tmpDir, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.containerPort != 8080 {
+		t.Errorf("expected detected containerPort 8080 from Dockerfile, got %d", resolved.containerPort)
+	}
+}
