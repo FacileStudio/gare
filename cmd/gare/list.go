@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"text/tabwriter"
 	"time"
 
 	"github.com/FacileStudio/gare/internal/builder"
-	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -75,16 +73,9 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 		repoDir := storage.GetRepoDir(appDir)
 		commit, _ := builder.GetCommitHash(ctx, repoDir)
 		status := "inactive"
-		if app.IsStatic() {
-			snippetPath := caddy.GetSnippetPath(caddy.ResolveConfDir(), app.Name)
-			if _, err := os.Stat(snippetPath); err == nil {
-				status = "active"
-			}
-		} else {
-			s, _ := systemd.IsActive(ctx, app.Name)
-			if s != "" {
-				status = s
-			}
+		s, _ := systemd.IsActive(ctx, app.Name)
+		if s != "" {
+			status = s
 		}
 		items = append(items, appListItem{
 			Name:      app.Name,

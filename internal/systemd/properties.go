@@ -34,11 +34,12 @@ func WaitForState(ctx context.Context, name, target string) error {
 	defer ticker.Stop()
 	for {
 		props, err := GetServiceProperties(ctx, name)
-		if err == nil && props.ActiveState == target {
-			return nil
+		matched, stateErr := checkStateMatch(props, err, target, name)
+		if stateErr != nil {
+			return stateErr
 		}
-		if err == nil && target == "active" && props.ActiveState == "failed" {
-			return fmt.Errorf("service %s entered failed state", name)
+		if matched {
+			return nil
 		}
 		select {
 		case <-ctx.Done():
@@ -46,6 +47,22 @@ func WaitForState(ctx context.Context, name, target string) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+func checkStateMatch(props *ServiceProperties, err error, target, name string) (bool, error) {
+	if err != nil || props == nil {
+		return false, nil
+	}
+	if props.ActiveState == target {
+		if target == "active" {
+			time.Sleep(50 * time.Millisecond)
+		}
+		return true, nil
+	}
+	if target == "active" && props.ActiveState == "failed" {
+		return false, fmt.Errorf("service %s entered failed state", name)
+	}
+	return false, nil
 }
 
 // GetServiceProperties queries systemctl show for unit properties.

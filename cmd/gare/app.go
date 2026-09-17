@@ -10,6 +10,7 @@ import (
 
 	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -97,7 +98,7 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 		return err
 	}
 
-	return setupAppWorkload(baseDir, name, appDir, opts)
+	return setupAppWorkload(ctx, baseDir, name, appDir, opts)
 }
 
 func deriveAppName(repoURL string) string {
@@ -110,7 +111,7 @@ func deriveAppName(repoURL string) string {
 	return strings.ToLower(cleaned)
 }
 
-func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error {
+func setupAppWorkload(ctx context.Context, baseDir, name, appDir string, opts appCreateOptions) error {
 	resolvedOpts, err := resolveAppOptions(appDir, opts)
 	if err != nil {
 		return err
@@ -121,9 +122,18 @@ func setupAppWorkload(baseDir, name, appDir string, opts appCreateOptions) error
 	}
 	resolvedOpts.port = port
 	if resolvedOpts.appType == "static" {
-		return writeStaticArtifacts(name, appDir, resolvedOpts)
+		if err := writeStaticArtifacts(name, appDir, resolvedOpts); err != nil {
+			return err
+		}
+	} else {
+		if err := writeAppArtifacts(name, appDir, resolvedOpts); err != nil {
+			return err
+		}
 	}
-	return writeAppArtifacts(name, appDir, resolvedOpts)
+	if err := systemd.DaemonReload(ctx); err != nil {
+		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
+	}
+	return nil
 }
 
 func validateCreateInputs(name string, opts appCreateOptions) error {

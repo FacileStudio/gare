@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
-	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -20,21 +19,14 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 	if err := systemd.WriteUnit(name, manifestPath); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
-	if opts.domain != "" {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port); err != nil {
-			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-		}
-	}
 	return saveAppMetadata(name, appDir, opts)
 }
 
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	staticPath := filepath.Join(repoDir, opts.staticDir)
-	if opts.domain != "" || opts.port > 0 {
-		if err := caddy.WriteStaticSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port, staticPath); err != nil {
-			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-		}
+	if err := systemd.WriteStaticUnit(name, opts.port, staticPath); err != nil {
+		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
 	opts.appType = "static"
 	return saveAppMetadata(name, appDir, opts)

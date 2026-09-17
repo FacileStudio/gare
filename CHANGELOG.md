@@ -2,7 +2,15 @@
 
 ## [Unreleased]
 
-## [0.8.3] - 2026-09-17
+## [0.8.4] - 2026-09-17
+
+### Fixed
+
+- Prevented `gare app create` from marking static applications active upon creation. Applications now remain inactive until explicitly started or deployed.
+- Resolved static application port connection failure when Caddy daemon is not running on the host by supervising static workloads directly via systemd user units (`caddy file-server --listen :<port> --root <dir>`).
+- Re-enabled `gare logs` journal streaming for static workloads.
+- Restored uniform lifecycle state inspection (`status`, `list`, `start`, `stop`, `restart`) across both container and static workloads via live systemd property polling.
+
 
 ### Fixed
 
