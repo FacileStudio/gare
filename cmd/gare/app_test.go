@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/spf13/cobra"
 )
 
 func TestValidateCreateInputs(t *testing.T) {
@@ -137,5 +139,68 @@ func TestListCmdQuiet(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "quietapp") {
 		t.Errorf("expected output to contain quietapp, got %q", buf.String())
+	}
+}
+
+func TestAppSubcommands(t *testing.T) {
+	appCmd := NewAppCmd()
+	expected := []string{
+		"create", "deploy", "list", "status", "start",
+		"stop", "restart", "logs", "destroy", "env",
+	}
+	for _, name := range expected {
+		if findSubcommand(appCmd, name) == nil {
+			t.Errorf("expected app subcommand %q not found", name)
+		}
+	}
+}
+
+func TestCommandAliases(t *testing.T) {
+	if !slices.Contains(NewAppCmd().Aliases, "apps") {
+		t.Error("expected app command to have 'apps' alias")
+	}
+	for _, alias := range []string{"delete", "rm"} {
+		if !slices.Contains(NewDestroyCmd().Aliases, alias) {
+			t.Errorf("expected destroy command to have alias %q", alias)
+		}
+	}
+	for _, alias := range []string{"ls", "ps"} {
+		if !slices.Contains(NewListCmd().Aliases, alias) {
+			t.Errorf("expected list command to have alias %q", alias)
+		}
+	}
+}
+
+func findSubcommand(parent *cobra.Command, name string) *cobra.Command {
+	for _, sub := range parent.Commands() {
+		if sub.Name() == name {
+			return sub
+		}
+	}
+	return nil
+}
+
+func TestAppListExecutionViaAppCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "subapp")
+	cfg := &storage.AppConfig{Name: "subapp", Port: 8002, Domain: "sub.local"}
+	if err := storage.SaveConfig(appDir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	root := NewRootCmd("0.1.0")
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"app", "list", "--json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var items []appListItem
+	if err := json.Unmarshal(buf.Bytes(), &items); err != nil {
+		t.Fatalf("invalid json: %v\noutput: %s", err, buf.String())
+	}
+	if len(items) != 1 || items[0].Name != "subapp" {
+		t.Errorf("expected 1 item with name subapp, got: %+v", items)
 	}
 }

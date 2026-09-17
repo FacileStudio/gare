@@ -34,11 +34,29 @@ type appCreateOptions struct {
 // NewAppCmd builds the app command group.
 func NewAppCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "app",
-		Short: "Manage applications",
+		Use:     "app",
+		Aliases: []string{"apps"},
+		Short:   "Manage applications",
+		Long: "Manage application workloads and lifecycle.\n" +
+			"Subcommands cover creating, deploying, inspecting, and tearing down applications.",
+		Example: `  gare app create myapp --repo https://github.com/org/repo.git
+  gare app deploy myapp
+  gare app list
+  gare app status myapp
+  gare app logs myapp -f
+  gare app destroy myapp`,
 	}
 
 	cmd.AddCommand(newAppCreateCmd())
+	cmd.AddCommand(NewDeployCmd())
+	cmd.AddCommand(NewListCmd())
+	cmd.AddCommand(NewStatusCmd())
+	cmd.AddCommand(NewStartCmd())
+	cmd.AddCommand(NewStopCmd())
+	cmd.AddCommand(NewRestartCmd())
+	cmd.AddCommand(NewLogsCmd())
+	cmd.AddCommand(NewDestroyCmd())
+	cmd.AddCommand(NewEnvCmd())
 	return cmd
 }
 

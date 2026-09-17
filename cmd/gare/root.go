@@ -76,16 +76,45 @@ func setupPreRun(root *cobra.Command, flags *rootFlags) {
 }
 
 func registerSubcommands(root *cobra.Command) {
-	root.AddCommand(NewInitCmd())
-	root.AddCommand(NewAppCmd())
-	root.AddCommand(NewDeployCmd())
-	root.AddCommand(NewListCmd())
-	root.AddCommand(NewStatusCmd())
-	root.AddCommand(NewStartCmd())
-	root.AddCommand(NewStopCmd())
-	root.AddCommand(NewRestartCmd())
-	root.AddCommand(NewEnvCmd())
-	root.AddCommand(NewLogsCmd())
-	root.AddCommand(NewDestroyCmd())
-	root.AddCommand(NewServerCmd())
+	root.AddGroup(&cobra.Group{
+		ID:    "management",
+		Title: "MANAGEMENT COMMANDS",
+	})
+	root.AddGroup(&cobra.Group{
+		ID:    "shortcuts",
+		Title: "APPLICATION SHORTCUTS",
+	})
+
+	registerManagementCommands(root)
+	registerShortcutCommands(root)
+}
+
+func registerManagementCommands(root *cobra.Command) {
+	appCmd := NewAppCmd()
+	appCmd.GroupID = "management"
+	envCmd := NewEnvCmd()
+	envCmd.GroupID = "management"
+	initCmd := NewInitCmd()
+	initCmd.GroupID = "management"
+	serverCmd := NewServerCmd()
+	serverCmd.GroupID = "management"
+
+	root.AddCommand(appCmd, envCmd, initCmd, serverCmd)
+}
+
+func registerShortcutCommands(root *cobra.Command) {
+	shortcuts := []*cobra.Command{
+		NewDeployCmd(),
+		NewListCmd(),
+		NewStatusCmd(),
+		NewLogsCmd(),
+		NewStartCmd(),
+		NewStopCmd(),
+		NewRestartCmd(),
+		NewDestroyCmd(),
+	}
+	for _, cmd := range shortcuts {
+		cmd.GroupID = "shortcuts"
+		root.AddCommand(cmd)
+	}
 }

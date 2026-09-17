@@ -15,9 +15,10 @@ import (
 // NewDestroyCmd builds the destroy command.
 func NewDestroyCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "destroy <name>",
-		Short: "Stop and tear down an application and its resources",
-		Args:  cobra.ExactArgs(1),
+		Use:     "destroy <name>",
+		Aliases: []string{"delete", "rm"},
+		Short:   "Stop and tear down an application and its resources",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			if err := storage.ValidateAppName(name); err != nil {

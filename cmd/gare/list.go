@@ -34,8 +34,9 @@ type appListItem struct {
 func NewListCmd() *cobra.Command {
 	opts := listOptions{}
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all managed applications",
+		Use:     "list",
+		Aliases: []string{"ls", "ps"},
+		Short:   "List all managed applications",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Second)
 			defer cancel()
