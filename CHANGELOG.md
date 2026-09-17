@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-17
+
+### Added
+
+- Automatic `sudo` fallback in `gare init` to configure `/etc/caddy` permissions seamlessly.
+- Plain-text formatted manual instructions when permission setup requires user action.
+
 ### Changed
 
 - Transitioned static site hosting to direct Caddy drop-in `file_server` snippets, removing systemd user unit synthesis and port allocation overhead for static workloads.
