@@ -37,15 +37,16 @@ func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 		}
 	}
 	appCfg := &storage.AppConfig{
-		Name:      name,
-		RepoURL:   opts.repo,
-		Domain:    opts.domain,
-		Port:      0,
-		Branch:    opts.branch,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AppType:   "static",
-		StaticDir: opts.staticDir,
-		BuildCmd:  opts.buildCmd,
+		Name:        name,
+		RepoURL:     opts.repo,
+		Domain:      opts.domain,
+		Port:        0,
+		Branch:      opts.branch,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AppType:     "static",
+		StaticDir:   opts.staticDir,
+		BuildCmd:    opts.buildCmd,
+		Healthcheck: opts.healthcheck,
 	}
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
@@ -81,6 +82,7 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 		Containerfile: opts.containerfile,
 		ContextDir:    opts.contextDir,
 		BuildCmd:      opts.buildCmd,
+		Healthcheck:   opts.healthcheck,
 	}
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
@@ -129,6 +131,9 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreat
 	if opts.buildCmd == "" {
 		opts.buildCmd = gf.ResolveBuildCmd()
 	}
+	if opts.healthcheck == "" {
+		opts.healthcheck = gf.ResolveHealthcheck()
+	}
 	return opts
 }
 
@@ -139,6 +144,9 @@ func syncGareFileConfig(repoDir string, cfg *storage.AppConfig) {
 	}
 	if cfg.BuildCmd == "" {
 		cfg.BuildCmd = gf.ResolveBuildCmd()
+	}
+	if cfg.Healthcheck == "" {
+		cfg.Healthcheck = gf.ResolveHealthcheck()
 	}
 	applyGareWorkloadConfig(cfg, gf)
 }

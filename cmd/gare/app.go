@@ -26,6 +26,7 @@ type appCreateOptions struct {
 	contextDir    string
 	staticDir     string
 	buildCmd      string
+	healthcheck   string
 }
 
 // NewAppCmd builds the app command group.
@@ -59,6 +60,7 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.contextDir, "context", "", "Build context directory relative to repository root")
 	cmd.Flags().StringVar(&opts.staticDir, "static", "", "Static assets directory to serve (relative to repository root)")
 	cmd.Flags().StringVar(&opts.buildCmd, "build-cmd", "", "Command to run during build/deployment")
+	cmd.Flags().StringVar(&opts.healthcheck, "healthcheck", "", "Health check HTTP path (e.g. /health)")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
 		return cmd

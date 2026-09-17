@@ -28,9 +28,12 @@ type GareFile struct {
 	Context       string         `yaml:"context"`
 	StaticDir     string         `yaml:"static_dir"`
 	BuildCmd      string         `yaml:"build_cmd"`
+	Healthcheck   string         `yaml:"healthcheck"`
+	HealthCheck   string         `yaml:"health_check"`
 	Static        *StaticSection `yaml:"static"`
 	Build         *BuildSection  `yaml:"build"`
 }
+
 
 // ResolveType returns the application type, defaulting to "container".
 func (g *GareFile) ResolveType() string {
@@ -87,6 +90,17 @@ func (g *GareFile) ResolveBuildCmd() string {
 		return g.Build.Command
 	}
 	return g.BuildCmd
+}
+
+// ResolveHealthcheck returns the healthcheck path if configured.
+func (g *GareFile) ResolveHealthcheck() string {
+	if g == nil {
+		return ""
+	}
+	if g.Healthcheck != "" {
+		return g.Healthcheck
+	}
+	return g.HealthCheck
 }
 
 // LoadGareFile reads and parses gare.yaml or gare.yml from the repo directory.

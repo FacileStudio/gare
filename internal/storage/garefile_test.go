@@ -80,38 +80,28 @@ func TestGareFileResolveMethods(t *testing.T) {
 	if got := nilGf.ResolveBuildCmd(); got != "" {
 		t.Errorf("nil ResolveBuildCmd: got %q, want empty", got)
 	}
+	if got := nilGf.ResolveHealthcheck(); got != "" {
+		t.Errorf("nil ResolveHealthcheck: got %q, want empty", got)
+	}
 
 	testGareFileOverrides(t)
 }
 
 func testGareFileOverrides(t *testing.T) {
 	gf := &GareFile{
-		Type:          "static",
-		Containerfile: "flat.dockerfile",
-		Context:       "flat-context",
-		StaticDir:     "flat-static",
-		BuildCmd:      "flat-build",
-		Static:        &StaticSection{Dir: "nested-static"},
-		Build: &BuildSection{
-			Command:       "nested-build",
-			Containerfile: "nested.dockerfile",
-			Context:       "nested-context",
-		},
+		Type: "static", Containerfile: "flat.dockerfile", Context: "flat-context",
+		StaticDir: "flat-static", BuildCmd: "flat-build", Healthcheck: "/healthz",
+		Static: &StaticSection{Dir: "nested-static"},
+		Build:  &BuildSection{Command: "nested-build", Containerfile: "nested.dockerfile", Context: "nested-context"},
 	}
-	if gf.ResolveType() != "static" {
-		t.Errorf("ResolveType got %q, want static", gf.ResolveType())
+	if gf.ResolveType() != "static" || gf.ResolveContainerfile() != "nested.dockerfile" {
+		t.Errorf("unexpected type/containerfile: %+v", gf)
 	}
-	if gf.ResolveContainerfile() != "nested.dockerfile" {
-		t.Errorf("ResolveContainerfile got %q, want nested.dockerfile", gf.ResolveContainerfile())
+	if gf.ResolveContext() != "nested-context" || gf.ResolveStaticDir() != "nested-static" {
+		t.Errorf("unexpected context/static dir: %+v", gf)
 	}
-	if gf.ResolveContext() != "nested-context" {
-		t.Errorf("ResolveContext got %q, want nested-context", gf.ResolveContext())
-	}
-	if gf.ResolveStaticDir() != "nested-static" {
-		t.Errorf("ResolveStaticDir got %q, want nested-static", gf.ResolveStaticDir())
-	}
-	if gf.ResolveBuildCmd() != "nested-build" {
-		t.Errorf("ResolveBuildCmd got %q, want nested-build", gf.ResolveBuildCmd())
+	if gf.ResolveBuildCmd() != "nested-build" || gf.ResolveHealthcheck() != "/healthz" {
+		t.Errorf("unexpected build cmd/healthcheck: %+v", gf)
 	}
 }
 

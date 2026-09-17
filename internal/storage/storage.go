@@ -27,6 +27,7 @@ type AppConfig struct {
 	ContextDir    string `json:"context_dir,omitempty"`
 	StaticDir     string `json:"static_dir,omitempty"`
 	BuildCmd      string `json:"build_cmd,omitempty"`
+	Healthcheck   string `json:"healthcheck,omitempty"`
 }
 
 // DefaultBaseDir returns the default directory path for app storage.

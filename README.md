@@ -9,6 +9,9 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 - **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`.
 - **Automatic ingress**: Writes Caddy drop-in configuration snippets to `/etc/caddy/conf.d/<app>.caddy`.
 - **Static sites**: Serves static assets directly with Caddy without containers or allocated ports.
+- **Environment management**: Native `gare env` commands to set, unset, load, and inspect container environment variables.
+- **Healthcheck verification**: Built-in HTTP readiness polling during deployment with configurable probes.
+- **Service lifecycle**: First-class `start`, `stop`, `restart`, and detailed `status` inspection.
 - **GitOps webhooks**: Built-in HTTP daemon verifying GitHub HMAC-SHA256 and GitLab tokens.
 - **Passwordless operations**: Auto-detects user session buses (`XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`) and Git credentials.
 
@@ -25,7 +28,7 @@ Verifies that `podman`, `caddy`, and `git` are available, checks user lingering 
 ### 2. Create an application
 
 ```sh
-gare app create myapp --repo https://github.com/example/webapp.git --domain myapp.example.com
+gare app create myapp --repo https://github.com/example/webapp.git --domain myapp.example.com --healthcheck /health
 ```
 
 Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and a systemd user unit, and writes the Caddy ingress configuration.
@@ -50,7 +53,7 @@ gare app create blog --repo https://github.com/example/blog.git --domain blog.ex
 
 #### Repository configuration (`gare.yml`)
 
-Repositories can optionally define build and workload configuration in `gare.yml` or `gare.yaml` at the root:
+Repositories can optionally define build, workload, and health check configuration in `gare.yml` or `gare.yaml` at the root:
 
 ```yaml
 # For container workloads:
@@ -58,6 +61,7 @@ type: container
 containerfile: apps/web/Dockerfile
 context: .
 build_cmd: make assets
+healthcheck: /health
 
 # For static workloads:
 type: static
@@ -67,21 +71,49 @@ build_cmd: bun run build
 
 CLI flags take precedence over `gare.yml` settings.
 
-### 3. Deploy the application
+### 3. Manage environment variables
+
+Manage container environment variables directly in the Kubernetes manifest:
+
+```sh
+# Set key-value pairs
+gare env set myapp DATABASE_URL=postgres://localhost/db LOG_LEVEL=info
+
+# Load from .env file
+gare env load myapp -f .env
+
+# List configured variables
+gare env list myapp
+gare env list myapp --json
+
+# Remove variables
+gare env unset myapp LOG_LEVEL
+```
+
+When updated, active application services are automatically restarted to apply new environment values.
+
+### 4. Deploy the application
 
 ```sh
 gare deploy myapp
 ```
 
-Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, and reloads systemd and Caddy.
+Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe.
 
-### 4. Inspect status and logs
+### 5. Lifecycle and status inspection
 
 ```sh
+# Start, stop, or restart an application
+gare start myapp
+gare stop myapp
+gare restart myapp
+
+# Inspect detailed status and systemd properties
+gare status myapp
+gare status myapp --json
+
 # View all applications in a styled terminal table
 gare list
-
-# Machine-readable output for scripts
 gare list --json
 gare list -q
 
@@ -89,7 +121,7 @@ gare list -q
 gare logs myapp -f
 ```
 
-### 5. Tear down an application
+### 6. Tear down an application
 
 ```sh
 gare destroy myapp
