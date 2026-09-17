@@ -101,14 +101,10 @@ func initDirectories() error {
 
 func checkCaddyPermissions() {
 	confDir := caddy.ResolveConfDir()
-	parentDir := filepath.Dir(confDir)
 	testFile := filepath.Join(confDir, ".gare_test")
 	f, err := os.Create(testFile)
 	if err != nil {
-		printInfo("Requesting sudo to configure " + confDir + " permissions...")
-		if !attemptSudoCaddySetup(confDir, parentDir) {
-			printWarning(fmt.Sprintf("Directory %s is not writable", confDir))
-			fmt.Printf("\nTo configure Caddy permissions manually, run:\n  sudo mkdir -p %s && sudo chown -R $USER: %s\n\n", confDir, parentDir)
+		if !attemptSudoCaddySetup(confDir, filepath.Dir(confDir)) {
 			return
 		}
 	} else {
@@ -117,15 +113,27 @@ func checkCaddyPermissions() {
 			printWarning(fmt.Sprintf("Could not remove test file: %v", rmErr))
 		}
 	}
-	printSuccess("Directory " + confDir + " is writable")
 	if err := caddy.EnsureCaddyfile(); err != nil {
-		printWarning(fmt.Sprintf("Could not create default Caddyfile: %v", err))
+		printWarning(fmt.Sprintf("Could not configure Caddyfile: %v", err))
+		return
 	}
+	caddyfilePath := caddy.ResolveCaddyfilePath()
+	data, err := os.ReadFile(caddyfilePath)
+	if err != nil || !strings.Contains(string(data), "conf.d") {
+		printWarning("Caddyfile missing conf.d import directive")
+		return
+	}
+	printSuccess("Verified snippet directory: " + confDir)
+	printSuccess("Verified Caddyfile import directive: " + caddyfilePath)
+	printSuccess("Gare initialized successfully")
 }
 
 func attemptSudoCaddySetup(confDir, parentDir string) bool {
+	printInfo("Requesting sudo to configure " + confDir + " permissions...")
 	sudoPath, err := exec.LookPath("sudo")
 	if err != nil {
+		printWarning(fmt.Sprintf("Directory %s is not writable (sudo not found)", confDir))
+		fmt.Printf("\nTo configure Caddy permissions manually, run:\n  sudo mkdir -p %s && sudo chown -R $USER: %s\n\n", confDir, parentDir)
 		return false
 	}
 	u, err := user.Current()
@@ -138,15 +146,8 @@ func attemptSudoCaddySetup(confDir, parentDir string) bool {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return false
-	}
-	testFile := filepath.Join(confDir, ".gare_test")
-	f, err := os.Create(testFile)
-	if err != nil {
-		return false
-	}
-	f.Close()
-	if rmErr := os.Remove(testFile); rmErr != nil {
+		printWarning(fmt.Sprintf("Directory %s is not writable", confDir))
+		fmt.Printf("\nTo configure Caddy permissions manually, run:\n  sudo mkdir -p %s && sudo chown -R $USER: %s\n\n", confDir, parentDir)
 		return false
 	}
 	return true

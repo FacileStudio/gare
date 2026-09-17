@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-17
+
+### Added
+
+- Initialization verification in `gare init` checking snippet directory existence, Caddyfile presence, and import directive persistence with success confirmation.
+
 ## [0.8.1] - 2026-09-17
 
 ### Added
