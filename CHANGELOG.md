@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
-## [0.8.2] - 2026-09-17
+## [0.8.3] - 2026-09-17
+
+### Fixed
+
+- Suppressed connection refused errors during Caddy configuration reload when the Caddy daemon or Admin API is stopped.
+
 
 ### Added
 

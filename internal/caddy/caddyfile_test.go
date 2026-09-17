@@ -1,6 +1,7 @@
 package caddy
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,5 +101,19 @@ func TestEnsureCaddyfileWithEnvOverrides(t *testing.T) {
 	expected := "import " + confDir + "/*.caddy\n"
 	if string(content) != expected {
 		t.Errorf("got %q, want %q", string(content), expected)
+	}
+}
+
+func TestReloadOfflineCaddy(t *testing.T) {
+	tempDir := t.TempDir()
+	caddyfilePath := filepath.Join(tempDir, "Caddyfile")
+	confDir := filepath.Join(tempDir, "conf.d")
+
+	t.Setenv("GARE_CADDYFILE", caddyfilePath)
+	t.Setenv("GARE_CADDY_CONF_DIR", confDir)
+
+	ctx := context.Background()
+	if err := Reload(ctx); err != nil {
+		t.Fatalf("expected Reload to succeed when Caddy is offline, got: %v", err)
 	}
 }

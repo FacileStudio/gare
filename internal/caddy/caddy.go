@@ -183,9 +183,12 @@ func reloadViaAdminAPI(ctx context.Context, configPath string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "text/caddyfile")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
+	resp, reqErr := http.DefaultClient.Do(req)
+	if err := CheckReloadError(reqErr); err != nil {
 		return err
+	}
+	if resp == nil {
+		return nil
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -194,3 +197,4 @@ func reloadViaAdminAPI(ctx context.Context, configPath string) error {
 	body, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("caddy admin api returned %s: %s", resp.Status, string(body))
 }
+
