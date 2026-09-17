@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-09-18
+
+### Fixed
+
+- Resolved container port not wired to host port in Kubernetes Pod manifests (`manifest.yaml`) executed via `podman kube play`.
+- Added automatic detection of `EXPOSE` directives from `Containerfile` and `Dockerfile` in the workload repository.
+- Synchronized port configuration on deployment (`gare deploy`) and updated manifest ports in-place while preserving environment variables.
+- Added `--container-port` flag to `gare app create` and `container_port` support in `gare.yml`.
+- Displayed container port wiring in `gare status` output.
+
 ## [0.8.4] - 2026-09-17
 
 ### Fixed
