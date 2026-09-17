@@ -106,7 +106,7 @@ func checkCaddyPermissions() {
 	if err != nil {
 		printWarning(fmt.Sprintf("Directory %s is not writable: %v", confDir, err))
 		printInfo("To allow rootless ingress snippet generation, run:")
-		printInfo(fmt.Sprintf("  sudo mkdir -p %s && sudo chown -R $USER: %s", confDir, confDir))
+		printInfo(fmt.Sprintf("  sudo mkdir -p %s && sudo chown -R $USER: %s", confDir, filepath.Dir(confDir)))
 		return
 	}
 	f.Close()
