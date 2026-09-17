@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-09-18
+
+### Added
+
+- Nested application lifecycle and management commands under `gare app` (`create`, `deploy`, `list`, `status`, `start`, `stop`, `restart`, `logs`, `destroy`, `env`).
+- Added command aliases: `apps` for `app`, `delete` and `rm` for `destroy`, and `ls` and `ps` for `list`.
+- Grouped root commands into "MANAGEMENT COMMANDS" and "APPLICATION SHORTCUTS" in help output while preserving root command shortcuts.
+
 ## [0.8.5] - 2026-09-18
 
 ### Fixed
