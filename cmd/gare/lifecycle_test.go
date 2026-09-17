@@ -10,20 +10,20 @@ import (
 func TestLifecycleUnitNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
-	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "staticapp")
-	cfg := &storage.AppConfig{Name: "staticapp", AppType: "static"}
+	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "testcontainer")
+	cfg := &storage.AppConfig{Name: "testcontainer", AppType: "container"}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}
 
 	startCmd := NewStartCmd()
-	startCmd.SetArgs([]string{"staticapp"})
+	startCmd.SetArgs([]string{"testcontainer"})
 	if err := startCmd.Execute(); err == nil {
 		t.Fatalf("expected error when unit is not found in systemd, got nil")
 	}
 
 	stopCmd := NewStopCmd()
-	stopCmd.SetArgs([]string{"staticapp"})
+	stopCmd.SetArgs([]string{"testcontainer"})
 	if err := stopCmd.Execute(); err == nil {
 		t.Fatalf("expected error when unit is not found in systemd, got nil")
 	}

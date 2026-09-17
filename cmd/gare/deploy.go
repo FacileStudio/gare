@@ -62,7 +62,7 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 	if err := syncGareFileConfig(baseDir, repoDir, cfg); err != nil {
 		return err
 	}
-	if cfg.Port == 0 {
+	if !cfg.IsStatic() && cfg.Port == 0 {
 		port, err := storage.DiscoverAvailablePort(baseDir, 0)
 		if err != nil {
 			return fmt.Errorf("failed to discover free port: %w", err)
@@ -84,26 +84,23 @@ func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.App
 	}
 
 	staticPath := filepath.Join(repoDir, cfg.StaticDir)
-	if err := systemd.WriteStaticUnit(name, cfg.Port, staticPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
+	if cfg.Domain != "" || cfg.Port > 0 {
+		if err := caddy.WriteStaticSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port, staticPath); err != nil {
+			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
+		}
 	}
 
-	updateContainerIngress(name, cfg)
-
-	if err := restartAppServices(ctx, name); err != nil {
-		return err
-	}
-	if err := verifyHealth(ctx, cfg); err != nil {
-		return err
-	}
+	cleanupAppDeploy(ctx)
 
 	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
 	if commitHash == "" {
 		commitHash = "-"
 	}
-	target := fmt.Sprintf("port %d", cfg.Port)
+	target := "static"
 	if cfg.Domain != "" {
-		target = fmt.Sprintf("%s (port %d)", cfg.Domain, cfg.Port)
+		target = cfg.Domain
+	} else if cfg.Port > 0 {
+		target = fmt.Sprintf("port %d", cfg.Port)
 	}
 	printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, target))
 	return nil

@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -21,8 +24,8 @@ type listOptions struct {
 type appListItem struct {
 	Name      string `json:"name"`
 	RepoURL   string `json:"repo_url"`
-	Domain    string `json:"domain"`
-	Port      int    `json:"port"`
+	Domain    string `json:"domain,omitempty"`
+	Port      int    `json:"port,omitempty"`
 	Branch    string `json:"branch"`
 	CreatedAt string `json:"created_at"`
 	Commit    string `json:"commit"`
@@ -34,16 +37,16 @@ func NewListCmd() *cobra.Command {
 	opts := listOptions{}
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all configured applications",
+		Short: "List all managed applications",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Second)
 			defer cancel()
 			return runList(ctx, cmd.OutOrStdout(), opts)
 		},
 	}
 
 	cmd.Flags().BoolVar(&opts.jsonOutput, "json", false, "Output JSON array")
-	cmd.Flags().BoolVarP(&opts.quietOutput, "quiet", "q", false, "Output bare app names")
+	cmd.Flags().BoolVarP(&opts.quietOutput, "quiet", "q", false, "Output application names only")
 	return cmd
 }
 
@@ -71,12 +74,16 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 		appDir := storage.GetAppDir(baseDir, app.Name)
 		repoDir := storage.GetRepoDir(appDir)
 		commit, _ := builder.GetCommitHash(ctx, repoDir)
-		status, _ := systemd.IsActive(ctx, app.Name)
-		if status == "" {
-			if app.IsStatic() {
-				status = "static"
-			} else {
-				status = "inactive"
+		status := "inactive"
+		if app.IsStatic() {
+			snippetPath := caddy.GetSnippetPath(caddy.ResolveConfDir(), app.Name)
+			if _, err := os.Stat(snippetPath); err == nil {
+				status = "active"
+			}
+		} else {
+			s, _ := systemd.IsActive(ctx, app.Name)
+			if s != "" {
+				status = s
 			}
 		}
 		items = append(items, appListItem{
@@ -101,9 +108,6 @@ func outputQuiet(w io.Writer, apps []*storage.AppConfig) error {
 }
 
 func outputJSON(w io.Writer, items []appListItem) error {
-	if items == nil {
-		items = []appListItem{}
-	}
 	data, err := json.MarshalIndent(items, "", "  ")
 	if err != nil {
 		return err
@@ -118,20 +122,23 @@ func outputTable(w io.Writer, items []appListItem) error {
 		return nil
 	}
 
-	rows := make([]AppRow, len(items))
-	for i, item := range items {
-		commit := item.Commit
-		if commit == "" {
-			commit = "-"
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(tw, "NAME\tSTATUS\tDOMAIN\tPORT\tBRANCH\tCOMMIT\tCREATED")
+	for _, item := range items {
+		domain := item.Domain
+		if domain == "" {
+			domain = "-"
 		}
-		rows[i] = AppRow{
-			Name:   item.Name,
-			Port:   item.Port,
-			Domain: item.Domain,
-			Commit: commit,
-			Status: item.Status,
+		portStr := fmt.Sprintf("%d", item.Port)
+		if item.Port == 0 {
+			portStr = "-"
 		}
+		created := item.CreatedAt
+		if t, err := time.Parse(time.RFC3339, created); err == nil {
+			created = t.Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.Name, item.Status, domain, portStr, item.Branch, item.Commit, created)
 	}
-	fmt.Fprintln(w, renderAppTable(rows))
-	return nil
+	return tw.Flush()
 }

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"time"
 
+	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -53,8 +55,23 @@ func NewRestartCmd() *cobra.Command {
 }
 
 func runStartApp(ctx context.Context, name string) error {
-	if _, err := loadAppForLifecycle(name); err != nil {
+	cfg, err := loadAppForLifecycle(name)
+	if err != nil {
 		return err
+	}
+	if cfg.IsStatic() {
+		baseDir := storage.DefaultBaseDir()
+		appDir := storage.GetAppDir(baseDir, name)
+		repoDir := storage.GetRepoDir(appDir)
+		staticPath := filepath.Join(repoDir, cfg.StaticDir)
+		if err := caddy.WriteStaticSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port, staticPath); err != nil {
+			return err
+		}
+		if err := caddy.Reload(ctx); err != nil {
+			return err
+		}
+		printSuccess(fmt.Sprintf("Started static app %s (Caddy active)", name))
+		return nil
 	}
 	if err := systemd.Start(ctx, name); err != nil {
 		return fmt.Errorf("failed to start %q: %w", name, err)
@@ -67,8 +84,19 @@ func runStartApp(ctx context.Context, name string) error {
 }
 
 func runStopApp(ctx context.Context, name string) error {
-	if _, err := loadAppForLifecycle(name); err != nil {
+	cfg, err := loadAppForLifecycle(name)
+	if err != nil {
 		return err
+	}
+	if cfg.IsStatic() {
+		if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err != nil {
+			return err
+		}
+		if err := caddy.Reload(ctx); err != nil {
+			return err
+		}
+		printSuccess(fmt.Sprintf("Stopped static app %s (Caddy disabled)", name))
+		return nil
 	}
 	if err := systemd.Stop(ctx, name); err != nil {
 		return fmt.Errorf("failed to stop %q: %w", name, err)
@@ -81,8 +109,23 @@ func runStopApp(ctx context.Context, name string) error {
 }
 
 func runRestartApp(ctx context.Context, name string) error {
-	if _, err := loadAppForLifecycle(name); err != nil {
+	cfg, err := loadAppForLifecycle(name)
+	if err != nil {
 		return err
+	}
+	if cfg.IsStatic() {
+		baseDir := storage.DefaultBaseDir()
+		appDir := storage.GetAppDir(baseDir, name)
+		repoDir := storage.GetRepoDir(appDir)
+		staticPath := filepath.Join(repoDir, cfg.StaticDir)
+		if err := caddy.WriteStaticSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port, staticPath); err != nil {
+			return err
+		}
+		if err := caddy.Reload(ctx); err != nil {
+			return err
+		}
+		printSuccess(fmt.Sprintf("Restarted static app %s (Caddy reloaded)", name))
+		return nil
 	}
 	if err := systemd.Restart(ctx, name); err != nil {
 		return fmt.Errorf("failed to restart %q: %w", name, err)

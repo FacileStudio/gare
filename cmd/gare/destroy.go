@@ -32,9 +32,11 @@ func NewDestroyCmd() *cobra.Command {
 			cfg, _ := storage.LoadConfig(appDir)
 			isStatic := cfg != nil && cfg.IsStatic()
 
-			teardownServices(ctx, name)
+			if !isStatic {
+				teardownServices(ctx, name)
+			}
 			removeArtifacts(ctx, name, appDir, isStatic)
-			reloadDaemons(ctx)
+			reloadDaemons(ctx, isStatic)
 
 			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
 			return nil
@@ -79,10 +81,12 @@ func removeArtifacts(ctx context.Context, name, appDir string, isStatic bool) {
 	}
 }
 
-func reloadDaemons(ctx context.Context) {
-	printInfo("Reloading systemd daemon...")
-	if err := systemd.DaemonReload(ctx); err != nil {
-		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
+func reloadDaemons(ctx context.Context, isStatic bool) {
+	if !isStatic {
+		printInfo("Reloading systemd daemon...")
+		if err := systemd.DaemonReload(ctx); err != nil {
+			printWarning(fmt.Sprintf("daemon-reload error: %v", err))
+		}
 	}
 
 	printInfo("Reloading Caddy...")

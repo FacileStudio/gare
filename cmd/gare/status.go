@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -76,7 +78,7 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 	details := &AppStatusDetails{
 		Name:        cfg.Name,
 		AppType:     cfg.AppType,
-		Status:      "static",
+		Status:      "inactive",
 		Domain:      cfg.Domain,
 		Port:        cfg.Port,
 		RepoURL:     cfg.RepoURL,
@@ -85,14 +87,17 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		CreatedAt:   cfg.CreatedAt,
 		Healthcheck: cfg.Healthcheck,
 	}
+	if cfg.IsStatic() {
+		snippetPath := caddy.GetSnippetPath(caddy.ResolveConfDir(), cfg.Name)
+		if _, err := os.Stat(snippetPath); err == nil {
+			details.Status = "active"
+		}
+		return details
+	}
 	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
 	details.Service = props
 	if props != nil && props.ActiveState != "" {
 		details.Status = props.ActiveState
-	} else if cfg.IsStatic() {
-		details.Status = "static"
-	} else {
-		details.Status = "inactive"
 	}
 	return details
 }

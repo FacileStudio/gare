@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Transitioned static site hosting to direct Caddy drop-in `file_server` snippets, removing systemd user unit synthesis and port allocation overhead for static workloads.
+- Updated `gare start`, `stop`, `restart`, and `status` to control static sites directly via Caddy drop-in snippets and reloads.
+- Removed dead `systemd.static_unit` code.
+
 ## [0.8.0] - 2026-09-17
 
 ### Added

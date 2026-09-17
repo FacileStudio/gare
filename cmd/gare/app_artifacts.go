@@ -31,11 +31,8 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	staticPath := filepath.Join(repoDir, opts.staticDir)
-	if err := systemd.WriteStaticUnit(name, opts.port, staticPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
-	}
-	if opts.domain != "" {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port); err != nil {
+	if opts.domain != "" || opts.port > 0 {
+		if err := caddy.WriteStaticSnippet(caddy.ResolveConfDir(), name, opts.domain, opts.port, staticPath); err != nil {
 			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
 		}
 	}
