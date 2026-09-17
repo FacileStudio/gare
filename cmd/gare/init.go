@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ func NewInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Validate prerequisites and initialize base directories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 			defer cancel()
 			return runInit(ctx)
 		},
@@ -38,7 +39,6 @@ func runInit(ctx context.Context) error {
 		return err
 	}
 	checkCaddyPermissions()
-	printCaddyInstructions()
 	return nil
 }
 
@@ -58,7 +58,7 @@ func checkLingerStatus(ctx context.Context) {
 	lingering, err := systemd.CheckLinger(ctx, "")
 	if err != nil || !lingering {
 		printWarning("Lingering is not enabled for the current user")
-		printInfo("Run: loginctl enable-linger $USER")
+		fmt.Printf("\nRun to enable lingering:\n  loginctl enable-linger $USER\n\n")
 		return
 	}
 	printSuccess("User linger is enabled")
@@ -81,7 +81,7 @@ func checkPauseSetup() {
 		return
 	}
 	printWarning("catatonit not found in PATH")
-	printInfo("Set infra_image = \"registry.k8s.io/pause:3.9\" in " + confPath)
+	fmt.Printf("\nTo configure pod pause init, install catatonit or add to %s:\n  [engine]\n  infra_image = \"registry.k8s.io/pause:3.9\"\n\n", confPath)
 }
 
 func initDirectories() error {
@@ -101,17 +101,21 @@ func initDirectories() error {
 
 func checkCaddyPermissions() {
 	confDir := caddy.ResolveConfDir()
+	parentDir := filepath.Dir(confDir)
 	testFile := filepath.Join(confDir, ".gare_test")
 	f, err := os.Create(testFile)
 	if err != nil {
-		printWarning(fmt.Sprintf("Directory %s is not writable: %v", confDir, err))
-		printInfo("To allow rootless ingress snippet generation, run:")
-		printInfo(fmt.Sprintf("  sudo mkdir -p %s && sudo chown -R $USER: %s", confDir, filepath.Dir(confDir)))
-		return
-	}
-	f.Close()
-	if rmErr := os.Remove(testFile); rmErr != nil {
-		printWarning(fmt.Sprintf("Could not remove test file: %v", rmErr))
+		printInfo("Requesting sudo to configure " + confDir + " permissions...")
+		if !attemptSudoCaddySetup(confDir, parentDir) {
+			printWarning(fmt.Sprintf("Directory %s is not writable", confDir))
+			fmt.Printf("\nTo configure Caddy permissions manually, run:\n  sudo mkdir -p %s && sudo chown -R $USER: %s\n\n", confDir, parentDir)
+			return
+		}
+	} else {
+		f.Close()
+		if rmErr := os.Remove(testFile); rmErr != nil {
+			printWarning(fmt.Sprintf("Could not remove test file: %v", rmErr))
+		}
 	}
 	printSuccess("Directory " + confDir + " is writable")
 	if err := caddy.EnsureCaddyfile(); err != nil {
@@ -119,8 +123,31 @@ func checkCaddyPermissions() {
 	}
 }
 
-func printCaddyInstructions() {
-	printInfo("Setup instructions for Caddy ingress:")
-	printInfo("Ensure your /etc/caddy/Caddyfile includes drop-in snippets:")
-	printInfo("  import /etc/caddy/conf.d/*.caddy")
+func attemptSudoCaddySetup(confDir, parentDir string) bool {
+	sudoPath, err := exec.LookPath("sudo")
+	if err != nil {
+		return false
+	}
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+	script := fmt.Sprintf("mkdir -p %s && chown -R %s: %s", confDir, u.Username, parentDir)
+	cmd := exec.Command(sudoPath, "sh", "-c", script)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	testFile := filepath.Join(confDir, ".gare_test")
+	f, err := os.Create(testFile)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	if rmErr := os.Remove(testFile); rmErr != nil {
+		return false
+	}
+	return true
 }
