@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0] - 2026-09-18
+
+### Added
+
+- `gare tag add|rm|list` commands to manage application tags.
+- Support for `tags` in `gare.yml` and `config.json` with GitOps synchronization on deployment.
+- `--tag` / `-t` flag in `gare list` to filter applications by tag.
+- `TAGS` column in `gare list` table and `tags` field in JSON output.
+- `--tag` flag in `gare app create` to attach initial tags during creation.
+
 ## [0.9.0] - 2026-09-18
 
 ### Added

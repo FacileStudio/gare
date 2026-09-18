@@ -100,8 +100,10 @@ func registerManagementCommands(root *cobra.Command) {
 	initCmd.GroupID = "management"
 	serverCmd := NewServerCmd()
 	serverCmd.GroupID = "management"
+	tagCmd := NewTagCmd()
+	tagCmd.GroupID = "management"
 
-	root.AddCommand(appCmd, domainCmd, envCmd, initCmd, serverCmd)
+	root.AddCommand(appCmd, domainCmd, envCmd, initCmd, serverCmd, tagCmd)
 }
 
 func registerShortcutCommands(root *cobra.Command) {

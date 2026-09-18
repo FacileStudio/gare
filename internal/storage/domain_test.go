@@ -153,7 +153,7 @@ func TestSaveConfigDropsLegacyDomain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatal(err)
 	}

@@ -42,6 +42,9 @@ func appendWorkloadDetails(t *tree.Tree, d *AppStatusDetails, bold lipgloss.Styl
 	if len(d.Domains) > 0 {
 		workloadNode.Child(fmt.Sprintf("Domain: %s", strings.Join(d.Domains, ", ")))
 	}
+	if len(d.Tags) > 0 {
+		workloadNode.Child(fmt.Sprintf("Tags:   %s", strings.Join(d.Tags, ", ")))
+	}
 	if d.Healthcheck != "" {
 		workloadNode.Child(fmt.Sprintf("Health: %s", d.Healthcheck))
 	}

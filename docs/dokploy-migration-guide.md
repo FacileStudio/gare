@@ -15,6 +15,7 @@ By completing this migration, you eliminate the centralized Docker daemon, disca
 | Ingress & TLS | Traefik with dynamic file provider | Caddy with drop-in snippets (`/etc/caddy/conf.d/*.caddy`) |
 | Network model | Docker bridge networks per stack | Localhost pod network namespaces |
 | Logging | Docker json-file logs via daemon | Systemd journal (`journalctl --user -u <app>`) |
+| Grouping | Database-backed UI projects | Application tags (`gare tag`, `--tag` filter) |
 
 ## Phase 0: Pre-migration inventory and extraction
 

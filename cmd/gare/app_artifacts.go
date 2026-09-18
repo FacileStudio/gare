@@ -38,6 +38,9 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreat
 	if opts.containerPort == 0 {
 		opts.containerPort = gf.ResolveContainerPort()
 	}
+	if len(opts.tags) == 0 {
+		opts.tags = gf.ResolveTags()
+	}
 	return opts
 }
 
@@ -80,33 +83,13 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 		BuildCmd:      opts.buildCmd,
 		Healthcheck:   opts.healthcheck,
 	}
+	if err := appCfg.AddTags(opts.tags...); err != nil {
+		return fmt.Errorf("failed to add tags: %w", err)
+	}
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("App %q successfully created on port %d", name, opts.port))
-	return nil
-}
-
-func syncRepoManifest(appDir, repoDir string) error {
-	repoManifest := filepath.Join(repoDir, "manifest.yaml")
-	data, err := os.ReadFile(repoManifest)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to read repo manifest: %w", err)
-	}
-	appManifest := storage.GetManifestPath(appDir)
-	existingEnvs, _ := storage.GetManifestEnv(appManifest)
-	if err := atomicfile.WriteFile(appManifest, data, 0644); err != nil {
-		return fmt.Errorf("failed to sync manifest: %w", err)
-	}
-	if len(existingEnvs) > 0 {
-		if err := storage.SetManifestEnv(appManifest, existingEnvs); err != nil {
-			return fmt.Errorf("failed to restore manifest environment: %w", err)
-		}
-	}
-	printSuccess("Synced manifest.yaml from repository")
 	return nil
 }
 
@@ -121,6 +104,22 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	if cfg.Healthcheck == "" {
 		cfg.Healthcheck = gf.ResolveHealthcheck()
 	}
+	if tags := gf.ResolveTags(); tags != nil {
+		temp := &storage.AppConfig{}
+		if err := temp.AddTags(tags...); err != nil {
+			printWarning(fmt.Sprintf("Invalid tags in gare.yml: %v", err))
+		} else {
+			cfg.Tags = temp.Tags
+		}
+	}
+	if err := syncGareFilePorts(baseDir, cfg, gf); err != nil {
+		return err
+	}
+	applyGareWorkloadConfig(cfg, gf)
+	return nil
+}
+
+func syncGareFilePorts(baseDir string, cfg *storage.AppConfig, gf *storage.GareFile) error {
 	reqPort := gf.ResolvePort()
 	if reqPort > 0 && reqPort != cfg.Port {
 		if _, err := storage.DiscoverAvailablePort(baseDir, reqPort); err != nil {
@@ -128,11 +127,9 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 		}
 		cfg.Port = reqPort
 	}
-	reqCPort := gf.ResolveContainerPort()
-	if reqCPort > 0 {
+	if reqCPort := gf.ResolveContainerPort(); reqCPort > 0 {
 		cfg.ContainerPort = reqCPort
 	}
-	applyGareWorkloadConfig(cfg, gf)
 	return nil
 }
 

@@ -33,6 +33,7 @@ type GareFile struct {
 	BuildCmd      string         `yaml:"build_cmd"`
 	Healthcheck   string         `yaml:"healthcheck"`
 	HealthCheck   string         `yaml:"health_check"`
+	Tags          []string       `yaml:"tags,omitempty"`
 	Static        *StaticSection `yaml:"static"`
 	Build         *BuildSection  `yaml:"build"`
 }

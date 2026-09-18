@@ -10,6 +10,7 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 - **Automatic ingress**: Writes Caddy drop-in configuration snippets to `/etc/caddy/conf.d/<app>.caddy`.
 - **Static sites**: Serves static assets directly with Caddy without containers or allocated ports.
 - **Environment management**: Native `gare env` commands to set, unset, load, and inspect container environment variables.
+- **Application tags**: Group and filter workloads with `gare tag` commands, `gare.yml` metadata, and `--tag` list filters.
 - **Healthcheck verification**: Built-in HTTP readiness polling during deployment with configurable probes.
 - **Service lifecycle**: First-class `start`, `stop`, `restart`, and detailed `status` inspection.
 - **GitOps webhooks**: Built-in HTTP daemon verifying GitHub HMAC-SHA256 and GitLab tokens.
@@ -65,11 +66,16 @@ containerfile: apps/web/Containerfile
 context: .
 build_cmd: make assets
 healthcheck: /health
+tags:
+  - backend
+  - production
 
 # For static workloads:
 type: static
 static_dir: dist
 build_cmd: bun run build
+tags:
+  - frontend
 ```
 
 CLI flags take precedence over `gare.yml` settings.
@@ -115,7 +121,28 @@ gare domain rm myapp www.myapp.example.com
 
 When an application is active, adding or removing domains automatically updates the Caddy snippet and reloads the proxy.
 
-### 5. Deploy the application
+### 5. Manage tags
+
+Group, categorize, and inspect application tags:
+
+```sh
+# Add tag(s) to an app
+gare tag add myapp client-acme prod api
+
+# List configured tags across all applications or for a single app
+gare tag list
+gare tag list myapp
+gare tag list --json
+
+# Remove tag(s) from an app
+gare tag rm myapp api
+
+# Filter application list by tag
+gare list --tag client-acme
+gare list -t prod
+```
+
+### 6. Deploy the application
 
 ```sh
 gare deploy myapp
@@ -123,7 +150,7 @@ gare deploy myapp
 
 Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe.
 
-### 6. Lifecycle and status inspection
+### 7. Lifecycle and status inspection
 
 ```sh
 # Start, stop, or restart an application
@@ -137,6 +164,7 @@ gare status myapp --json
 
 # View all applications in a styled terminal table
 gare list
+gare list --tag client-acme
 gare list --json
 gare list -q
 
@@ -144,7 +172,7 @@ gare list -q
 gare logs myapp -f
 ```
 
-### 7. Tear down an application
+### 8. Tear down an application
 
 ```sh
 gare destroy myapp

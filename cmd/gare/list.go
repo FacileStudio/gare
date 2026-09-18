@@ -18,6 +18,7 @@ import (
 type listOptions struct {
 	jsonOutput  bool
 	quietOutput bool
+	tag         string
 }
 
 type appListItem struct {
@@ -25,6 +26,7 @@ type appListItem struct {
 	RepoURL   string   `json:"repo_url"`
 	Domains   []string `json:"domains,omitempty"`
 	Port      int      `json:"port,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
 	Branch    string   `json:"branch"`
 	CreatedAt string   `json:"created_at"`
 	Commit    string   `json:"commit"`
@@ -47,6 +49,7 @@ func NewListCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.jsonOutput, "json", false, "Output JSON array")
 	cmd.Flags().BoolVarP(&opts.quietOutput, "quiet", "q", false, "Output application names only")
+	cmd.Flags().StringVarP(&opts.tag, "tag", "t", "", "Filter applications by tag")
 	return cmd
 }
 
@@ -55,6 +58,10 @@ func runList(ctx context.Context, w io.Writer, opts listOptions) error {
 	apps, err := storage.ListApps(baseDir)
 	if err != nil {
 		return fmt.Errorf("failed to list apps: %w", err)
+	}
+
+	if opts.tag != "" {
+		apps = storage.FilterAppsByTag(apps, opts.tag)
 	}
 
 	if opts.quietOutput {
@@ -84,6 +91,7 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 			RepoURL:   app.RepoURL,
 			Domains:   app.Domains,
 			Port:      app.Port,
+			Tags:      app.Tags,
 			Branch:    app.Branch,
 			CreatedAt: app.CreatedAt,
 			Commit:    commit,
@@ -116,7 +124,7 @@ func outputTable(w io.Writer, items []appListItem) error {
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tSTATUS\tDOMAIN\tPORT\tBRANCH\tCOMMIT\tCREATED")
+	fmt.Fprintln(tw, "NAME\tSTATUS\tDOMAIN\tPORT\tTAGS\tBRANCH\tCOMMIT\tCREATED")
 	for _, item := range items {
 		domain := "-"
 		if len(item.Domains) > 0 {
@@ -126,12 +134,16 @@ func outputTable(w io.Writer, items []appListItem) error {
 		if item.Port == 0 {
 			portStr = "-"
 		}
+		tagsStr := "-"
+		if len(item.Tags) > 0 {
+			tagsStr = strings.Join(item.Tags, ",")
+		}
 		created := item.CreatedAt
 		if t, err := time.Parse(time.RFC3339, created); err == nil {
 			created = t.Format("2006-01-02 15:04")
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			item.Name, item.Status, domain, portStr, item.Branch, item.Commit, created)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.Name, item.Status, domain, portStr, tagsStr, item.Branch, item.Commit, created)
 	}
 	return tw.Flush()
 }

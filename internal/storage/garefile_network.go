@@ -15,3 +15,12 @@ func (g *GareFile) ResolveContainerPort() int {
 	}
 	return g.ContainerPort
 }
+
+// ResolveTags returns configured tags or nil if unset.
+func (g *GareFile) ResolveTags() []string {
+	if g == nil {
+		return nil
+	}
+	return g.Tags
+}
+

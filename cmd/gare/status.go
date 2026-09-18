@@ -30,6 +30,7 @@ type AppStatusDetails struct {
 	Commit        string                     `json:"commit"`
 	CreatedAt     string                     `json:"created_at"`
 	Healthcheck   string                     `json:"healthcheck,omitempty"`
+	Tags          []string                   `json:"tags,omitempty"`
 	Service       *systemd.ServiceProperties `json:"service,omitempty"`
 }
 
@@ -86,6 +87,7 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		Commit:        commit,
 		CreatedAt:     cfg.CreatedAt,
 		Healthcheck:   cfg.Healthcheck,
+		Tags:          cfg.Tags,
 	}
 	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
 	details.Service = props

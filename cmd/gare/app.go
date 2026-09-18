@@ -24,6 +24,7 @@ type appCreateOptions struct {
 	staticDir     string
 	buildCmd      string
 	healthcheck   string
+	tags          []string
 }
 
 // NewAppCmd builds the app command group.
@@ -53,6 +54,7 @@ func NewAppCmd() *cobra.Command {
 	cmd.AddCommand(NewDestroyCmd())
 	cmd.AddCommand(NewDomainCmd())
 	cmd.AddCommand(NewEnvCmd())
+	cmd.AddCommand(NewTagCmd())
 	return cmd
 }
 
@@ -81,6 +83,7 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.staticDir, "static", "", "Static assets directory to serve (relative to repository root)")
 	cmd.Flags().StringVar(&opts.buildCmd, "build-cmd", "", "Command to run during build/deployment")
 	cmd.Flags().StringVar(&opts.healthcheck, "healthcheck", "", "Health check HTTP path (e.g. /health)")
+	cmd.Flags().StringSliceVar(&opts.tags, "tag", nil, "Application tags")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
 		return cmd
@@ -163,6 +166,11 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	}
 	if opts.containerPort < 0 || opts.containerPort > 65535 {
 		return fmt.Errorf("container port must be between 1 and 65535, got %d", opts.containerPort)
+	}
+	for _, tag := range opts.tags {
+		if err := storage.ValidateTag(tag); err != nil {
+			return err
+		}
 	}
 	return nil
 }
