@@ -100,7 +100,7 @@ func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *
 		return err
 	}
 
-	updateContainerIngress(name, cfg)
+	updateContainerIngress(cfg)
 
 	if err := restartAppServices(ctx, name); err != nil {
 		return err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -14,12 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var domainRegex = regexp.MustCompile(`^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)*` +
-	`[a-zA-Z0-9]([a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?(:[0-9]{1,5})?$`)
-
 type appCreateOptions struct {
 	repo          string
-	domain        string
 	port          int
 	containerPort int
 	branch        string
@@ -56,6 +51,7 @@ func NewAppCmd() *cobra.Command {
 	cmd.AddCommand(NewRestartCmd())
 	cmd.AddCommand(NewLogsCmd())
 	cmd.AddCommand(NewDestroyCmd())
+	cmd.AddCommand(NewDomainCmd())
 	cmd.AddCommand(NewEnvCmd())
 	return cmd
 }
@@ -63,7 +59,7 @@ func NewAppCmd() *cobra.Command {
 func newAppCreateCmd() *cobra.Command {
 	opts := appCreateOptions{}
 	cmd := &cobra.Command{
-		Use:   "create [name] --repo <git-url> [--domain <domain>]",
+		Use:   "create [name] --repo <git-url>",
 		Short: "Create a new application",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
@@ -76,7 +72,6 @@ func newAppCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.repo, "repo", "r", "", "Git repository URL")
-	cmd.Flags().StringVarP(&opts.domain, "domain", "d", "", "Domain name")
 	cmd.Flags().IntVarP(&opts.port, "port", "p", 0, "Port to allocate (0 for auto-discovery)")
 	cmd.Flags().IntVar(&opts.containerPort, "container-port", 0, "Container internal port (from Containerfile EXPOSE)")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "main", "Git branch")
@@ -165,12 +160,6 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	}
 	if opts.repo == "" {
 		return fmt.Errorf("--repo is required")
-	}
-	if opts.domain != "" && strings.ContainsAny(opts.domain, " \t\r\n{}#;\"'\\/`$") {
-		return fmt.Errorf("invalid domain %q: contains disallowed characters", opts.domain)
-	}
-	if opts.domain != "" && !domainRegex.MatchString(opts.domain) {
-		return fmt.Errorf("invalid domain %q: must be a valid domain or hostname", opts.domain)
 	}
 	if opts.containerPort < 0 || opts.containerPort > 65535 {
 		return fmt.Errorf("container port must be between 1 and 65535, got %d", opts.containerPort)

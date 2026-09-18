@@ -15,11 +15,3 @@ func (g *GareFile) ResolveContainerPort() int {
 	}
 	return g.ContainerPort
 }
-
-// ResolveDomain returns the configured domain or empty string if unset.
-func (g *GareFile) ResolveDomain() string {
-	if g == nil {
-		return ""
-	}
-	return g.Domain
-}

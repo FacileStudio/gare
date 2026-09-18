@@ -26,17 +26,15 @@ func prepareStaticDeploy(ctx context.Context, name, repoDir string, cfg *storage
 	if err := systemd.WriteStaticUnit(name, cfg.Port, staticPath); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
-	if cfg.Domain != "" && cfg.Port > 0 {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port); err != nil {
-			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-		}
+	if err := syncAppIngress(cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
 	}
 	return nil
 }
 
 func formatDeployTarget(cfg *storage.AppConfig) string {
-	if cfg.Domain != "" {
-		return fmt.Sprintf("%s (:%d)", cfg.Domain, cfg.Port)
+	if len(cfg.Domains) > 0 {
+		return fmt.Sprintf("%s (:%d)", strings.Join(cfg.Domains, ", "), cfg.Port)
 	}
 	return fmt.Sprintf("port %d", cfg.Port)
 }
@@ -71,11 +69,9 @@ func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppCo
 	return nil
 }
 
-func updateContainerIngress(name string, cfg *storage.AppConfig) {
-	if cfg.Domain != "" && cfg.Port > 0 {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port); err != nil {
-			printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
-		}
+func updateContainerIngress(cfg *storage.AppConfig) {
+	if err := syncAppIngress(cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not update Caddy snippet (%v)", err))
 	}
 }
 

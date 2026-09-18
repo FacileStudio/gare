@@ -69,5 +69,3 @@ func isSignalExit(exitErr *exec.ExitError) bool {
 	sig := status.Signal()
 	return sig == syscall.SIGINT || sig == syscall.SIGTERM
 }
-
-

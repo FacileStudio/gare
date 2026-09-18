@@ -15,25 +15,21 @@ import (
 func TestValidateCreateInputs(t *testing.T) {
 	testValidInputs(t)
 	testInvalidNames(t)
-	testInvalidDomains(t)
 	testMissingRequired(t)
 }
 
 func testValidInputs(t *testing.T) {
-	valid := []struct {
-		name   string
-		domain string
-	}{
-		{"myapp", "example.com"},
-		{"my-app-1", "sub.example.com"},
-		{"app_test", "localhost"},
-		{"a", "localhost:8080"},
-		{"web-service", "*.example.com"},
+	valid := []string{
+		"myapp",
+		"my-app-1",
+		"app_test",
+		"a",
+		"web-service",
 	}
-	for _, tc := range valid {
-		opts := appCreateOptions{repo: "https://git.example.com/repo", domain: tc.domain}
-		if err := validateCreateInputs(tc.name, opts); err != nil {
-			t.Errorf("expected %s / %s to be valid, got: %v", tc.name, tc.domain, err)
+	for _, name := range valid {
+		opts := appCreateOptions{repo: "https://git.example.com/repo"}
+		if err := validateCreateInputs(name, opts); err != nil {
+			t.Errorf("expected %s to be valid, got: %v", name, err)
 		}
 	}
 }
@@ -49,7 +45,7 @@ func testInvalidNames(t *testing.T) {
 		strings.Repeat("a", 64),
 		"bad$char",
 	}
-	opts := appCreateOptions{repo: "https://git.example.com/repo", domain: "example.com"}
+	opts := appCreateOptions{repo: "https://git.example.com/repo"}
 	for _, name := range invalidNames {
 		if err := validateCreateInputs(name, opts); err == nil {
 			t.Errorf("expected invalid name %q to fail validation", name)
@@ -57,26 +53,8 @@ func testInvalidNames(t *testing.T) {
 	}
 }
 
-func testInvalidDomains(t *testing.T) {
-	invalidDomains := []string{
-		"example.com { reverse_proxy }",
-		"example.com\nnewline",
-		"bad;injection",
-		"domain/path",
-		"has space.com",
-		"{injection}",
-		"bad#comment",
-	}
-	for _, domain := range invalidDomains {
-		opts := appCreateOptions{repo: "https://git.example.com/repo", domain: domain}
-		if err := validateCreateInputs("myapp", opts); err == nil {
-			t.Errorf("expected invalid domain %q to fail validation", domain)
-		}
-	}
-}
-
 func testMissingRequired(t *testing.T) {
-	if err := validateCreateInputs("myapp", appCreateOptions{domain: "example.com"}); err == nil {
+	if err := validateCreateInputs("myapp", appCreateOptions{}); err == nil {
 		t.Error("expected error when --repo is empty")
 	}
 }
@@ -102,7 +80,7 @@ func TestListCmdJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "testapp")
-	cfg := &storage.AppConfig{Name: "testapp", Port: 8000, Domain: "test.local"}
+	cfg := &storage.AppConfig{Name: "testapp", Port: 8000, Domains: []string{"test.local"}}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +104,7 @@ func TestListCmdQuiet(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "quietapp")
-	cfg := &storage.AppConfig{Name: "quietapp", Port: 8001, Domain: "quiet.local"}
+	cfg := &storage.AppConfig{Name: "quietapp", Port: 8001, Domains: []string{"quiet.local"}}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +123,7 @@ func TestListCmdQuiet(t *testing.T) {
 func TestAppSubcommands(t *testing.T) {
 	appCmd := NewAppCmd()
 	expected := []string{
-		"create", "deploy", "list", "status", "start",
+		"create", "deploy", "domain", "list", "status", "start",
 		"stop", "restart", "logs", "destroy", "env",
 	}
 	for _, name := range expected {
@@ -184,7 +162,7 @@ func TestAppListExecutionViaAppCmd(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "subapp")
-	cfg := &storage.AppConfig{Name: "subapp", Port: 8002, Domain: "sub.local"}
+	cfg := &storage.AppConfig{Name: "subapp", Port: 8002, Domains: []string{"sub.local"}}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}

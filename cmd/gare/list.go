@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -20,14 +21,14 @@ type listOptions struct {
 }
 
 type appListItem struct {
-	Name      string `json:"name"`
-	RepoURL   string `json:"repo_url"`
-	Domain    string `json:"domain,omitempty"`
-	Port      int    `json:"port,omitempty"`
-	Branch    string `json:"branch"`
-	CreatedAt string `json:"created_at"`
-	Commit    string `json:"commit"`
-	Status    string `json:"status"`
+	Name      string   `json:"name"`
+	RepoURL   string   `json:"repo_url"`
+	Domains   []string `json:"domains,omitempty"`
+	Port      int      `json:"port,omitempty"`
+	Branch    string   `json:"branch"`
+	CreatedAt string   `json:"created_at"`
+	Commit    string   `json:"commit"`
+	Status    string   `json:"status"`
 }
 
 // NewListCmd builds the list command.
@@ -81,7 +82,7 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 		items = append(items, appListItem{
 			Name:      app.Name,
 			RepoURL:   app.RepoURL,
-			Domain:    app.Domain,
+			Domains:   app.Domains,
 			Port:      app.Port,
 			Branch:    app.Branch,
 			CreatedAt: app.CreatedAt,
@@ -117,9 +118,9 @@ func outputTable(w io.Writer, items []appListItem) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(tw, "NAME\tSTATUS\tDOMAIN\tPORT\tBRANCH\tCOMMIT\tCREATED")
 	for _, item := range items {
-		domain := item.Domain
-		if domain == "" {
-			domain = "-"
+		domain := "-"
+		if len(item.Domains) > 0 {
+			domain = strings.Join(item.Domains, ", ")
 		}
 		portStr := fmt.Sprintf("%d", item.Port)
 		if item.Port == 0 {

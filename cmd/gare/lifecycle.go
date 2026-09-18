@@ -58,12 +58,10 @@ func runStartApp(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.Domain != "" && cfg.Port > 0 {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port); err != nil {
-			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-		} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-			printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
-		}
+	if err := syncAppIngress(cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
+	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
+		printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
 	}
 	if err := systemd.Start(ctx, name); err != nil {
 		return fmt.Errorf("failed to start %q: %w", name, err)
@@ -76,15 +74,13 @@ func runStartApp(ctx context.Context, name string) error {
 }
 
 func runStopApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
+	_, err := loadAppForLifecycle(name)
 	if err != nil {
 		return err
 	}
-	if cfg.Domain != "" {
-		if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err == nil {
-			if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-				printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
-			}
+	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err == nil {
+		if reloadErr := caddy.Reload(ctx); reloadErr != nil {
+			printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
 		}
 	}
 	if err := systemd.Stop(ctx, name); err != nil {
@@ -102,12 +98,10 @@ func runRestartApp(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.Domain != "" && cfg.Port > 0 {
-		if err := caddy.WriteSnippet(caddy.ResolveConfDir(), name, cfg.Domain, cfg.Port); err != nil {
-			printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
-		} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-			printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
-		}
+	if err := syncAppIngress(cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
+	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
+		printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
 	}
 	if err := systemd.Restart(ctx, name); err != nil {
 		return fmt.Errorf("failed to restart %q: %w", name, err)

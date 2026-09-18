@@ -50,7 +50,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	appDir := filepath.Join(tmpDir, "myapp")
 	cfg := &AppConfig{
 		Name: "myapp", RepoURL: "https://github.com/example/repo.git",
-		Domain: "myapp.example.com", Port: 8080, Branch: "main", CreatedAt: "2026-09-15T00:00:00Z",
+		Domains: []string{"myapp.example.com"}, Port: 8080, Branch: "main", CreatedAt: "2026-09-15T00:00:00Z",
 		AppType: "static", Containerfile: "Dockerfile", ContextDir: ".", StaticDir: "dist", BuildCmd: "make",
 	}
 	if err := SaveConfig(appDir, cfg); err != nil {
@@ -71,12 +71,24 @@ func TestSaveAndLoadConfig(t *testing.T) {
 }
 
 func assertConfigEqual(t *testing.T, got, want *AppConfig) {
-	if got.Name != want.Name || got.RepoURL != want.RepoURL || got.Domain != want.Domain ||
+	if got.Name != want.Name || got.RepoURL != want.RepoURL || !domainsEqual(got.Domains, want.Domains) ||
 		got.Port != want.Port || got.Branch != want.Branch || got.CreatedAt != want.CreatedAt ||
 		got.AppType != want.AppType || got.Containerfile != want.Containerfile ||
 		got.ContextDir != want.ContextDir || got.StaticDir != want.StaticDir || got.BuildCmd != want.BuildCmd {
 		t.Errorf("config mismatch:\ngot:  %+v\nwant: %+v", got, want)
 	}
+}
+
+func domainsEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func testInvalidConfigs(t *testing.T, tmpDir string) {

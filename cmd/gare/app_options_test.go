@@ -15,7 +15,6 @@ func TestResolveAppOptionsWithFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 	opts := appCreateOptions{
 		repo:          "https://example.com/repo.git",
-		domain:        "app.local",
 		appType:       "static",
 		staticDir:     "dist",
 		containerfile: "apps/api/Dockerfile",
@@ -63,8 +62,8 @@ func TestResolveAppOptionsWithGareFile(t *testing.T) {
 	if resolved.appType != "static" || resolved.staticDir != "build" {
 		t.Errorf("unexpected static opts: %+v", resolved)
 	}
-	if resolved.port != 8080 || resolved.domain != "static.local" {
-		t.Errorf("expected port 8080 and domain static.local, got %d, %s", resolved.port, resolved.domain)
+	if resolved.port != 8080 {
+		t.Errorf("expected port 8080, got %d", resolved.port)
 	}
 }
 
@@ -80,7 +79,6 @@ func TestResolveAppOptionsPrecedence(t *testing.T) {
 	}
 	opts := appCreateOptions{
 		repo:          "https://example.com/repo.git",
-		domain:        "custom.local",
 		containerfile: "Custom.Dockerfile",
 		buildCmd:      "make prod",
 	}
@@ -97,7 +95,7 @@ func TestResolveAppOptionsPrecedence(t *testing.T) {
 }
 
 func TestStaticSnippetGeneration(t *testing.T) {
-	snippet, err := caddy.GenerateStaticSnippet("static.test", 8080, "/var/www/dist")
+	snippet, err := caddy.GenerateStaticSnippet([]string{"static.test"}, 8080, "/var/www/dist")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,7 +115,7 @@ func TestStaticConfigStorage(t *testing.T) {
 	appDir := filepath.Join(tmpDir, "static-app")
 	cfg := &storage.AppConfig{
 		Name:      "static-app",
-		Domain:    "static.test",
+		Domains:   []string{"static.test"},
 		AppType:   "static",
 		StaticDir: "public",
 		BuildCmd:  "npm run build",
@@ -141,7 +139,7 @@ func TestListCmdStaticTable(t *testing.T) {
 	cfg := &storage.AppConfig{
 		Name:    "staticapp",
 		Port:    0,
-		Domain:  "static.local",
+		Domains: []string{"static.local"},
 		AppType: "static",
 	}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {

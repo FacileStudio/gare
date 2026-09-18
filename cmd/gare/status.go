@@ -22,7 +22,7 @@ type AppStatusDetails struct {
 	Name          string                     `json:"name"`
 	AppType       string                     `json:"app_type"`
 	Status        string                     `json:"status"`
-	Domain        string                     `json:"domain,omitempty"`
+	Domains       []string                   `json:"domains,omitempty"`
 	Port          int                        `json:"port,omitempty"`
 	ContainerPort int                        `json:"container_port,omitempty"`
 	RepoURL       string                     `json:"repo_url"`
@@ -78,7 +78,7 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		Name:          cfg.Name,
 		AppType:       cfg.AppType,
 		Status:        "inactive",
-		Domain:        cfg.Domain,
+		Domains:       cfg.Domains,
 		Port:          cfg.Port,
 		ContainerPort: cfg.ContainerPort,
 		RepoURL:       cfg.RepoURL,

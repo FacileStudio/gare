@@ -58,4 +58,3 @@ func runLogs(ctx context.Context, name string, follow bool, lines int) error {
 	}
 	return systemd.StreamLogs(sigCtx, name, opts)
 }
-

@@ -32,7 +32,6 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreat
 	opts.staticDir = defaultStr(opts.staticDir, gf.ResolveStaticDir())
 	opts.buildCmd = defaultStr(opts.buildCmd, gf.ResolveBuildCmd())
 	opts.healthcheck = defaultStr(opts.healthcheck, gf.ResolveHealthcheck())
-	opts.domain = defaultStr(opts.domain, gf.ResolveDomain())
 	if opts.port == 0 {
 		opts.port = gf.ResolvePort()
 	}
@@ -70,7 +69,6 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 	appCfg := &storage.AppConfig{
 		Name:          name,
 		RepoURL:       opts.repo,
-		Domain:        opts.domain,
 		Port:          opts.port,
 		ContainerPort: opts.containerPort,
 		Branch:        opts.branch,
@@ -85,11 +83,7 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 	if err := storage.SaveConfig(appDir, appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
-	if opts.domain != "" {
-		printSuccess(fmt.Sprintf("App %q successfully created on port %d (%s)", name, opts.port, opts.domain))
-	} else {
-		printSuccess(fmt.Sprintf("App %q successfully created on port %d", name, opts.port))
-	}
+	printSuccess(fmt.Sprintf("App %q successfully created on port %d", name, opts.port))
 	return nil
 }
 
@@ -126,9 +120,6 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	}
 	if cfg.Healthcheck == "" {
 		cfg.Healthcheck = gf.ResolveHealthcheck()
-	}
-	if cfg.Domain == "" {
-		cfg.Domain = gf.ResolveDomain()
 	}
 	reqPort := gf.ResolvePort()
 	if reqPort > 0 && reqPort != cfg.Port {

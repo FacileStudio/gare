@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `gare domain add|rm|list` commands for managing hostnames as first-class resources attached to applications.
+
+### Changed
+
+- Removed `--domain` flag from `gare app create`; hostnames are now attached after creation with `gare domain add`.
+- Hostnames are stored as `Domains []string` in `config.json`.
+
 ## [0.8.6] - 2026-09-18
 
 ### Added

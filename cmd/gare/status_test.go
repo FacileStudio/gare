@@ -18,7 +18,7 @@ func TestStatusCmdJSON(t *testing.T) {
 		Name:        "myapp",
 		AppType:     "static",
 		Port:        8000,
-		Domain:      "myapp.local",
+		Domains:     []string{"myapp.local"},
 		RepoURL:     "https://github.com/example/myapp",
 		Branch:      "main",
 		CreatedAt:   "2026-09-17T00:00:00Z",
@@ -40,7 +40,7 @@ func TestStatusCmdJSON(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &details); err != nil {
 		t.Fatalf("invalid json: %v\noutput: %s", err, buf.String())
 	}
-	if details.Name != "myapp" || details.Healthcheck != "/health" {
+	if details.Name != "myapp" || details.Healthcheck != "/health" || len(details.Domains) != 1 || details.Domains[0] != "myapp.local" {
 		t.Errorf("status details mismatch: %+v", details)
 	}
 }
@@ -52,7 +52,7 @@ func TestStatusCmdHuman(t *testing.T) {
 	cfg := &storage.AppConfig{
 		Name:    "humanapp",
 		AppType: "static",
-		Domain:  "human.local",
+		Domains: []string{"human.local"},
 	}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)

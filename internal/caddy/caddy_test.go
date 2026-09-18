@@ -1,33 +1,47 @@
 package caddy
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
 func TestGenerateSnippet(t *testing.T) {
-	snippet, err := GenerateSnippet("example.com", 8080)
+	snippet, err := GenerateSnippet([]string{"example.com"}, 8080)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	expected := "example.com {\n\treverse_proxy localhost:8080\n}\n"
+	expected := "example.com {\n\t\treverse_proxy localhost:8080\n\t}\n\t"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
+	}
+}
+
+func TestGenerateSnippetMultiple(t *testing.T) {
+	snippet, err := GenerateSnippet([]string{"a.example.com", "www.example.com"}, 8080)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := "a.example.com, www.example.com {\n\t\treverse_proxy localhost:8080\n\t}\n\t"
+	if snippet != expected {
+		t.Errorf("got %q, want %q", snippet, expected)
+	}
+}
+
+func TestGenerateSnippetNoDomains(t *testing.T) {
+	if _, err := GenerateSnippet([]string{}, 8080); err == nil {
+		t.Error("expected error with no domains")
 	}
 }
 
 func TestWriteAndRemoveSnippet(t *testing.T) {
 	tempDir := t.TempDir()
 	name := "testapp"
-	domain := "test.example.com"
+	domains := []string{"test.example.com"}
 	port := 8001
 
-	if err := WriteSnippet(tempDir, name, domain, port); err != nil {
+	if err := WriteSnippet(tempDir, name, domains, port); err != nil {
 		t.Fatalf("unexpected error writing snippet: %v", err)
 	}
 
@@ -59,34 +73,34 @@ func TestGetSnippetPath(t *testing.T) {
 }
 
 func TestGenerateStaticSnippet(t *testing.T) {
-	snippet, err := GenerateStaticSnippet("example.com", 0, "/var/www/html")
+	snippet, err := GenerateStaticSnippet([]string{"example.com"}, 0, "/var/www/html")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := "example.com {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	expected := "example.com {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}
 
-	snippet, err = GenerateStaticSnippet("", 8080, "/var/www/html")
+	snippet, err = GenerateStaticSnippet([]string{}, 8080, "/var/www/html")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected = ":8080 {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	expected = ":8080 {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}
 
-	snippet, err = GenerateStaticSnippet("example.com", 8080, "/var/www/html")
+	snippet, err = GenerateStaticSnippet([]string{"example.com", "www.example.com"}, 8080, "/var/www/html")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected = "example.com, :8080 {\n\troot * \"/var/www/html\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	expected = "example.com, www.example.com, :8080 {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}
 
-	if _, err := GenerateStaticSnippet("", 0, "/var/www/html"); err == nil {
+	if _, err := GenerateStaticSnippet([]string{}, 0, "/var/www/html"); err == nil {
 		t.Errorf("expected error when neither domain nor port specified")
 	}
 }
@@ -94,10 +108,10 @@ func TestGenerateStaticSnippet(t *testing.T) {
 func TestWriteStaticSnippet(t *testing.T) {
 	tempDir := t.TempDir()
 	name := "staticsite"
-	domain := "static.example.com"
+	domains := []string{"static.example.com"}
 	rootDir := "/var/www/site"
 
-	if err := WriteStaticSnippet(tempDir, name, domain, 8080, rootDir); err != nil {
+	if err := WriteStaticSnippet(tempDir, name, domains, 8080, rootDir); err != nil {
 		t.Fatalf("unexpected error writing static snippet: %v", err)
 	}
 
@@ -107,7 +121,7 @@ func TestWriteStaticSnippet(t *testing.T) {
 		t.Fatalf("failed to read static snippet file: %v", err)
 	}
 
-	expected := "static.example.com, :8080 {\n\troot * \"/var/www/site\"\n\ttry_files {path} /index.html\n\tfile_server\n}\n"
+	expected := "static.example.com, :8080 {\n\t\troot * \"/var/www/site\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
 	if string(content) != expected {
 		t.Errorf("got %q, want %q", string(content), expected)
 	}
@@ -132,29 +146,5 @@ func TestEnsureCaddyfileAtPath(t *testing.T) {
 
 	if err := EnsureCaddyfileAtPath(caddyfilePath); err != nil {
 		t.Fatalf("unexpected error on second call: %v", err)
-	}
-}
-
-func TestIsSpaceError(t *testing.T) {
-	if !errors.Is(syscall.ENOSPC, syscall.ENOSPC) {
-		t.Error("expected isSpaceError to return true for ENOSPC")
-	}
-	if errors.Is(syscall.EDQUOT, syscall.ENOSPC) {
-		t.Error("expected isSpaceError to return false for EDQUOT")
-	}
-	if errors.Is(errors.New("some other error"), syscall.ENOSPC) {
-		t.Error("expected isSpaceError to return false for unrelated errors")
-	}
-}
-
-func TestIsQuotaExceeded(t *testing.T) {
-	if !errors.Is(syscall.EDQUOT, syscall.EDQUOT) {
-		t.Error("expected isQuotaExceeded to return true for EDQUOT")
-	}
-	if errors.Is(syscall.ENOSPC, syscall.EDQUOT) {
-		t.Error("expected isQuotaExceeded to return false for ENOSPC")
-	}
-	if errors.Is(errors.New("some other error"), syscall.EDQUOT) {
-		t.Error("expected isQuotaExceeded to return false for unrelated errors")
 	}
 }

@@ -28,18 +28,20 @@ Verifies that `podman`, `caddy`, and `git` are available, checks user lingering 
 ### 2. Create an application
 
 ```sh
-gare app create myapp --repo https://github.com/example/webapp.git --domain myapp.example.com --healthcheck /health
+gare app create myapp --repo https://github.com/example/webapp.git --healthcheck /health
+gare domain add myapp myapp.example.com
 ```
 
-Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and a systemd user unit, and writes the Caddy ingress configuration.
+Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and a systemd user unit, and records metadata in config.json. Use `gare domain add` to attach a hostname and write the Caddy ingress snippet.
 
 #### Custom Containerfile or monorepos
 
 Specify a custom Containerfile and build context path:
 
 ```sh
-gare app create api --repo https://github.com/example/monorepo.git --domain api.example.com \
+gare app create api --repo https://github.com/example/monorepo.git \
   --containerfile apps/api/Containerfile --context .
+gare domain add api api.example.com
 ```
 
 #### Static applications
@@ -47,8 +49,9 @@ gare app create api --repo https://github.com/example/monorepo.git --domain api.
 Host a static site directly via Caddy without Podman, containers, or open ports:
 
 ```sh
-gare app create blog --repo https://github.com/example/blog.git --domain blog.example.com \
+gare app create blog --repo https://github.com/example/blog.git \
   --static dist --build-cmd "bun run build"
+gare domain add blog blog.example.com
 ```
 
 #### Repository configuration (`gare.yml`)
@@ -92,7 +95,27 @@ gare env unset myapp LOG_LEVEL
 
 When updated, active application services are automatically restarted to apply new environment values.
 
-### 4. Deploy the application
+### 4. Manage domains
+
+Attach, inspect, and remove ingress hostnames:
+
+```sh
+# Add domain(s) to an app
+gare domain add myapp myapp.example.com
+gare domain add myapp www.myapp.example.com
+
+# List configured domains
+gare domain list
+gare domain list myapp
+gare domain list --json
+
+# Remove a domain
+gare domain rm myapp www.myapp.example.com
+```
+
+When an application is active, adding or removing domains automatically updates the Caddy snippet and reloads the proxy.
+
+### 5. Deploy the application
 
 ```sh
 gare deploy myapp
@@ -100,7 +123,7 @@ gare deploy myapp
 
 Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe.
 
-### 5. Lifecycle and status inspection
+### 6. Lifecycle and status inspection
 
 ```sh
 # Start, stop, or restart an application
@@ -121,7 +144,7 @@ gare list -q
 gare logs myapp -f
 ```
 
-### 6. Tear down an application
+### 7. Tear down an application
 
 ```sh
 gare destroy myapp

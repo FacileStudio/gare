@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/tree"
@@ -38,8 +39,8 @@ func appendWorkloadDetails(t *tree.Tree, d *AppStatusDetails, bold lipgloss.Styl
 			workloadNode.Child(fmt.Sprintf("Port:   %d", d.Port))
 		}
 	}
-	if d.Domain != "" {
-		workloadNode.Child(fmt.Sprintf("Domain: %s", d.Domain))
+	if len(d.Domains) > 0 {
+		workloadNode.Child(fmt.Sprintf("Domain: %s", strings.Join(d.Domains, ", ")))
 	}
 	if d.Healthcheck != "" {
 		workloadNode.Child(fmt.Sprintf("Health: %s", d.Healthcheck))

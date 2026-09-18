@@ -64,4 +64,3 @@ func writeEnvFile(filePath string, envs map[string]string) error {
 	}
 	return atomicfile.WriteFile(filePath, buf.Bytes(), 0644)
 }
-

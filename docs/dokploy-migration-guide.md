@@ -305,9 +305,10 @@ docker stop $(docker ps -q -f name=registre)
 ```sh
 gare app create registre \
   --repo https://github.com/FacileStudio/registre.git \
-  --domain sso.facile.studio \
   --port 8002 \
   --branch main
+
+gare domain add registre sso.facile.studio
 ```
 
 #### 4. Configure manifest and restore database

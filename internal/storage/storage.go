@@ -16,19 +16,19 @@ var appNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`)
 
 // AppConfig represents an application's configuration and deployment metadata.
 type AppConfig struct {
-	Name          string `json:"name"`
-	RepoURL       string `json:"repo_url"`
-	Domain        string `json:"domain"`
-	Port          int    `json:"port"`
-	ContainerPort int    `json:"container_port,omitempty"`
-	Branch        string `json:"branch"`
-	CreatedAt     string `json:"created_at"`
-	AppType       string `json:"app_type,omitempty"`
-	Containerfile string `json:"containerfile,omitempty"`
-	ContextDir    string `json:"context_dir,omitempty"`
-	StaticDir     string `json:"static_dir,omitempty"`
-	BuildCmd      string `json:"build_cmd,omitempty"`
-	Healthcheck   string `json:"healthcheck,omitempty"`
+	Name          string   `json:"name"`
+	RepoURL       string   `json:"repo_url"`
+	Domains       []string `json:"domains,omitempty"`
+	Port          int      `json:"port"`
+	ContainerPort int      `json:"container_port,omitempty"`
+	Branch        string   `json:"branch"`
+	CreatedAt     string   `json:"created_at"`
+	AppType       string   `json:"app_type,omitempty"`
+	Containerfile string   `json:"containerfile,omitempty"`
+	ContextDir    string   `json:"context_dir,omitempty"`
+	StaticDir     string   `json:"static_dir,omitempty"`
+	BuildCmd      string   `json:"build_cmd,omitempty"`
+	Healthcheck   string   `json:"healthcheck,omitempty"`
 }
 
 // DefaultBaseDir returns the default directory path for app storage.
@@ -89,6 +89,7 @@ func LoadConfig(appDir string) (*AppConfig, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
+	migrateDomain(&cfg, data)
 	return &cfg, nil
 }
 

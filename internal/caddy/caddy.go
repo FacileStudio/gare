@@ -10,22 +10,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
 )
 
-const snippetTemplate = `{{.Domain}} {
-	reverse_proxy localhost:{{.Port}}
-}
-`
+const snippetTemplate = `{{.Address}} {
+		reverse_proxy localhost:{{.Port}}
+	}
+	`
 
 const staticSnippetTemplate = `{{.Address}} {
-	root * "{{.RootDir}}"
-	try_files {path} /index.html
-	file_server
-}
-`
+		root * "{{.RootDir}}"
+		try_files {path} /index.html
+		file_server
+	}`
 
 // DefaultConfDir defines the default filesystem path for Caddy drop-in configuration snippets.
 const DefaultConfDir = "/etc/caddy/conf.d"
@@ -38,68 +38,54 @@ const defaultCaddyfileContent = `import /etc/caddy/conf.d/*.caddy
 
 // SnippetData holds the template parameters for generating a Caddy reverse proxy snippet.
 type SnippetData struct {
-	Domain string
-	Port   int
+	Address string
+	Port    int
 }
 
 // StaticSnippetData holds the template parameters for generating a Caddy static file server snippet.
 type StaticSnippetData struct {
 	Address string
-	Domain  string
 	Port    int
 	RootDir string
 }
 
-// GenerateSnippet renders a Caddy reverse proxy configuration snippet for the given domain and port.
-func GenerateSnippet(domain string, port int) (string, error) {
+// GenerateSnippet renders a Caddy reverse proxy configuration snippet for the given domains and port.
+func GenerateSnippet(domains []string, port int) (string, error) {
+	if len(domains) == 0 {
+		return "", errors.New("at least one domain must be specified")
+	}
+	address := strings.Join(domains, ", ")
 	tmpl, err := template.New("caddy").Parse(snippetTemplate)
 	if err != nil {
 		return "", err
 	}
-
-	data := SnippetData{
-		Domain: domain,
-		Port:   port,
-	}
-
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := tmpl.Execute(&buf, SnippetData{Address: address, Port: port}); err != nil {
 		return "", err
 	}
-
 	return buf.String(), nil
 }
 
 // GenerateStaticSnippet renders a Caddy static file server configuration snippet.
-func GenerateStaticSnippet(domain string, port int, rootDir string) (string, error) {
+func GenerateStaticSnippet(domains []string, port int, rootDir string) (string, error) {
 	var address string
-	if domain != "" && port > 0 {
-		address = fmt.Sprintf("%s, :%d", domain, port)
-	} else if domain != "" {
-		address = domain
+	if len(domains) > 0 && port > 0 {
+		address = fmt.Sprintf("%s, :%d", strings.Join(domains, ", "), port)
+	} else if len(domains) > 0 {
+		address = strings.Join(domains, ", ")
 	} else if port > 0 {
 		address = fmt.Sprintf(":%d", port)
 	} else {
 		return "", errors.New("at least one of domain or port must be specified")
 	}
-
 	tmpl, err := template.New("caddy-static").Parse(staticSnippetTemplate)
 	if err != nil {
 		return "", err
 	}
-
-	data := StaticSnippetData{
-		Address: address,
-		Domain:  domain,
-		Port:    port,
-		RootDir: rootDir,
-	}
-
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := tmpl.Execute(&buf, StaticSnippetData{Address: address, Port: port, RootDir: rootDir}); err != nil {
 		return "", err
 	}
-
 	return buf.String(), nil
 }
 
@@ -112,39 +98,33 @@ func GetSnippetPath(confDir, name string) string {
 }
 
 // WriteSnippet generates and writes a Caddy configuration snippet atomically to disk.
-func WriteSnippet(confDir, name, domain string, port int) error {
+func WriteSnippet(confDir, name string, domains []string, port int) error {
 	if confDir == "" {
 		confDir = ResolveConfDir()
 	}
 	if err := EnsureCaddyfilePaths(ResolveCaddyfilePath(), confDir); err != nil {
-		confErr := err
-		if confErr != nil {
-		}
+		return err
 	}
-	content, err := GenerateSnippet(domain, port)
+	content, err := GenerateSnippet(domains, port)
 	if err != nil {
 		return err
 	}
-
 	path := GetSnippetPath(confDir, name)
 	return atomicfile.WriteFile(path, []byte(content), 0644)
 }
 
 // WriteStaticSnippet generates and writes a static file server configuration snippet atomically to disk.
-func WriteStaticSnippet(confDir, name, domain string, port int, rootDir string) error {
+func WriteStaticSnippet(confDir, name string, domains []string, port int, rootDir string) error {
 	if confDir == "" {
 		confDir = ResolveConfDir()
 	}
 	if err := EnsureCaddyfilePaths(ResolveCaddyfilePath(), confDir); err != nil {
-		confErr := err
-		if confErr != nil {
-		}
+		return err
 	}
-	content, err := GenerateStaticSnippet(domain, port, rootDir)
+	content, err := GenerateStaticSnippet(domains, port, rootDir)
 	if err != nil {
 		return err
 	}
-
 	path := GetSnippetPath(confDir, name)
 	return atomicfile.WriteFile(path, []byte(content), 0644)
 }
@@ -161,9 +141,7 @@ func RemoveSnippet(confDir, name string) error {
 // Reload instructs Caddy to reload its configuration using the CLI or Admin API.
 func Reload(ctx context.Context) error {
 	if err := EnsureCaddyfile(); err != nil {
-		confErr := err
-		if confErr != nil {
-		}
+		return err
 	}
 	caddyfile := ResolveCaddyfilePath()
 	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", caddyfile)
@@ -197,4 +175,3 @@ func reloadViaAdminAPI(ctx context.Context, configPath string) error {
 	body, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("caddy admin api returned %s: %s", resp.Status, string(body))
 }
-
