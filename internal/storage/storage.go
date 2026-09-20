@@ -24,11 +24,12 @@ type AppConfig struct {
 	Branch        string   `json:"branch"`
 	CreatedAt     string   `json:"created_at"`
 	AppType       string   `json:"app_type,omitempty"`
+	ComposeFile   string   `json:"compose_file,omitempty"`
 	Containerfile string   `json:"containerfile,omitempty"`
 	ContextDir    string   `json:"context_dir,omitempty"`
 	StaticDir     string   `json:"static_dir,omitempty"`
 	BuildCmd      string   `json:"build_cmd,omitempty"`
-	Healthcheck   string   `json:"healthcheck,omitempty"`
+	Health        *HealthSection `json:"health,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
 }
 
@@ -91,6 +92,7 @@ func LoadConfig(appDir string) (*AppConfig, error) {
 		return nil, err
 	}
 	migrateDomain(&cfg, data)
+	migrateHealth(&cfg, data)
 	return &cfg, nil
 }
 

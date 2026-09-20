@@ -15,14 +15,14 @@ func TestStatusCmdJSON(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "myapp")
 	cfg := &storage.AppConfig{
-		Name:        "myapp",
-		AppType:     "static",
-		Port:        8000,
-		Domains:     []string{"myapp.local"},
-		RepoURL:     "https://github.com/example/myapp",
-		Branch:      "main",
-		CreatedAt:   "2026-09-17T00:00:00Z",
-		Healthcheck: "/health",
+		Name:      "myapp",
+		AppType:   "static",
+		Port:      8000,
+		Domains:   []string{"myapp.local"},
+		RepoURL:   "https://github.com/example/myapp",
+		Branch:    "main",
+		CreatedAt: "2026-09-17T00:00:00Z",
+		Health:    &storage.HealthSection{Path: "/health"},
 	}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)

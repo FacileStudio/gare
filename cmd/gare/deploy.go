@@ -50,6 +50,9 @@ func RunDeploy(ctx context.Context, name string) error {
 	if cfg.IsStatic() {
 		return deployStaticApp(ctx, name, repoDir, cfg)
 	}
+	if cfg.IsCompose() {
+		return deployComposeApp(ctx, name, appDir, repoDir, cfg)
+	}
 	return deployContainerApp(ctx, name, appDir, repoDir, cfg)
 }
 
@@ -57,14 +60,15 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 	if err := syncGareFileConfig(baseDir, repoDir, cfg); err != nil {
 		return err
 	}
-	if !cfg.IsStatic() && cfg.Port == 0 {
+	warnStrayComposeFile(repoDir, cfg.IsCompose())
+	if cfg.UsesPodManifest() && cfg.Port == 0 {
 		port, err := storage.DiscoverAvailablePort(baseDir, 0)
 		if err != nil {
 			return fmt.Errorf("failed to discover free port: %w", err)
 		}
 		cfg.Port = port
 	}
-	if !cfg.IsStatic() && cfg.ContainerPort == 0 {
+	if cfg.UsesPodManifest() && cfg.ContainerPort == 0 {
 		if exposed := builder.DetectExposedPort(repoDir, cfg.Containerfile); exposed > 0 {
 			cfg.ContainerPort = exposed
 		}

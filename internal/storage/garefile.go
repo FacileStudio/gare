@@ -24,6 +24,7 @@ type BuildSection struct {
 // GareFile represents the configuration parsed from gare.yaml or gare.yml.
 type GareFile struct {
 	Type          string         `yaml:"type"`
+	ComposeFile   string         `yaml:"compose_file,omitempty"`
 	Port          int            `yaml:"port"`
 	ContainerPort int            `yaml:"container_port,omitempty"`
 	Domain        string         `yaml:"domain"`
@@ -33,17 +34,19 @@ type GareFile struct {
 	BuildCmd      string         `yaml:"build_cmd"`
 	Healthcheck   string         `yaml:"healthcheck"`
 	HealthCheck   string         `yaml:"health_check"`
+	Healthchecks  []HealthProbe  `yaml:"healthchecks,omitempty"`
 	Tags          []string       `yaml:"tags,omitempty"`
 	Static        *StaticSection `yaml:"static"`
 	Build         *BuildSection  `yaml:"build"`
 }
 
-// ResolveType returns the application type, defaulting to "container".
+// ResolveType returns the application type, defaulting to "container" for unknown values.
 func (g *GareFile) ResolveType() string {
-	if g != nil && strings.EqualFold(g.Type, "static") {
-		return "static"
+	workload, err := g.ResolveWorkload()
+	if err != nil {
+		return string(WorkloadContainer)
 	}
-	return "container"
+	return string(workload)
 }
 
 // ResolveContainerfile returns the containerfile path if configured.

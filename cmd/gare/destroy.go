@@ -31,10 +31,9 @@ func NewDestroyCmd() *cobra.Command {
 			appDir := storage.GetAppDir(baseDir, name)
 
 			cfg, _ := storage.LoadConfig(appDir)
-			isStatic := cfg != nil && cfg.IsStatic()
 
 			teardownServices(ctx, name)
-			removeArtifacts(ctx, name, appDir, isStatic)
+			removeArtifacts(ctx, name, appDir, cfg)
 			reloadDaemons(ctx)
 
 			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
@@ -60,13 +59,15 @@ func teardownServices(ctx context.Context, name string) {
 	}
 }
 
-func removeArtifacts(ctx context.Context, name, appDir string, isStatic bool) {
+func removeArtifacts(ctx context.Context, name, appDir string, cfg *storage.AppConfig) {
 	printInfo("Removing Caddy snippet...")
 	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err != nil {
 		printWarning(fmt.Sprintf("removing caddy snippet returned error: %v", err))
 	}
 
-	if !isStatic {
+	if cfg.IsCompose() {
+		destroyComposeWorkload(ctx, appDir, cfg)
+	} else if !cfg.IsStatic() {
 		imageName := fmt.Sprintf("localhost/%s:latest", name)
 		printInfo(fmt.Sprintf("Removing container image %s...", imageName))
 		if err := builder.RemoveImage(ctx, imageName); err != nil {

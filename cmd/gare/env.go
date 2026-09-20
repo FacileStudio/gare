@@ -98,12 +98,12 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.IsStatic() {
+	if cfg.UsesAppEnvFile() {
 		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.SetStaticEnv(appDir, vars); err != nil {
-			return fmt.Errorf("failed to set static env: %w", err)
+		if err := storage.SetAppEnv(appDir, vars); err != nil {
+			return fmt.Errorf("failed to set app env: %w", err)
 		}
-		printSuccess(fmt.Sprintf("Updated %d environment variable(s) in static env", len(vars)))
+		printSuccess(fmt.Sprintf("Updated %d environment variable(s) in app env file", len(vars)))
 		return reloadIfActive(ctx, name)
 	}
 	if err := storage.SetManifestEnv(manifestPath, vars); err != nil {
@@ -118,12 +118,12 @@ func runEnvUnset(ctx context.Context, name string, keys []string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.IsStatic() {
+	if cfg.UsesAppEnvFile() {
 		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.UnsetStaticEnv(appDir, keys); err != nil {
-			return fmt.Errorf("failed to unset static env: %w", err)
+		if err := storage.UnsetAppEnv(appDir, keys); err != nil {
+			return fmt.Errorf("failed to unset app env: %w", err)
 		}
-		printSuccess(fmt.Sprintf("Removed %d environment variable(s) from static env", len(keys)))
+		printSuccess(fmt.Sprintf("Removed %d environment variable(s) from app env file", len(keys)))
 		return reloadIfActive(ctx, name)
 	}
 	if err := storage.UnsetManifestEnv(manifestPath, keys); err != nil {
@@ -142,10 +142,10 @@ func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 	if err != nil {
 		return err
 	}
-	if cfg.IsStatic() {
+	if cfg.UsesAppEnvFile() {
 		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.SetStaticEnv(appDir, vars); err != nil {
-			return fmt.Errorf("failed to load static env: %w", err)
+		if err := storage.SetAppEnv(appDir, vars); err != nil {
+			return fmt.Errorf("failed to load app env: %w", err)
 		}
 		printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))
 		return reloadIfActive(ctx, name)

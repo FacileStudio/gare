@@ -112,7 +112,7 @@ func TestEnvStaticApp(t *testing.T) {
 	if err := cmdSet.Execute(); err != nil {
 		t.Fatalf("expected static app env set to succeed, got: %v", err)
 	}
-	envs, err := storage.GetStaticEnv(appDir)
+	envs, err := storage.GetAppEnv(appDir)
 	if err != nil || envs["FOO"] != "BAR" {
 		t.Fatalf("expected FOO=BAR in static env, got: %+v, err: %v", envs, err)
 	}
@@ -122,7 +122,7 @@ func TestEnvStaticApp(t *testing.T) {
 	if err := cmdUnset.Execute(); err != nil {
 		t.Fatalf("expected static app env unset to succeed, got: %v", err)
 	}
-	envs, _ = storage.GetStaticEnv(appDir)
+	envs, _ = storage.GetAppEnv(appDir)
 	if _, ok := envs["FOO"]; ok {
 		t.Fatalf("expected FOO to be unset, got: %+v", envs)
 	}

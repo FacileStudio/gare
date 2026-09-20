@@ -19,11 +19,13 @@ type appCreateOptions struct {
 	containerPort int
 	branch        string
 	appType       string
+	composeFile   string
 	containerfile string
 	contextDir    string
 	staticDir     string
 	buildCmd      string
 	healthcheck   string
+	healthProbes  []storage.HealthProbe
 	tags          []string
 }
 
@@ -77,7 +79,8 @@ func newAppCreateCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&opts.port, "port", "p", 0, "Port to allocate (0 for auto-discovery)")
 	cmd.Flags().IntVar(&opts.containerPort, "container-port", 0, "Container internal port (from Containerfile EXPOSE)")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "main", "Git branch")
-	cmd.Flags().StringVarP(&opts.appType, "type", "t", "", "Application type (container or static)")
+	cmd.Flags().StringVarP(&opts.appType, "type", "t", "", "Application type (container, static, or compose)")
+	cmd.Flags().StringVar(&opts.composeFile, "compose-file", "", "Compose file to run for compose apps")
 	cmd.Flags().StringVarP(&opts.containerfile, "containerfile", "f", "", "Path to Containerfile/Dockerfile")
 	cmd.Flags().StringVar(&opts.contextDir, "context", "", "Build context directory relative to repository root")
 	cmd.Flags().StringVar(&opts.staticDir, "static", "", "Static assets directory to serve (relative to repository root)")
@@ -139,14 +142,8 @@ func setupAppWorkload(ctx context.Context, baseDir, name, appDir string, opts ap
 		return fmt.Errorf("failed to discover port: %w", err)
 	}
 	resolvedOpts.port = port
-	if resolvedOpts.appType == "static" {
-		if err := writeStaticArtifacts(name, appDir, resolvedOpts); err != nil {
-			return err
-		}
-	} else {
-		if err := writeAppArtifacts(name, appDir, resolvedOpts); err != nil {
-			return err
-		}
+	if err := writeWorkloadArtifacts(name, appDir, resolvedOpts); err != nil {
+		return err
 	}
 	if err := systemd.DaemonReload(ctx); err != nil {
 		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
@@ -195,20 +192,9 @@ func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, 
 		return opts, fmt.Errorf("failed to load gare configuration: %w", err)
 	}
 
-	resolved := mergeGareFileDefaults(opts, gf)
-	if resolved.staticDir != "" && resolved.appType == "" {
-		resolved.appType = "static"
+	resolved, err := mergeGareFileDefaults(opts, gf)
+	if err != nil {
+		return opts, err
 	}
-	if resolved.appType == "" {
-		resolved.appType = "container"
-	}
-	if resolved.appType == "static" && resolved.staticDir == "" {
-		resolved.staticDir = "."
-	}
-	if resolved.appType != "static" && resolved.containerPort == 0 {
-		if exposed := builder.DetectExposedPort(repoDir, resolved.containerfile); exposed > 0 {
-			resolved.containerPort = exposed
-		}
-	}
-	return resolved, nil
+	return normalizeCreateOptions(repoDir, resolved)
 }

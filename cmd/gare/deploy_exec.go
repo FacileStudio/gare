@@ -6,11 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/caddy"
-	"github.com/FacileStudio/gare/internal/health"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -85,31 +83,6 @@ func restartAppServices(ctx context.Context, name string) error {
 	if err := systemd.Restart(ctx, name); err != nil {
 		return fmt.Errorf("failed to restart service: %w", err)
 	}
-	return nil
-}
-
-func verifyHealth(ctx context.Context, cfg *storage.AppConfig) error {
-	if cfg.Port <= 0 {
-		return nil
-	}
-	time.Sleep(100 * time.Millisecond)
-	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
-	if props != nil && props.ActiveState != "active" {
-		return fmt.Errorf("service %s failed to start (state: %s)", cfg.Name, props.ActiveState)
-	}
-	healthPath := cfg.Healthcheck
-	if healthPath == "" {
-		healthPath = "/"
-	}
-	if !strings.HasPrefix(healthPath, "/") {
-		healthPath = "/" + healthPath
-	}
-	probeURL := fmt.Sprintf("http://127.0.0.1:%d%s", cfg.Port, healthPath)
-	printInfo(fmt.Sprintf("Verifying health probe at %s...", probeURL))
-	if err := health.Probe(ctx, probeURL, 30*time.Second); err != nil {
-		return fmt.Errorf("health check failed: %w", err)
-	}
-	printSuccess("Health check passed")
 	return nil
 }
 

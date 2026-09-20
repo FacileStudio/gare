@@ -17,9 +17,9 @@ func runEnvList(w io.Writer, name string, opts envListOptions) error {
 		return err
 	}
 	var envs map[string]string
-	if cfg.IsStatic() {
+	if cfg.UsesAppEnvFile() {
 		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		envs, err = storage.GetStaticEnv(appDir)
+		envs, err = storage.GetAppEnv(appDir)
 	} else {
 		envs, err = storage.GetManifestEnv(manifestPath)
 	}

@@ -74,7 +74,7 @@ func runStartApp(ctx context.Context, name string) error {
 }
 
 func runStopApp(ctx context.Context, name string) error {
-	_, err := loadAppForLifecycle(name)
+	cfg, err := loadAppForLifecycle(name)
 	if err != nil {
 		return err
 	}
@@ -86,10 +86,16 @@ func runStopApp(ctx context.Context, name string) error {
 	if err := systemd.Stop(ctx, name); err != nil {
 		return fmt.Errorf("failed to stop %q: %w", name, err)
 	}
-	if err := systemd.WaitForState(ctx, name, "inactive"); err != nil {
-		return fmt.Errorf("failed to verify %q inactive state: %w", name, err)
+	props, err := systemd.WaitForStop(ctx, name)
+	if err != nil {
+		return fmt.Errorf("failed to verify %q stopped: %w", name, err)
 	}
-	printSuccess(fmt.Sprintf("Stopped %s.service (inactive)", name))
+	if props.Result != "" && props.Result != "success" {
+		printWarning(fmt.Sprintf("Service %s exited with result %s (%s); inspect with: gare logs %s",
+			name, props.Result, props.SubState, name))
+	}
+	verifyComposeContainersGone(ctx, cfg, "stop")
+	printSuccess(fmt.Sprintf("Stopped %s.service (%s)", name, props.ActiveState))
 	return nil
 }
 

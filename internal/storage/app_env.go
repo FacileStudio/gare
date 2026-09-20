@@ -11,15 +11,14 @@ import (
 	"github.com/FacileStudio/gare/internal/atomicfile"
 )
 
-// GetStaticEnvPath returns the path to the static env file.
-func GetStaticEnvPath(appDir string) string {
+// GetAppEnvPath returns the path to the application env file.
+func GetAppEnvPath(appDir string) string {
 	return filepath.Join(appDir, "env")
 }
 
-// GetStaticEnv reads environment variables from a static app env file.
-func GetStaticEnv(appDir string) (map[string]string, error) {
-	path := GetStaticEnvPath(appDir)
-	data, err := os.ReadFile(path)
+// GetAppEnv reads environment variables from the application env file.
+func GetAppEnv(appDir string) (map[string]string, error) {
+	data, err := os.ReadFile(GetAppEnvPath(appDir))
 	if os.IsNotExist(err) {
 		return make(map[string]string), nil
 	}
@@ -29,26 +28,26 @@ func GetStaticEnv(appDir string) (map[string]string, error) {
 	return ParseDotEnv(string(data))
 }
 
-// SetStaticEnv updates or adds environment variables in the static app env file.
-func SetStaticEnv(appDir string, vars map[string]string) error {
-	current, err := GetStaticEnv(appDir)
+// SetAppEnv updates or adds environment variables in the application env file.
+func SetAppEnv(appDir string, vars map[string]string) error {
+	current, err := GetAppEnv(appDir)
 	if err != nil {
 		return err
 	}
 	maps.Copy(current, vars)
-	return writeEnvFile(GetStaticEnvPath(appDir), current)
+	return writeEnvFile(GetAppEnvPath(appDir), current)
 }
 
-// UnsetStaticEnv removes specified keys from the static app env file.
-func UnsetStaticEnv(appDir string, keys []string) error {
-	current, err := GetStaticEnv(appDir)
+// UnsetAppEnv removes specified keys from the application env file.
+func UnsetAppEnv(appDir string, keys []string) error {
+	current, err := GetAppEnv(appDir)
 	if err != nil {
 		return err
 	}
 	for _, k := range keys {
 		delete(current, k)
 	}
-	return writeEnvFile(GetStaticEnvPath(appDir), current)
+	return writeEnvFile(GetAppEnvPath(appDir), current)
 }
 
 func writeEnvFile(filePath string, envs map[string]string) error {

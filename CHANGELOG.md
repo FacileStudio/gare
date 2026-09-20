@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Compose workload type: `type: compose` in `gare.yml` runs a repository-owned compose file with `podman compose`, with `compose_file` selecting the file explicitly or falling back to discovery.
+- Compose workloads require an explicit `port`, validated against the host ports the compose file publishes, so ingress never routes to a port the stack does not bind.
+- Compose systemd units run detached (`up -d`) as `Type=oneshot` with `RemainAfterExit=yes` and a per-app project name via `-p`, so `start`, `stop`, `restart`, and `status` behave like every other workload type without stalling the stop path.
+- Compose units require `podman.socket`, which systemd starts with the app, because the external compose provider talks to the podman API socket.
+- `healthchecks:` in `gare.yml` declares one HTTP probe per published port, and `gare deploy` verifies each probe and names the one that fails.
+- Compose workloads derive probes from the compose file when `gare.yml` declares none: services whose healthcheck issues an HTTP request to a published container port become probes, mapped to their published host port.
+- `gare destroy` tears compose workloads down with `podman compose down -v`, independent of whether the unit file still exists, and reports containers the provider failed to remove.
+- `gare deploy` preflights the external compose provider and fails with an actionable error when neither `docker-compose` nor `podman-compose` is available; `gare init` reports the provider and the podman socket.
+
+### Changed
+
+- `gare app env` now stores environment variables for static and compose workloads in the same application env file, which compose units load through systemd `EnvironmentFile=`.
+- Renamed the static env storage to app env storage (`storage.GetAppEnv`, `SetAppEnv`, `UnsetAppEnv`) now that it serves every non-Pod workload.
+- Health configuration moved to a `health` section in `config.json` holding the primary path and the probe list; the legacy `healthcheck` key is migrated on load.
+- `gare stop` accepts any non-running final state (including a provider that exited non-zero) instead of waiting out a stop timeout, and reports the result honestly.
+- Unknown `type` values in `gare.yml` are rejected instead of silently falling back to a single-container Pod.
+- Deployment warns when a repository contains a compose file but no `type: compose`, instead of silently ignoring it.
+
 ## [0.10.0] - 2026-09-18
 
 ### Added

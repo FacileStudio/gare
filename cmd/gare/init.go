@@ -35,6 +35,7 @@ func runInit(ctx context.Context) error {
 	}
 	checkLingerStatus(ctx)
 	checkPauseSetup()
+	checkComposeProvider(ctx)
 	if err := initDirectories(); err != nil {
 		return err
 	}

@@ -48,6 +48,16 @@ func appendWorkloadDetails(t *tree.Tree, d *AppStatusDetails, bold lipgloss.Styl
 	if d.Healthcheck != "" {
 		workloadNode.Child(fmt.Sprintf("Health: %s", d.Healthcheck))
 	}
+	appendProbeDetails(workloadNode, d)
+}
+
+func appendProbeDetails(node *tree.Tree, d *AppStatusDetails) {
+	if len(d.Probes) < 2 {
+		return
+	}
+	for _, probe := range d.Probes {
+		node.Child(fmt.Sprintf("Probe:  %s -> %s", probe.Label(), probeTarget(probe)))
+	}
 }
 
 func appendSourceDetails(t *tree.Tree, d *AppStatusDetails, bold lipgloss.Style) {

@@ -22,16 +22,24 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 	return saveAppMetadata(name, appDir, opts)
 }
 
-func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreateOptions {
+func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) (appCreateOptions, error) {
 	if gf == nil {
-		return opts
+		return opts, nil
 	}
-	opts.appType = defaultStr(opts.appType, gf.ResolveType())
+	workload, err := gf.ResolveWorkload()
+	if err != nil {
+		return opts, err
+	}
+	opts.appType = defaultStr(opts.appType, string(workload))
+	opts.composeFile = defaultStr(opts.composeFile, gf.ResolveComposeFile())
 	opts.containerfile = defaultStr(opts.containerfile, gf.ResolveContainerfile())
 	opts.contextDir = defaultStr(opts.contextDir, gf.ResolveContext())
 	opts.staticDir = defaultStr(opts.staticDir, gf.ResolveStaticDir())
 	opts.buildCmd = defaultStr(opts.buildCmd, gf.ResolveBuildCmd())
 	opts.healthcheck = defaultStr(opts.healthcheck, gf.ResolveHealthcheck())
+	if len(opts.healthProbes) == 0 {
+		opts.healthProbes = gf.ResolveHealthProbes()
+	}
 	if opts.port == 0 {
 		opts.port = gf.ResolvePort()
 	}
@@ -41,7 +49,7 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) appCreat
 	if len(opts.tags) == 0 {
 		opts.tags = gf.ResolveTags()
 	}
-	return opts
+	return opts, nil
 }
 
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
@@ -77,12 +85,13 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 		Branch:        opts.branch,
 		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
 		AppType:       opts.appType,
+		ComposeFile:   opts.composeFile,
 		Containerfile: opts.containerfile,
 		ContextDir:    opts.contextDir,
 		StaticDir:     opts.staticDir,
 		BuildCmd:      opts.buildCmd,
-		Healthcheck:   opts.healthcheck,
 	}
+	appCfg.SetHealth(opts.healthcheck, opts.healthProbes)
 	if err := appCfg.AddTags(opts.tags...); err != nil {
 		return fmt.Errorf("failed to add tags: %w", err)
 	}
@@ -98,54 +107,34 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	if err != nil || gf == nil {
 		return err
 	}
+	if _, err := gf.ResolveWorkload(); err != nil {
+		return err
+	}
 	if cfg.BuildCmd == "" {
 		cfg.BuildCmd = gf.ResolveBuildCmd()
 	}
-	if cfg.Healthcheck == "" {
-		cfg.Healthcheck = gf.ResolveHealthcheck()
+	if err := storage.ValidateHealthProbes(gf.ResolveHealthProbes()); err != nil {
+		return err
 	}
-	if tags := gf.ResolveTags(); tags != nil {
-		temp := &storage.AppConfig{}
-		if err := temp.AddTags(tags...); err != nil {
-			printWarning(fmt.Sprintf("Invalid tags in gare.yml: %v", err))
-		} else {
-			cfg.Tags = temp.Tags
-		}
-	}
+	applyGareTags(cfg, gf)
 	if err := syncGareFilePorts(baseDir, cfg, gf); err != nil {
 		return err
 	}
 	applyGareWorkloadConfig(cfg, gf)
+	applyGareHealthConfig(repoDir, cfg, gf)
 	return nil
 }
 
-func syncGareFilePorts(baseDir string, cfg *storage.AppConfig, gf *storage.GareFile) error {
-	reqPort := gf.ResolvePort()
-	if reqPort > 0 && reqPort != cfg.Port {
-		if _, err := storage.DiscoverAvailablePort(baseDir, reqPort); err != nil {
-			return fmt.Errorf("port %d in gare.yml is not available: %w", reqPort, err)
-		}
-		cfg.Port = reqPort
-	}
-	if reqCPort := gf.ResolveContainerPort(); reqCPort > 0 {
-		cfg.ContainerPort = reqCPort
-	}
-	return nil
-}
-
-func applyGareWorkloadConfig(cfg *storage.AppConfig, gf *storage.GareFile) {
-	if cfg.IsStatic() {
-		dir := gf.ResolveStaticDir()
-		if dir != "" && (cfg.StaticDir == "" || cfg.StaticDir == ".") {
-			cfg.StaticDir = dir
-		}
+func applyGareTags(cfg *storage.AppConfig, gf *storage.GareFile) {
+	tags := gf.ResolveTags()
+	if tags == nil {
 		return
 	}
-	if cfg.Containerfile == "" {
-		cfg.Containerfile = gf.ResolveContainerfile()
+	temp := &storage.AppConfig{}
+	if err := temp.AddTags(tags...); err != nil {
+		printWarning(fmt.Sprintf("Invalid tags in gare.yml: %v", err))
+		return
 	}
-	ctx := gf.ResolveContext()
-	if ctx != "" && (cfg.ContextDir == "" || cfg.ContextDir == ".") {
-		cfg.ContextDir = ctx
-	}
+	cfg.Tags = temp.Tags
 }
+

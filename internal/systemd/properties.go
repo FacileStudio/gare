@@ -13,6 +13,7 @@ import (
 type ServiceProperties struct {
 	ActiveState          string
 	SubState             string
+	Result               string
 	MainPID              int
 	ActiveEnterTimestamp string
 	MemoryCurrent        uint64
@@ -65,11 +66,37 @@ func checkStateMatch(props *ServiceProperties, err error, target, name string) (
 	return false, nil
 }
 
+// WaitForStop polls the service until it is no longer running and returns its final properties.
+func WaitForStop(ctx context.Context, name string) (*ServiceProperties, error) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		props, err := GetServiceProperties(ctx, name)
+		if err == nil && props != nil && !isRunningState(props.ActiveState) {
+			return props, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout waiting for %s to stop: %w", name, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func isRunningState(state string) bool {
+	switch state {
+	case "active", "activating", "deactivating", "reloading":
+		return true
+	}
+	return false
+}
+
 // GetServiceProperties queries systemctl show for unit properties.
 func GetServiceProperties(ctx context.Context, name string) (*ServiceProperties, error) {
 	props := []string{
 		"ActiveState",
 		"SubState",
+		"Result",
 		"MainPID",
 		"ActiveEnterTimestamp",
 		"MemoryCurrent",
@@ -107,6 +134,8 @@ func assignServiceProperty(res *ServiceProperties, key, val string) {
 		res.ActiveState = val
 	case "SubState":
 		res.SubState = val
+	case "Result":
+		res.Result = val
 	case "MainPID":
 		res.MainPID, _ = strconv.Atoi(val)
 	case "ActiveEnterTimestamp":

@@ -6,7 +6,7 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 
 - **Rootless user space**: Runs under unprivileged user accounts with `systemctl --user` and Podman.
 - **Direct systemd supervision**: Synthesizes systemd user units directly at `~/.config/systemd/user/<app>.service`.
-- **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`.
+- **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`, or multi-container stacks via `podman compose`.
 - **Automatic ingress**: Writes Caddy drop-in configuration snippets to `/etc/caddy/conf.d/<app>.caddy`.
 - **Static sites**: Serves static assets directly with Caddy without containers or allocated ports.
 - **Environment management**: Native `gare env` commands to set, unset, load, and inspect container environment variables.
@@ -76,9 +76,45 @@ static_dir: dist
 build_cmd: bun run build
 tags:
   - frontend
+
+# For compose workloads:
+type: compose
+compose_file: docker-compose.yml
+port: 8200
+healthchecks:
+  - name: web
+    port: 8200
+    path: /health
+  - name: admin
+    port: 8201
+    path: /
 ```
 
+The `healthchecks` list declares one HTTP readiness probe per workload (or per published port); each entry takes an optional `name`, a `port`, and a `path`. `gare deploy` verifies every probe and names the one that fails.
+
+When a compose file already declares healthchecks, gare derives the probes for you instead: every service whose healthcheck issues an HTTP request to a published container port becomes a probe, named after the service, with the port mapped to its published host port. Non-HTTP healthchecks (such as `pg_isready`) and unpublished ports are skipped, since they cannot be reached from the host. An explicit `healthchecks` list always wins. Without either, the single `port` plus `healthcheck` path is used.
+
 CLI flags take precedence over `gare.yml` settings.
+
+#### Compose workloads
+
+Repositories with a `docker-compose.yml` or `compose.yml` can run it as-is by declaring `type: compose`:
+
+```sh
+gare app create stack --repo https://github.com/example/stack.git
+gare domain add stack stack.example.com
+gare deploy stack
+```
+
+`podman compose` requires an external provider (`docker-compose` or `podman-compose`) and the podman API socket. `gare init` reports both, and `gare deploy` fails with a clear error when the provider is missing. Additional behavior:
+
+- `port` is required in `gare.yml` and must match a published host port in the compose file, so Caddy routes to the port the stack actually binds.
+- The systemd unit is a `RemainAfterExit` oneshot that requires `podman.socket` (started with the app) and runs the stack detached from the repository checkout, so relative build contexts, bind mounts, and `env_file` paths resolve as written. `stop` and `restart` run `podman compose down`; containers are never left to a watching provider process.
+- Each application gets its own compose project name (the app name), so two apps never share containers, networks, or volumes.
+- `gare env set` writes to the application env file, which systemd injects into the provider through `EnvironmentFile=` for `${VAR}` interpolation.
+- Health probes are derived from the compose file's own HTTP healthchecks when `gare.yml` declares none, so a stack that is already health-checked does not need its ports repeated.
+- `gare destroy` runs `podman compose down -v`, removing the stack's containers, networks, **and named volumes**, and reports any container the provider failed to remove instead of claiming a clean teardown.
+- Compose images built by `build:` sections are not removed by `gare destroy`; prune them with `podman image prune` when needed.
 
 ### 3. Manage environment variables
 
@@ -148,7 +184,7 @@ gare list -t prod
 gare deploy myapp
 ```
 
-Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe.
+Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe. Compose workloads skip the image build and manifest sync and validate the compose file instead.
 
 ### 7. Lifecycle and status inspection
 
@@ -178,7 +214,7 @@ gare logs myapp -f
 gare destroy myapp
 ```
 
-Stops and disables the systemd service, removes the unit file, removes the Caddy snippet, prunes container images, and cleans up app storage.
+Stops and disables the systemd service, removes the unit file, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
 
 ## Global Configuration (`~/.gare.yml`)
 
