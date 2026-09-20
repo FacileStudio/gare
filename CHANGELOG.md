@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.0] - 2026-09-20
 
 ### Added
 
@@ -22,7 +22,7 @@
 - `gare stop` accepts any non-running final state (including a provider that exited non-zero) instead of waiting out a stop timeout, and reports the result honestly.
 - Unknown `type` values in `gare.yml` are rejected instead of silently falling back to a single-container Pod.
 - Deployment warns when a repository contains a compose file but no `type: compose`, instead of silently ignoring it.
-- Failure messages name the failure and the remedy: `app <name> not found — run `gare list` to see managed apps`, probe failures point at `gare logs <app>`, and an unavailable port asks for another one.
+- Failure messages name the failure and the remedy: an unknown app points at `gare list`, a failed probe at `gare logs <app>`, and an unavailable port asks for another one.
 - `gare start` and `gare restart` wait long enough for a compose cold start (320s and 400s) instead of giving up at 30s and 90s while the stack is still starting.
 - The probe list reported after a deploy is capped at four names so a large stack does not print an unreadable line.
 
