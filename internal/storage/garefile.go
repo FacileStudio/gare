@@ -3,7 +3,6 @@ package storage
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -130,7 +129,3 @@ func LoadGareFile(repoDir string) (*GareFile, error) {
 	return &gf, nil
 }
 
-// IsStatic reports whether the application is configured as a static site.
-func (c *AppConfig) IsStatic() bool {
-	return c != nil && strings.EqualFold(c.AppType, "static")
-}

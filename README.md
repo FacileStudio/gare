@@ -59,8 +59,9 @@ gare domain add blog blog.example.com
 
 Repositories can optionally define build, workload, and health check configuration in `gare.yml` or `gare.yaml` at the root:
 
+Container workload:
+
 ```yaml
-# For container workloads:
 type: container
 containerfile: apps/web/Containerfile
 context: .
@@ -69,15 +70,21 @@ healthcheck: /health
 tags:
   - backend
   - production
+```
 
-# For static workloads:
+Static workload:
+
+```yaml
 type: static
 static_dir: dist
 build_cmd: bun run build
 tags:
   - frontend
+```
 
-# For compose workloads:
+Compose workload:
+
+```yaml
 type: compose
 compose_file: docker-compose.yml
 port: 8200
@@ -231,11 +238,12 @@ credential_helper: ""
 
 All configuration values can be overridden via CLI flags:
 - `-c, --config`: Path to config file (default: `~/.gare.yml`)
-- `-p, --git-provider`: Override git provider (`github`, `gitlab`)
+- `--git-provider`: Override git provider (`github`, `gitlab`)
 - `--use-github-cli`: Force use of GitHub CLI
 - `--use-gitlab-cli`: Force use of GitLab CLI
-- `-H, --credential-helper`: Override credential helper
+- `--credential-helper`: Override credential helper
 - `-v, --verbose`: Enable verbose logging
+- `--no-color`: Disable colored output (also honoured via the `NO_COLOR` environment variable)
 
 ## GitOps Webhook Daemon
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,7 @@ func TestVerifyHealthProbes(t *testing.T) {
 		{Name: "api", Port: api.port, Path: "/health"},
 		{Name: "admin", Port: admin.port, Path: "/"},
 	}
-	if err := verifyHealthProbes(context.Background(), probes); err != nil {
+	if err := verifyHealthProbes(context.Background(), probes, "smoke"); err != nil {
 		t.Errorf("expected both probes to pass: %v", err)
 	}
 }
@@ -30,12 +31,15 @@ func TestVerifyHealthProbesFailsOnUnhealthyPath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
-	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Name: "api", Port: api.port, Path: "/health"}})
+	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Name: "api", Port: api.port, Path: "/health"}}, "smoke")
 	if err == nil {
 		t.Fatal("expected a failing probe to error")
 	}
 	if !strings.Contains(err.Error(), "api") {
 		t.Errorf("error must name the failing probe, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "gare logs smoke") {
+		t.Errorf("error must point at the logs, got %v", err)
 	}
 }
 
@@ -44,12 +48,29 @@ func TestVerifyHealthProbesFailsOnClosedPort(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
-	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Port: closed}})
+	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Port: closed}}, "smoke")
 	if err == nil {
 		t.Fatal("expected an unreachable probe to error")
 	}
 	if !strings.Contains(err.Error(), "port") {
 		t.Errorf("error must name the probe by port, got %v", err)
+	}
+}
+
+func TestProbeSummaryCapsLongLists(t *testing.T) {
+	probes := make([]storage.HealthProbe, 0, 6)
+	for i := range 6 {
+		probes = append(probes, storage.HealthProbe{Name: fmt.Sprintf("svc%d", i), Port: 8100 + i})
+	}
+	summary := probeSummary(probes)
+	if !strings.Contains(summary, "and 2 more") {
+		t.Errorf("summary must cap the list, got %q", summary)
+	}
+	if strings.Contains(summary, "svc5") {
+		t.Errorf("summary must omit the trailing labels, got %q", summary)
+	}
+	if short := probeSummary(probes[:2]); short != "svc0, svc1" {
+		t.Errorf("short summary: got %q, want %q", short, "svc0, svc1")
 	}
 }
 

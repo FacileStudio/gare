@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/FacileStudio/gare/internal/storage"
@@ -35,7 +36,11 @@ func TestLifecycleAppNotFound(t *testing.T) {
 
 	startCmd := NewStartCmd()
 	startCmd.SetArgs([]string{"nonexistent"})
-	if err := startCmd.Execute(); err == nil {
-		t.Fatalf("expected error for nonexistent app, got nil")
+	err := startCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for nonexistent app, got nil")
+	}
+	if !strings.Contains(err.Error(), "gare list") {
+		t.Errorf("error must tell the user how to list apps, got %v", err)
 	}
 }

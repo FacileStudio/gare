@@ -35,7 +35,7 @@ func RunDeploy(ctx context.Context, name string) error {
 	appDir := storage.GetAppDir(baseDir, name)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found or invalid config: %w", name, err)
+		return appConfigError(name, err)
 	}
 
 	repoDir := storage.GetRepoDir(appDir)

@@ -39,7 +39,7 @@ func runLogs(ctx context.Context, name string, follow bool, lines int) error {
 	baseDir := storage.DefaultBaseDir()
 	appDir := storage.GetAppDir(baseDir, name)
 	if _, err := storage.LoadConfig(appDir); err != nil {
-		return fmt.Errorf("app %q not found: %w", name, err)
+		return appConfigError(name, err)
 	}
 	unitPath := systemd.GetUnitPath(name)
 	if _, err := os.Stat(unitPath); err != nil {

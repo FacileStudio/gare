@@ -60,7 +60,7 @@ func runStatus(ctx context.Context, w io.Writer, name string, opts statusOptions
 	appDir := storage.GetAppDir(baseDir, name)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found: %w", name, err)
+		return appConfigError(name, err)
 	}
 
 	details := collectAppStatus(ctx, appDir, cfg)

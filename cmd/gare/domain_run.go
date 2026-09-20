@@ -24,7 +24,7 @@ func runDomainAdd(ctx context.Context, appName, hostname string) error {
 	appDir := storage.GetAppDir(baseDir, appName)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found: %w", appName, err)
+		return appConfigError(appName, err)
 	}
 	if err := checkDomainAvailable(baseDir, appName, hostname); err != nil {
 		return err
@@ -64,7 +64,7 @@ func runDomainRemove(ctx context.Context, appName, hostname string) error {
 	appDir := storage.GetAppDir(baseDir, appName)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found: %w", appName, err)
+		return appConfigError(appName, err)
 	}
 	if err := cfg.RemoveDomain(hostname); err != nil {
 		return err
@@ -85,7 +85,7 @@ func runDomainList(w io.Writer, targetApp string, opts domainListOptions) error 
 		}
 		cfg, err := storage.LoadConfig(storage.GetAppDir(baseDir, targetApp))
 		if err != nil {
-			return fmt.Errorf("app %q not found: %w", targetApp, err)
+			return appConfigError(targetApp, err)
 		}
 		items = collectAppDomains(cfg)
 	} else {

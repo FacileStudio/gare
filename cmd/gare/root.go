@@ -17,6 +17,7 @@ type rootFlags struct {
 	useGitHubCLI     bool
 	useGitLabCLI     bool
 	credentialHelper string
+	noColor          bool
 }
 
 // Execute runs the root command with fang styling and version handling.
@@ -45,7 +46,7 @@ func newRootCmd(version string) *cobra.Command {
 	root.SetVersionTemplate("{{.Name}} {{.Version}}\n")
 	flags := &rootFlags{configPath: config.DefaultConfigPath()}
 	registerRootFlags(root, flags)
-	setupPreRun(root, flags)
+	setupPersistentPreRun(root, flags)
 	registerSubcommands(root)
 	return root
 }
@@ -57,10 +58,14 @@ func registerRootFlags(root *cobra.Command, flags *rootFlags) {
 	root.PersistentFlags().BoolVar(&flags.useGitHubCLI, "use-github-cli", flags.useGitHubCLI, "Force use of GitHub CLI")
 	root.PersistentFlags().BoolVar(&flags.useGitLabCLI, "use-gitlab-cli", flags.useGitLabCLI, "Force use of GitLab CLI")
 	root.PersistentFlags().StringVar(&flags.credentialHelper, "credential-helper", flags.credentialHelper, "Override credential helper")
+	root.PersistentFlags().BoolVar(&flags.noColor, "no-color", false, "Disable colored output")
 }
 
-func setupPreRun(root *cobra.Command, flags *rootFlags) {
-	root.PreRunE = func(cmd *cobra.Command, args []string) error {
+func setupPersistentPreRun(root *cobra.Command, flags *rootFlags) {
+	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := applyColorPreference(flags.noColor); err != nil {
+			return err
+		}
 		cfg := NewConfig()
 		cfg.loader.SetVerbose(flags.verbose)
 		cfg.loader.SetConfigPath(flags.configPath)

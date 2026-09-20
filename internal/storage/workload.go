@@ -39,6 +39,11 @@ func (g *GareFile) ResolveComposeFile() string {
 	return strings.TrimSpace(g.ComposeFile)
 }
 
+// IsStatic reports whether the application is configured as a static site.
+func (c *AppConfig) IsStatic() bool {
+	return c != nil && strings.EqualFold(c.AppType, string(WorkloadStatic))
+}
+
 // IsCompose reports whether the application is configured as a compose stack.
 func (c *AppConfig) IsCompose() bool {
 	return c != nil && strings.EqualFold(c.AppType, string(WorkloadCompose))

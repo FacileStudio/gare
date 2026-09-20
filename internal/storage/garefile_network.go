@@ -23,4 +23,3 @@ func (g *GareFile) ResolveTags() []string {
 	}
 	return g.Tags
 }
-

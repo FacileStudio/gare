@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -15,6 +16,18 @@ const (
 	colorSubtle  = "#6B7280"
 	colorPrimary = "#7D56F4"
 )
+
+// applyColorPreference disables color for the rest of the process by exporting
+// NO_COLOR, which lipgloss reads on every render.
+func applyColorPreference(noColor bool) error {
+	if !noColor {
+		return nil
+	}
+	if err := os.Setenv("NO_COLOR", "1"); err != nil {
+		return fmt.Errorf("disable colors: %w", err)
+	}
+	return nil
+}
 
 func printSuccess(msg string) {
 	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(colorSuccess)).Bold(true).Render("✓")

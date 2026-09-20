@@ -28,7 +28,7 @@ func runTagAdd(appName string, tags []string) error {
 	appDir := storage.GetAppDir(baseDir, appName)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found: %w", appName, err)
+		return appConfigError(appName, err)
 	}
 	if err := cfg.AddTags(tags...); err != nil {
 		return err
@@ -48,7 +48,7 @@ func runTagRemove(appName string, tags []string) error {
 	appDir := storage.GetAppDir(baseDir, appName)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return fmt.Errorf("app %q not found: %w", appName, err)
+		return appConfigError(appName, err)
 	}
 	if !cfg.RemoveTags(tags...) {
 		printWarning(fmt.Sprintf("None of the specified tags were found on app %q", appName))
@@ -69,7 +69,7 @@ func runTagList(w io.Writer, targetApp string, opts tagListOptions) error {
 		}
 		cfg, err := storage.LoadConfig(storage.GetAppDir(baseDir, targetApp))
 		if err != nil {
-			return fmt.Errorf("app %q not found: %w", targetApp, err)
+			return appConfigError(targetApp, err)
 		}
 		return outputAppTags(w, targetApp, cfg.Tags, opts.jsonOutput)
 	}

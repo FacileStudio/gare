@@ -22,4 +22,3 @@ func TestGareFileResolveNetwork(t *testing.T) {
 		t.Errorf("nil ResolveTags: got %v, want nil", got)
 	}
 }
-

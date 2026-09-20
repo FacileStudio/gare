@@ -2,7 +2,7 @@
 
 Checked against: filet (cli limits, no inline comments, public godoc), module-path (`github.com/FacileStudio/gare`). Not applicable: migrations, auth/porte, muse, events.
 
-> **Implemented 2026-09-20, with the shapes below corrected by a live smoke test.** `Type=oneshot` with `RemainAfterExit=yes` and `up -d` is the shipped shape. A foreground `up` was tried first and rejected on evidence: with an attached provider, `ExecStop`'s `compose down` races the provider's own attach loop (docker-compose logs `Error while Stopping` for every container and exits 1), the unit ends `failed` after a normal stop, and stop takes the full `TimeoutStopSec`. Detached, the same `down` is clean. The unit also `Requires=podman.socket`, because the external provider reaches podman through the API socket and nothing else starts it. Other deviations: `gare.yml` `port:` is authoritative and validated against the compose file's published host ports (gare cannot rewrite a compose port mapping); each app gets its own compose project name via `-p` (without it every app's checkout is named `repo` and `down` targets the wrong stack); compose env vars are injected through the application env file plus systemd `EnvironmentFile=` rather than `--env-file`; `gare destroy` runs `compose down -v` explicitly instead of relying on the unit, so a missing unit file cannot leak containers or volumes; and `healthchecks:` supersedes the single-probe model in the "Health probes" section below, which is no longer accurate.
+> **Implemented 2026-09-20, with the shapes below corrected by a live smoke test.** `Type=oneshot` with `RemainAfterExit=yes` and `up -d` is the shipped shape. A foreground `up` was tried first and rejected on evidence: with an attached provider, `ExecStop`'s `compose down` races the provider's own attach loop (docker-compose logs `Error while Stopping` for every container and exits 1), the unit ends `failed` after a normal stop, and stop takes the full `TimeoutStopSec`. Detached, the same `down` is clean. The unit also `Requires=podman.socket`, because the external provider reaches podman through the API socket and nothing else starts it. Other deviations: `gare.yml` `port:` is authoritative and validated against the compose file's published host ports (gare cannot rewrite a compose port mapping); each app gets its own compose project name via `-p` (without it every app's checkout is named `repo` and `down` targets the wrong stack); compose env vars are injected through the application env file plus systemd `EnvironmentFile=` rather than `--env-file`; `gare destroy` runs `compose down -v` explicitly instead of relying on the unit, so a missing unit file cannot leak containers or volumes. The "Health probes" section below has been rewritten to the three-tier resolution gare now ships (explicit `healthchecks:`, then probes derived from the compose file, then the legacy single-probe key).
 
 ## Goal
 
@@ -55,15 +55,21 @@ Today all apps share one codepath: systemd unit template in `unit.go` hardcodes 
 | Destroy | `kube down` then remove image | `compose down` (removes compose containers, not necessarily images) | remove Caddy snippet, stop unit |
 | Env injection | manifest YAML env section | compose env blocks + host env vars | host env vars only |
 
-`compose down` stops containers but does not remove images by default. `kube down` destroys the entire Pod including its image references. For destroy, gare should call `compose down -v` to also remove named volumes, or explicitly prune compose-managed images after.
+`compose down` stops containers but does not remove images by default. `kube down` destroys the entire Pod including its image references. `gare destroy` therefore calls `compose down -v` (containers, networks, and named volumes) and then reports any project container the provider failed to remove, rather than claiming a clean teardown. Images built by `build:` sections are left in place; prune them with `podman image prune`.
 
 ### Health probes
 
-Compose-declared healthchecks map to the same HTTP probe pathgare already uses (the `healthcheck` key in `gare.yml` or `--healthcheck` flag). Per-container probes in a compose file are out of scope — they need per-container probe targets, which gare's single-probe architecture does not support yet. One probe per container for now.
+Shipped: gare resolves probes in three tiers, first match wins.
+
+1. An explicit `healthchecks:` list in `gare.yml` (one entry per `name`/`port`/`path`).
+2. Probes derived from the compose file itself: any service whose `healthcheck` issues an HTTP request (`curl`/`wget`) to a **published** container port becomes a probe named after the service, with the container port mapped to its published host port. Non-HTTP checks and unpublished ports are skipped, since they are not reachable from the host.
+3. The legacy single `port` plus `healthcheck` path.
+
+A per-container probe model is no longer required: probes target host ports through Caddy's upstream, so derived probes cover a multi-service stack without any compose-file changes. Compose `depends_on: condition: service_healthy` still does the in-stack ordering; gare's probes are the host-side gate.
 
 ### Env injection
 
-Compose `environment:` blocks and `env_file:` declarations become the compose `env` and `env_file` directives in the `podman compose up -d` command. Host-level env vars (set via ` Gare env set` or in the compose file) are passed through the same way. No secrets management yet (see Security below).
+Compose `environment:` blocks and `env_file:` declarations become the compose `env` and `env_file` directives in the `podman compose up -d` command. Host-level env vars (set via `gare env set` or in the compose file) are passed through the same way. No secrets management yet (see Security below).
 
 ### Port mapping
 
@@ -92,9 +98,8 @@ This is a breaking change to `unit.go`'s template interface, but scoped to one f
 Existing keys (`containerfile`, `context`, `build_cmd`, `port`, `container_port`, `healthcheck`, `static_dir`) are unchanged. New keys:
 
 ```yaml
-type: compose                  # required; container | static | compose
-type: compose
-compose_file: docker-compose.yml   # optional; defaults to compose.yml, docker-compose.yml
+type: compose                      # required; container | static | compose
+compose_file: docker-compose.yml   # optional; defaults to compose.yml, compose.yaml, docker-compose.yml, docker-compose.yaml
 ```
 
 ### Commands affected
@@ -103,7 +108,7 @@ No new commands. `gare deploy`, `gare destroy`, `gare start`, `gare stop`, `gare
 
 ## Data model
 
-### ` GareFile` updates (`internal/storage/garefile.go`)
+### `GareFile` updates (`internal/storage/garefile.go`)
 
 ```go
 type WorkloadType string

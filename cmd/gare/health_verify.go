@@ -11,6 +11,8 @@ import (
 	"github.com/FacileStudio/gare/internal/systemd"
 )
 
+const maxProbeSummary = 4
+
 func verifyHealth(ctx context.Context, cfg *storage.AppConfig) error {
 	probes := cfg.HealthProbes()
 	if cfg.Port <= 0 && len(probes) == 0 {
@@ -22,7 +24,7 @@ func verifyHealth(ctx context.Context, cfg *storage.AppConfig) error {
 	if len(probes) == 0 {
 		return nil
 	}
-	if err := verifyHealthProbes(ctx, probes); err != nil {
+	if err := verifyHealthProbes(ctx, probes, cfg.Name); err != nil {
 		return err
 	}
 	printSuccess(fmt.Sprintf("%d health probe(s) passed", len(probes)))
@@ -39,12 +41,12 @@ func verifyServiceActive(ctx context.Context, cfg *storage.AppConfig) error {
 		cfg.Name, props.ActiveState, props.SubState, props.Result, cfg.Name)
 }
 
-func verifyHealthProbes(ctx context.Context, probes []storage.HealthProbe) error {
+func verifyHealthProbes(ctx context.Context, probes []storage.HealthProbe, appName string) error {
 	for _, probe := range probes {
 		target := probeTarget(probe)
 		printInfo(fmt.Sprintf("Verifying health probe %s at %s...", probe.Label(), target))
 		if err := health.Probe(ctx, target, 30*time.Second); err != nil {
-			return fmt.Errorf("health probe %s failed: %w", probe.Label(), err)
+			return fmt.Errorf("health probe %s failed — check the service with `gare logs %s`: %w", probe.Label(), appName, err)
 		}
 	}
 	return nil
@@ -54,6 +56,9 @@ func probeSummary(probes []storage.HealthProbe) string {
 	labels := make([]string, 0, len(probes))
 	for _, probe := range probes {
 		labels = append(labels, probe.Label())
+	}
+	if len(labels) > maxProbeSummary {
+		return fmt.Sprintf("%s and %d more", strings.Join(labels[:maxProbeSummary], ", "), len(labels)-maxProbeSummary)
 	}
 	return strings.Join(labels, ", ")
 }

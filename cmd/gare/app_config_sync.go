@@ -11,7 +11,7 @@ func syncGareFilePorts(baseDir string, cfg *storage.AppConfig, gf *storage.GareF
 	reqPort := gf.ResolvePort()
 	if reqPort > 0 && reqPort != cfg.Port {
 		if _, err := storage.DiscoverAvailablePort(baseDir, reqPort); err != nil {
-			return fmt.Errorf("port %d in gare.yml is not available: %w", reqPort, err)
+			return fmt.Errorf("port %d in gare.yml is not available — choose another port: %w", reqPort, err)
 		}
 		cfg.Port = reqPort
 	}

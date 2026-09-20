@@ -65,7 +65,7 @@ func getAppManifestInfo(name string) (string, *storage.AppConfig, error) {
 	appDir := storage.GetAppDir(baseDir, name)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("app %q not found: %w", name, err)
+		return "", nil, appConfigError(name, err)
 	}
 	manifestPath := storage.GetManifestPath(appDir)
 	return manifestPath, cfg, nil

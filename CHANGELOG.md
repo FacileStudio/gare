@@ -12,6 +12,7 @@
 - Compose workloads derive probes from the compose file when `gare.yml` declares none: services whose healthcheck issues an HTTP request to a published container port become probes, mapped to their published host port.
 - `gare destroy` tears compose workloads down with `podman compose down -v`, independent of whether the unit file still exists, and reports containers the provider failed to remove.
 - `gare deploy` preflights the external compose provider and fails with an actionable error when neither `docker-compose` nor `podman-compose` is available; `gare init` reports the provider and the podman socket.
+- `--no-color` disables colored output; it is a persistent flag, so it applies to every subcommand, and the standard `NO_COLOR` environment variable is honoured too.
 
 ### Changed
 
@@ -21,6 +22,9 @@
 - `gare stop` accepts any non-running final state (including a provider that exited non-zero) instead of waiting out a stop timeout, and reports the result honestly.
 - Unknown `type` values in `gare.yml` are rejected instead of silently falling back to a single-container Pod.
 - Deployment warns when a repository contains a compose file but no `type: compose`, instead of silently ignoring it.
+- Failure messages name the failure and the remedy: `app <name> not found — run `gare list` to see managed apps`, probe failures point at `gare logs <app>`, and an unavailable port asks for another one.
+- `gare start` and `gare restart` wait long enough for a compose cold start (320s and 400s) instead of giving up at 30s and 90s while the stack is still starting.
+- The probe list reported after a deploy is capped at four names so a large stack does not print an unreadable line.
 
 ## [0.10.0] - 2026-09-18
 

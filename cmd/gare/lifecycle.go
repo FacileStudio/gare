@@ -11,6 +11,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	startBudget   = 320 * time.Second
+	stopBudget    = 90 * time.Second
+	restartBudget = 400 * time.Second
+)
+
 // NewStartCmd builds the start command.
 func NewStartCmd() *cobra.Command {
 	return &cobra.Command{
@@ -18,7 +24,7 @@ func NewStartCmd() *cobra.Command {
 		Short: "Start an application workload",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), startBudget)
 			defer cancel()
 			return runStartApp(ctx, args[0])
 		},
@@ -32,7 +38,7 @@ func NewStopCmd() *cobra.Command {
 		Short: "Stop an application workload",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 90*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), stopBudget)
 			defer cancel()
 			return runStopApp(ctx, args[0])
 		},
@@ -46,7 +52,7 @@ func NewRestartCmd() *cobra.Command {
 		Short: "Restart an application workload",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(cmd.Context(), 90*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), restartBudget)
 			defer cancel()
 			return runRestartApp(ctx, args[0])
 		},
@@ -127,7 +133,7 @@ func loadAppForLifecycle(name string) (*storage.AppConfig, error) {
 	appDir := storage.GetAppDir(baseDir, name)
 	cfg, err := storage.LoadConfig(appDir)
 	if err != nil {
-		return nil, fmt.Errorf("app %q not found: %w", name, err)
+		return nil, appConfigError(name, err)
 	}
 	return cfg, nil
 }
