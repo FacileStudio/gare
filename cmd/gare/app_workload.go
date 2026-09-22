@@ -1,19 +1,21 @@
 package main
 
 import (
+	"context"
+
 	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
 // writeWorkloadArtifacts writes the workload artifacts for the resolved type.
-func writeWorkloadArtifacts(name, appDir string, opts appCreateOptions) error {
+func writeWorkloadArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
 	switch opts.appType {
 	case string(storage.WorkloadStatic):
-		return writeStaticArtifacts(name, appDir, opts)
+		return writeStaticArtifacts(ctx, name, appDir, opts)
 	case string(storage.WorkloadCompose):
-		return writeComposeArtifacts(name, appDir, opts)
+		return writeComposeArtifacts(ctx, name, appDir, opts)
 	default:
-		return writeAppArtifacts(name, appDir, opts)
+		return writeAppArtifacts(ctx, name, appDir, opts)
 	}
 }
 

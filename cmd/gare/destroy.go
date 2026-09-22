@@ -66,7 +66,7 @@ func disableService(ctx context.Context, name string) {
 }
 
 func removeUnitFiles(name string) {
-	printInfo("Removing systemd unit file...")
+	printInfo("Removing systemd unit file and enable link...")
 	if err := systemd.RemoveUnit(name); err != nil {
 		printWarning(fmt.Sprintf("removing unit file returned error: %v", err))
 	}

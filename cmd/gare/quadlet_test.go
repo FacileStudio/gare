@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +21,7 @@ func TestWriteContainerUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := writeContainerUnit("myapp", appDir); err != nil {
+	if err := writeContainerUnit(context.Background(), "myapp", appDir); err != nil {
 		t.Fatalf("writeContainerUnit failed: %v", err)
 	}
 	data, err := os.ReadFile(quadlet.KubePath("myapp"))
@@ -35,22 +36,15 @@ func TestWriteContainerUnit(t *testing.T) {
 	}
 }
 
-func TestWriteContainerUnitRejectsShadowingUnitFile(t *testing.T) {
+func TestWriteContainerUnitRejectsForeignUnitFile(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	appDir := t.TempDir()
-	unitPath := systemd.GetUnitPath("myapp")
-	if err := os.MkdirAll(filepath.Dir(unitPath), 0755); err != nil {
-		t.Fatal(err)
-	}
-	shadow := "[Service]\nDescription=Gare Managed Static App: myapp\nExecStart=/usr/bin/caddy file-server\n"
-	if err := os.WriteFile(unitPath, []byte(shadow), 0644); err != nil {
-		t.Fatal(err)
-	}
+	unitPath := writeUnitFile(t, "myapp", "[Service]\nDescription=Hand written by the operator\nExecStart=/usr/local/bin/myapp\n")
 
-	err := writeContainerUnit("myapp", appDir)
+	err := writeContainerUnit(context.Background(), "myapp", appDir)
 	if err == nil {
-		t.Fatal("expected an error when a unit file would shadow the quadlet unit")
+		t.Fatal("expected an error when a unit file gare does not own would shadow the quadlet unit")
 	}
 	if !strings.Contains(err.Error(), unitPath) {
 		t.Errorf("error should name the shadowing file, got %v", err)
@@ -58,6 +52,38 @@ func TestWriteContainerUnitRejectsShadowingUnitFile(t *testing.T) {
 	if _, statErr := os.Stat(quadlet.KubePath("myapp")); !os.IsNotExist(statErr) {
 		t.Error("a shadowed workload must not write a quadlet source")
 	}
+	assertExists(t, unitPath)
+}
+
+func TestWriteContainerUnitRetiresGareUnitFile(t *testing.T) {
+	skipWithoutQuadlet(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	unitPath := writeUnitFile(t, "myapp", "[Unit]\nDescription=Gare Managed App: myapp\n\n[Service]\nExecStart=/usr/bin/podman kube play old.yaml\n")
+	writeEnableLink(t, "myapp", unitPath)
+
+	if err := writeContainerUnit(context.Background(), "myapp", appDir); err != nil {
+		t.Fatalf("an upgrade must not cost the application, got: %v", err)
+	}
+	if _, err := os.Stat(quadlet.KubePath("myapp")); err != nil {
+		t.Errorf("expected the quadlet source to be written: %v", err)
+	}
+	assertGone(t, unitPath)
+	assertGone(t, enableLinkPath("myapp"))
+}
+
+func TestWriteContainerUnitRetiresOwnComposeUnitFile(t *testing.T) {
+	skipWithoutQuadlet(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	unitPath := writeUnitFile(t, "myapp", "[Unit]\nDescription=Gare Managed Compose App: myapp\n\n[Service]\nExecStart=/usr/bin/podman compose up -d\n")
+
+	if err := writeContainerUnit(context.Background(), "myapp", appDir); err != nil {
+		t.Fatalf("a workload type change must not cost the application, got: %v", err)
+	}
+	assertGone(t, unitPath)
 }
 
 func TestWriteStaticUnit(t *testing.T) {
@@ -66,7 +92,7 @@ func TestWriteStaticUnit(t *testing.T) {
 	appDir := t.TempDir()
 	rootDir := filepath.Join(storage.GetRepoDir(appDir), "dist")
 
-	if err := writeStaticUnit("blog", appDir, rootDir, 8100); err != nil {
+	if err := writeStaticUnit(context.Background(), "blog", appDir, rootDir, 8100); err != nil {
 		t.Fatalf("writeStaticUnit failed: %v", err)
 	}
 	data, err := os.ReadFile(quadlet.ContainerPath("blog"))
@@ -98,7 +124,7 @@ func TestWriteStaticUnitKeepsSPAFallback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	appDir := t.TempDir()
 
-	if err := writeStaticUnit("blog", appDir, filepath.Join(appDir, "dist"), 8100); err != nil {
+	if err := writeStaticUnit(context.Background(), "blog", appDir, filepath.Join(appDir, "dist"), 8100); err != nil {
 		t.Fatalf("writeStaticUnit failed: %v", err)
 	}
 	config, err := os.ReadFile(storage.GetAppStaticConfigPath(appDir))
@@ -110,21 +136,18 @@ func TestWriteStaticUnitKeepsSPAFallback(t *testing.T) {
 	}
 }
 
-func TestWriteStaticUnitRejectsShadowingUnitFile(t *testing.T) {
+func TestWriteStaticUnitRejectsForeignUnitFile(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	appDir := t.TempDir()
-	unitPath := systemd.GetUnitPath("blog")
-	if err := os.MkdirAll(filepath.Dir(unitPath), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(unitPath, []byte("[Service]\nExecStart=/usr/bin/caddy file-server\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	unitPath := writeUnitFile(t, "blog", "[Service]\nExecStart=/usr/bin/caddy file-server\n")
 
-	err := writeStaticUnit("blog", appDir, filepath.Join(appDir, "dist"), 8100)
+	err := writeStaticUnit(context.Background(), "blog", appDir, filepath.Join(appDir, "dist"), 8100)
 	if err == nil {
-		t.Fatal("expected an error when a unit file would shadow the quadlet unit")
+		t.Fatal("expected an error when a unit file gare does not own would shadow the quadlet unit")
+	}
+	if !strings.Contains(err.Error(), unitPath) {
+		t.Errorf("error should name the shadowing file, got %v", err)
 	}
 	if _, statErr := os.Stat(quadlet.ContainerPath("blog")); !os.IsNotExist(statErr) {
 		t.Error("a shadowed workload must not write a quadlet source")
@@ -133,7 +156,7 @@ func TestWriteStaticUnitRejectsShadowingUnitFile(t *testing.T) {
 
 func TestAppUnitExists(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	exists, err := appUnitExists("never-deployed")
 	if err != nil {
@@ -159,5 +182,46 @@ func skipWithoutQuadlet(t *testing.T) {
 	t.Helper()
 	if err := quadlet.CheckGenerator(); err != nil {
 		t.Skipf("quadlet generator is not installed: %v", err)
+	}
+}
+
+func writeUnitFile(t *testing.T, name, content string) string {
+	t.Helper()
+	unitPath := systemd.GetUnitPath(name)
+	if err := os.MkdirAll(filepath.Dir(unitPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(unitPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return unitPath
+}
+
+func writeEnableLink(t *testing.T, name, unitPath string) {
+	t.Helper()
+	linkPath := enableLinkPath(name)
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(unitPath, linkPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func enableLinkPath(name string) string {
+	return filepath.Join(systemd.DefaultUserUnitDir(), "default.target.wants", name+".service")
+}
+
+func assertGone(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Errorf("expected %s to be removed, got %v", path, err)
+	}
+}
+
+func assertExists(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("expected %s to be left in place, got %v", path, err)
 	}
 }

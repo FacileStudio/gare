@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,12 +11,12 @@ import (
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
-func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
+func writeAppArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
 	manifestPath := storage.GetManifestPath(appDir)
 	if err := resolveManifest(name, appDir, manifestPath, opts.port, opts.containerPort); err != nil {
 		return err
 	}
-	if err := writeContainerUnit(name, appDir); err != nil {
+	if err := writeContainerUnit(ctx, name, appDir); err != nil {
 		return err
 	}
 	return saveAppMetadata(name, appDir, opts)
@@ -51,9 +52,9 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) (appCrea
 	return opts, nil
 }
 
-func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
+func writeStaticArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
 	staticPath := filepath.Join(storage.GetRepoDir(appDir), opts.staticDir)
-	if err := writeStaticUnit(name, appDir, staticPath, opts.port); err != nil {
+	if err := writeStaticUnit(ctx, name, appDir, staticPath, opts.port); err != nil {
 		return err
 	}
 	opts.appType = "static"

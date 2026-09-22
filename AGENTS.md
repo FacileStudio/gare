@@ -38,6 +38,7 @@ internal/
   server/             webhook HTTP daemon and HMAC verification
   storage/            app state, manifests, and port discovery
   systemd/            unit file synthesis and systemctl operations
+  xdg/                XDG base directory resolution for the current user
 ```
 
 ## Workload types
@@ -58,10 +59,11 @@ internal/
 - Package `cmd/gare` must remain `package main`.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
 - Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git pull`).
-- Clean up resources completely on destroy: stop unit, disable it when gare synthesized it, remove the unit file and the Quadlet source, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
-- Fail fast when the Quadlet generator is missing: never fall back to hand-written container units.
+- Clean up resources completely on destroy: stop unit, disable it when gare synthesized it, remove the unit file, its enable link and the Quadlet source, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
+- Fail fast when the Quadlet generator is missing: never fall back to hand-written container units. Check the generator before touching anything else, so a missing generator cannot leave a workload stopped or half-retired.
 - Tenable restarts: a `.kube` source must carry `ExitCodePropagation=` in `[Kube]`, because Quadlet's default (`none`) exits the service zero even when a container failed, leaving `Restart=on-failure` inert.
-- Never write a Quadlet source that a unit file would shadow: `~/.config/systemd/user/<app-name>.service` outranks the generated unit, so a Quadlet-backed workload fails loudly when that path is occupied instead of deploying silently behind it.
-- One Quadlet source per app: writing a `.kube` or `.container` source retires the other, because two sources in one directory would generate the same `<app-name>.service` and a workload type change must not leave both behind.
+- Never write a Quadlet source that a unit file would shadow: `~/.config/systemd/user/<app-name>.service` outranks the generated unit. An occupant gare wrote itself is retired in place — stopped while its own definition is still loaded, then removed with its enable link — so upgrading from a pre-Quadlet gare or changing workload type costs nothing; any other occupant fails loudly instead of deploying silently behind it.
+- One Quadlet source per app: writing a `.kube` or `.container` source retires the other, and the compose writer retires both, because two sources in one directory would generate the same `<app-name>.service` and a workload type change must not leave both behind. Retiring a Quadlet workload stops the unit before its source disappears, because after `daemon-reload` the generated definition is gone and its own teardown never runs, leaving an orphaned pod or container in front of the new unit.
+- Resolve user paths through the XDG base directories: `$XDG_CONFIG_HOME` (defaulting to `~/.config`) locates both the Quadlet sources and the systemd user units, so gare agrees with the Podman generator and with systemd on a host that sets it.
 - Paths written into a Quadlet source must be absolute and free of whitespace: Quadlet re-quotes `Yaml=` but not `Volume=`/`EnvironmentFile=`, so a space silently breaks the generated mount.
 - Port discovery begins at port 8000 and increments upwards, avoiding both recorded app ports and active system listeners.

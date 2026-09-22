@@ -25,7 +25,7 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 gare init
 ```
 
-Verifies that `podman`, `caddy`, and `git` are available, requires the Podman Quadlet generator (Podman 4.4 or newer) for container workloads, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage and Quadlet directories.
+Verifies that `podman`, `caddy`, and `git` are available, requires the Podman Quadlet generator (Podman 4.4 or newer) for container and static workloads, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage and Quadlet directories.
 
 ### 2. Create an application
 
@@ -223,7 +223,7 @@ gare logs myapp -f
 gare destroy myapp
 ```
 
-Stops the systemd service, removes the unit file and the Quadlet source, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
+Stops the systemd service, removes the unit file, its `default.target.wants` enable link and the Quadlet source, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
 
 ## Global Configuration (`~/.gare.yml`)
 

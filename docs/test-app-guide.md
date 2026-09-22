@@ -234,6 +234,12 @@ gare deploy test-app
 7. Reloads Caddy to activate the ingress snippet.
 8. Prunes dangling Podman container images.
 
+### Upgrading an application created before Quadlet
+
+A gare that predates Quadlet left its own unit at `~/.config/systemd/user/test-app.service`, and that path outranks the unit the Quadlet generator produces. The first deploy after upgrading stops that unit while its own definition is still loaded (so its `podman kube down` teardown runs), removes it together with its `default.target.wants` enable link, and writes the Quadlet source in its place. The application keeps its configuration, domains, tags and environment.
+
+Nothing is retired automatically if the unit at that path was not written by gare: a hand-written `test-app.service` is left untouched and the deploy fails with the path named, rather than starting a workload the operator did not ask for.
+
 ## Verify the running application
 
 Check status with the `gare list` command:
@@ -418,7 +424,7 @@ gare destroy test-app
 `gare destroy` cleans up every resource:
 
 1. Stops `test-app.service` (and disables it when gare synthesized the unit).
-2. Removes the Quadlet source (`test-app.kube` for a container workload, `test-app.container` for a static site) and any synthesized unit left at `~/.config/systemd/user/test-app.service`.
+2. Removes the Quadlet source (`test-app.kube` for a container workload, `test-app.container` for a static site) and any synthesized unit left at `~/.config/systemd/user/test-app.service`, including the `default.target.wants` enable link a pre-Quadlet gare created for it.
 3. Removes `/etc/caddy/conf.d/test-app.caddy`.
 4. Deletes the container image `localhost/test-app:latest`.
 5. Removes the application directory `~/.local/share/gare/apps/test-app/`.

@@ -142,7 +142,7 @@ func setupAppWorkload(ctx context.Context, baseDir, name, appDir string, opts ap
 		return fmt.Errorf("failed to discover port: %w", err)
 	}
 	resolvedOpts.port = port
-	if err := writeWorkloadArtifacts(name, appDir, resolvedOpts); err != nil {
+	if err := writeWorkloadArtifacts(ctx, name, appDir, resolvedOpts); err != nil {
 		return err
 	}
 	if err := systemd.DaemonReload(ctx); err != nil {

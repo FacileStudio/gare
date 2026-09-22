@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/quadlet"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -29,7 +30,10 @@ func composeProjectName(name string) string {
 	return strings.ToLower(name)
 }
 
-func writeComposeUnit(name, appDir, repoDir, composeFile string) error {
+// writeComposeUnit writes the synthesized unit for a compose stack, then retires the Quadlet sources
+// a previous workload type left behind so no stale source keeps generating a unit of the same name.
+// The unit is written first so a failure to write it never stops a workload that was running fine.
+func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile string) error {
 	unitData := systemd.ComposeUnitData{
 		Name:        name,
 		RepoDir:     repoDir,
@@ -40,10 +44,16 @@ func writeComposeUnit(name, appDir, repoDir, composeFile string) error {
 	if err := systemd.WriteComposeUnit(unitData); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
+	if err := stopQuadletWorkload(ctx, name); err != nil {
+		return err
+	}
+	if err := quadlet.Remove(name); err != nil {
+		return fmt.Errorf("failed to retire the quadlet sources: %w", err)
+	}
 	return nil
 }
 
-func writeComposeArtifacts(name, appDir string, opts appCreateOptions) error {
+func writeComposeArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	composeFile, err := resolveComposeWorkload(repoDir, opts.composeFile, opts.port)
 	if err != nil {
@@ -51,7 +61,7 @@ func writeComposeArtifacts(name, appDir string, opts appCreateOptions) error {
 	}
 	opts.appType = string(storage.WorkloadCompose)
 	opts.composeFile = composeFile
-	if err := writeComposeUnit(name, appDir, repoDir, composeFile); err != nil {
+	if err := writeComposeUnit(ctx, name, appDir, repoDir, composeFile); err != nil {
 		return err
 	}
 	return saveAppMetadata(name, appDir, opts)
@@ -71,7 +81,7 @@ func prepareComposeDeploy(ctx context.Context, name, appDir, repoDir string, cfg
 			return fmt.Errorf("build command failed: %w", err)
 		}
 	}
-	return writeComposeUnit(name, appDir, repoDir, composeFile)
+	return writeComposeUnit(ctx, name, appDir, repoDir, composeFile)
 }
 
 func deployComposeApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {

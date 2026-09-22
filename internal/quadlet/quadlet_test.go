@@ -29,6 +29,15 @@ func TestDirFallsBackToHome(t *testing.T) {
 	}
 }
 
+func TestDirMatchesTheSystemdUserConfigHome(t *testing.T) {
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+
+	if !strings.HasPrefix(Dir(), configHome) {
+		t.Errorf("Dir() = %q, want it under %q", Dir(), configHome)
+	}
+}
+
 func TestKubePath(t *testing.T) {
 	configHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", configHome)

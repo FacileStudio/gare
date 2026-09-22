@@ -21,7 +21,7 @@ func prepareStaticDeploy(ctx context.Context, name, appDir, repoDir string, cfg 
 		}
 	}
 	staticPath := filepath.Join(repoDir, cfg.StaticDir)
-	if err := writeStaticUnit(name, appDir, staticPath, cfg.Port); err != nil {
+	if err := writeStaticUnit(ctx, name, appDir, staticPath, cfg.Port); err != nil {
 		return err
 	}
 	if err := syncAppIngress(cfg); err != nil {
@@ -50,7 +50,7 @@ func executePreDeploy(ctx context.Context, name, appDir, repoDir string, cfg *st
 	if err := syncManifest(name, appDir, repoDir, cfg); err != nil {
 		return err
 	}
-	return writeContainerUnit(name, appDir)
+	return writeContainerUnit(ctx, name, appDir)
 }
 
 func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {

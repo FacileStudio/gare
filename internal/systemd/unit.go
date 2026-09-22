@@ -3,8 +3,9 @@ package systemd
 import (
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
+
+	"github.com/FacileStudio/gare/internal/xdg"
 )
 
 // ResolvePodmanPath locates the podman executable in PATH or defaults to /usr/bin/podman.
@@ -18,15 +19,7 @@ func ResolvePodmanPath() string {
 
 // DefaultUserUnitDir returns the systemd user unit directory for the current user.
 func DefaultUserUnitDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		if u, err := user.Current(); err == nil && u.HomeDir != "" {
-			home = u.HomeDir
-		} else {
-			home = os.Getenv("HOME")
-		}
-	}
-	return filepath.Join(home, ".config", "systemd", "user")
+	return filepath.Join(xdg.ConfigHome(), "systemd", "user")
 }
 
 // GetUnitPath returns the absolute path for an application unit file in the user unit directory.
@@ -34,10 +27,20 @@ func GetUnitPath(name string) string {
 	return filepath.Join(DefaultUserUnitDir(), name+".service")
 }
 
-// RemoveUnit deletes the systemd service unit file for the given application.
+// RemoveUnit deletes the systemd service unit file for the given application, together with the
+// enable link systemd created for it, which would otherwise outlive the unit as a dangling target.
 func RemoveUnit(name string) error {
-	unitPath := GetUnitPath(name)
-	if err := os.Remove(unitPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(GetUnitPath(name)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return removeEnableLink(name)
+}
+
+// removeEnableLink deletes the default.target enable link of a unit, the one location every
+// gare-written unit installs itself into.
+func removeEnableLink(name string) error {
+	linkPath := filepath.Join(DefaultUserUnitDir(), "default.target.wants", name+".service")
+	if err := os.Remove(linkPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
