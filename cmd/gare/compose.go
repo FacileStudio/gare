@@ -81,7 +81,7 @@ func deployComposeApp(ctx context.Context, name, appDir, repoDir string, cfg *st
 
 	updateContainerIngress(cfg)
 
-	if err := restartAppServices(ctx, name); err != nil {
+	if err := restartAppServices(ctx, cfg); err != nil {
 		return err
 	}
 

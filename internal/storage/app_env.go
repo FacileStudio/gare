@@ -28,6 +28,22 @@ func GetAppEnv(appDir string) (map[string]string, error) {
 	return ParseDotEnv(string(data))
 }
 
+// EnsureAppEnvFile creates the application env file when it does not exist yet.
+func EnsureAppEnvFile(appDir string) error {
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return err
+	}
+	path := GetAppEnvPath(appDir)
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return atomicfile.WriteFile(path, nil, 0644)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetAppEnv updates or adds environment variables in the application env file.
 func SetAppEnv(appDir string, vars map[string]string) error {
 	current, err := GetAppEnv(appDir)

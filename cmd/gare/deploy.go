@@ -48,7 +48,7 @@ func RunDeploy(ctx context.Context, name string) error {
 	}
 
 	if cfg.IsStatic() {
-		return deployStaticApp(ctx, name, repoDir, cfg)
+		return deployStaticApp(ctx, name, appDir, repoDir, cfg)
 	}
 	if cfg.IsCompose() {
 		return deployComposeApp(ctx, name, appDir, repoDir, cfg)
@@ -79,11 +79,11 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 	return nil
 }
 
-func deployStaticApp(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
-	if err := prepareStaticDeploy(ctx, name, repoDir, cfg); err != nil {
+func deployStaticApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
+	if err := prepareStaticDeploy(ctx, name, appDir, repoDir, cfg); err != nil {
 		return err
 	}
-	if err := restartAppServices(ctx, name); err != nil {
+	if err := restartAppServices(ctx, cfg); err != nil {
 		return err
 	}
 	if err := verifyHealth(ctx, cfg); err != nil {
@@ -106,7 +106,7 @@ func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *
 
 	updateContainerIngress(cfg)
 
-	if err := restartAppServices(ctx, name); err != nil {
+	if err := restartAppServices(ctx, cfg); err != nil {
 		return err
 	}
 

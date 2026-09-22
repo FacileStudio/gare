@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/caddy"
+	"github.com/FacileStudio/gare/internal/quadlet"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -33,6 +34,7 @@ func runInit(ctx context.Context) error {
 	if err := checkPrereqs(); err != nil {
 		return err
 	}
+	checkQuadletGenerator()
 	checkLingerStatus(ctx)
 	checkPauseSetup()
 	checkComposeProvider(ctx)
@@ -97,6 +99,12 @@ func initDirectories() error {
 		return fmt.Errorf("failed to create systemd directory %s: %w", userUnitDir, err)
 	}
 	printSuccess("Created systemd directory: " + userUnitDir)
+
+	quadletDir := quadlet.Dir()
+	if err := os.MkdirAll(quadletDir, 0755); err != nil {
+		return fmt.Errorf("failed to create quadlet directory %s: %w", quadletDir, err)
+	}
+	printSuccess("Created quadlet directory: " + quadletDir)
 	return nil
 }
 

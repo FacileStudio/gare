@@ -13,7 +13,7 @@ import (
 	"github.com/FacileStudio/gare/internal/systemd"
 )
 
-func prepareStaticDeploy(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
+func prepareStaticDeploy(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
 	if cfg.BuildCmd != "" {
 		printInfo(fmt.Sprintf("Running build command: %s", cfg.BuildCmd))
 		if err := builder.RunBuildCommand(ctx, repoDir, cfg.BuildCmd, os.Stdout, os.Stderr); err != nil {
@@ -21,8 +21,8 @@ func prepareStaticDeploy(ctx context.Context, name, repoDir string, cfg *storage
 		}
 	}
 	staticPath := filepath.Join(repoDir, cfg.StaticDir)
-	if err := systemd.WriteStaticUnit(name, cfg.Port, staticPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
+	if err := writeStaticUnit(name, appDir, staticPath, cfg.Port); err != nil {
+		return err
 	}
 	if err := syncAppIngress(cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not write Caddy snippet (%v)", err))
@@ -47,7 +47,10 @@ func executePreDeploy(ctx context.Context, name, appDir, repoDir string, cfg *st
 	if err := buildAppImage(ctx, name, repoDir, cfg); err != nil {
 		return err
 	}
-	return syncManifest(name, appDir, repoDir, cfg)
+	if err := syncManifest(name, appDir, repoDir, cfg); err != nil {
+		return err
+	}
+	return writeContainerUnit(name, appDir)
 }
 
 func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
@@ -73,14 +76,16 @@ func updateContainerIngress(cfg *storage.AppConfig) {
 	}
 }
 
-func restartAppServices(ctx context.Context, name string) error {
+func restartAppServices(ctx context.Context, cfg *storage.AppConfig) error {
 	if err := systemd.DaemonReload(ctx); err != nil {
 		return fmt.Errorf("systemctl daemon-reload failed: %w", err)
 	}
-	if err := systemd.Enable(ctx, name); err != nil {
-		return fmt.Errorf("failed to enable service: %w", err)
+	if !cfg.UsesQuadletUnit() {
+		if err := systemd.Enable(ctx, cfg.Name); err != nil {
+			return fmt.Errorf("failed to enable service: %w", err)
+		}
 	}
-	if err := systemd.Restart(ctx, name); err != nil {
+	if err := systemd.Restart(ctx, cfg.Name); err != nil {
 		return fmt.Errorf("failed to restart service: %w", err)
 	}
 	return nil

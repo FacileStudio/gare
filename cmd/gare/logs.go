@@ -41,12 +41,12 @@ func runLogs(ctx context.Context, name string, follow bool, lines int) error {
 	if _, err := storage.LoadConfig(appDir); err != nil {
 		return appConfigError(name, err)
 	}
-	unitPath := systemd.GetUnitPath(name)
-	if _, err := os.Stat(unitPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("app %q has not been deployed yet", name)
-		}
+	deployed, err := appUnitExists(name)
+	if err != nil {
 		return err
+	}
+	if !deployed {
+		return fmt.Errorf("app %q has not been deployed yet", name)
 	}
 	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()

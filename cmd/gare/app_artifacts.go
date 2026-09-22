@@ -8,7 +8,6 @@ import (
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/storage"
-	"github.com/FacileStudio/gare/internal/systemd"
 )
 
 func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
@@ -16,8 +15,8 @@ func writeAppArtifacts(name, appDir string, opts appCreateOptions) error {
 	if err := resolveManifest(name, appDir, manifestPath, opts.port, opts.containerPort); err != nil {
 		return err
 	}
-	if err := systemd.WriteUnit(name, manifestPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
+	if err := writeContainerUnit(name, appDir); err != nil {
+		return err
 	}
 	return saveAppMetadata(name, appDir, opts)
 }
@@ -53,10 +52,9 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) (appCrea
 }
 
 func writeStaticArtifacts(name, appDir string, opts appCreateOptions) error {
-	repoDir := storage.GetRepoDir(appDir)
-	staticPath := filepath.Join(repoDir, opts.staticDir)
-	if err := systemd.WriteStaticUnit(name, opts.port, staticPath); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
+	staticPath := filepath.Join(storage.GetRepoDir(appDir), opts.staticDir)
+	if err := writeStaticUnit(name, appDir, staticPath, opts.port); err != nil {
+		return err
 	}
 	opts.appType = "static"
 	return saveAppMetadata(name, appDir, opts)
@@ -137,4 +135,3 @@ func applyGareTags(cfg *storage.AppConfig, gf *storage.GareFile) {
 	}
 	cfg.Tags = temp.Tags
 }
-

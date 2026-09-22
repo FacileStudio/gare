@@ -17,5 +17,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+      - name: install podman for quadlet tests
+        run: |
+          command -v podman >/dev/null 2>&1 || {
+            sudo apt-get update
+            sudo apt-get install -y podman
+          }
       - name: test
         run: go test -v -race ./...

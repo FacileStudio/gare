@@ -72,61 +72,6 @@ func TestGetSnippetPath(t *testing.T) {
 	}
 }
 
-func TestGenerateStaticSnippet(t *testing.T) {
-	snippet, err := GenerateStaticSnippet([]string{"example.com"}, 0, "/var/www/html")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	expected := "example.com {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
-	if snippet != expected {
-		t.Errorf("got %q, want %q", snippet, expected)
-	}
-
-	snippet, err = GenerateStaticSnippet([]string{}, 8080, "/var/www/html")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	expected = ":8080 {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
-	if snippet != expected {
-		t.Errorf("got %q, want %q", snippet, expected)
-	}
-
-	snippet, err = GenerateStaticSnippet([]string{"example.com", "www.example.com"}, 8080, "/var/www/html")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	expected = "example.com, www.example.com, :8080 {\n\t\troot * \"/var/www/html\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
-	if snippet != expected {
-		t.Errorf("got %q, want %q", snippet, expected)
-	}
-
-	if _, err := GenerateStaticSnippet([]string{}, 0, "/var/www/html"); err == nil {
-		t.Errorf("expected error when neither domain nor port specified")
-	}
-}
-
-func TestWriteStaticSnippet(t *testing.T) {
-	tempDir := t.TempDir()
-	name := "staticsite"
-	domains := []string{"static.example.com"}
-	rootDir := "/var/www/site"
-
-	if err := WriteStaticSnippet(tempDir, name, domains, 8080, rootDir); err != nil {
-		t.Fatalf("unexpected error writing static snippet: %v", err)
-	}
-
-	path := GetSnippetPath(tempDir, name)
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read static snippet file: %v", err)
-	}
-
-	expected := "static.example.com, :8080 {\n\t\troot * \"/var/www/site\"\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}"
-	if string(content) != expected {
-		t.Errorf("got %q, want %q", string(content), expected)
-	}
-}
-
 func TestEnsureCaddyfileAtPath(t *testing.T) {
 	tempDir := t.TempDir()
 	caddyfilePath := filepath.Join(tempDir, "Caddyfile")

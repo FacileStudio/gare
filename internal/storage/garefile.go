@@ -128,4 +128,3 @@ func LoadGareFile(repoDir string) (*GareFile, error) {
 	}
 	return &gf, nil
 }
-

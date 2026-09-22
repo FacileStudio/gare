@@ -16,21 +16,21 @@ var appNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`)
 
 // AppConfig represents an application's configuration and deployment metadata.
 type AppConfig struct {
-	Name          string   `json:"name"`
-	RepoURL       string   `json:"repo_url"`
-	Domains       []string `json:"domains,omitempty"`
-	Port          int      `json:"port"`
-	ContainerPort int      `json:"container_port,omitempty"`
-	Branch        string   `json:"branch"`
-	CreatedAt     string   `json:"created_at"`
-	AppType       string   `json:"app_type,omitempty"`
-	ComposeFile   string   `json:"compose_file,omitempty"`
-	Containerfile string   `json:"containerfile,omitempty"`
-	ContextDir    string   `json:"context_dir,omitempty"`
-	StaticDir     string   `json:"static_dir,omitempty"`
-	BuildCmd      string   `json:"build_cmd,omitempty"`
+	Name          string         `json:"name"`
+	RepoURL       string         `json:"repo_url"`
+	Domains       []string       `json:"domains,omitempty"`
+	Port          int            `json:"port"`
+	ContainerPort int            `json:"container_port,omitempty"`
+	Branch        string         `json:"branch"`
+	CreatedAt     string         `json:"created_at"`
+	AppType       string         `json:"app_type,omitempty"`
+	ComposeFile   string         `json:"compose_file,omitempty"`
+	Containerfile string         `json:"containerfile,omitempty"`
+	ContextDir    string         `json:"context_dir,omitempty"`
+	StaticDir     string         `json:"static_dir,omitempty"`
+	BuildCmd      string         `json:"build_cmd,omitempty"`
 	Health        *HealthSection `json:"health,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
+	Tags          []string       `json:"tags,omitempty"`
 }
 
 // DefaultBaseDir returns the default directory path for app storage.

@@ -21,12 +21,6 @@ const snippetTemplate = `{{.Address}} {
 	}
 	`
 
-const staticSnippetTemplate = `{{.Address}} {
-		root * "{{.RootDir}}"
-		try_files {path} /index.html
-		file_server
-	}`
-
 // DefaultConfDir defines the default filesystem path for Caddy drop-in configuration snippets.
 const DefaultConfDir = "/etc/caddy/conf.d"
 
@@ -42,13 +36,6 @@ type SnippetData struct {
 	Port    int
 }
 
-// StaticSnippetData holds the template parameters for generating a Caddy static file server snippet.
-type StaticSnippetData struct {
-	Address string
-	Port    int
-	RootDir string
-}
-
 // GenerateSnippet renders a Caddy reverse proxy configuration snippet for the given domains and port.
 func GenerateSnippet(domains []string, port int) (string, error) {
 	if len(domains) == 0 {
@@ -61,29 +48,6 @@ func GenerateSnippet(domains []string, port int) (string, error) {
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, SnippetData{Address: address, Port: port}); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-// GenerateStaticSnippet renders a Caddy static file server configuration snippet.
-func GenerateStaticSnippet(domains []string, port int, rootDir string) (string, error) {
-	var address string
-	if len(domains) > 0 && port > 0 {
-		address = fmt.Sprintf("%s, :%d", strings.Join(domains, ", "), port)
-	} else if len(domains) > 0 {
-		address = strings.Join(domains, ", ")
-	} else if port > 0 {
-		address = fmt.Sprintf(":%d", port)
-	} else {
-		return "", errors.New("at least one of domain or port must be specified")
-	}
-	tmpl, err := template.New("caddy-static").Parse(staticSnippetTemplate)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, StaticSnippetData{Address: address, Port: port, RootDir: rootDir}); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -106,22 +70,6 @@ func WriteSnippet(confDir, name string, domains []string, port int) error {
 		return err
 	}
 	content, err := GenerateSnippet(domains, port)
-	if err != nil {
-		return err
-	}
-	path := GetSnippetPath(confDir, name)
-	return atomicfile.WriteFile(path, []byte(content), 0644)
-}
-
-// WriteStaticSnippet generates and writes a static file server configuration snippet atomically to disk.
-func WriteStaticSnippet(confDir, name string, domains []string, port int, rootDir string) error {
-	if confDir == "" {
-		confDir = ResolveConfDir()
-	}
-	if err := EnsureCaddyfilePaths(ResolveCaddyfilePath(), confDir); err != nil {
-		return err
-	}
-	content, err := GenerateStaticSnippet(domains, port, rootDir)
 	if err != nil {
 		return err
 	}

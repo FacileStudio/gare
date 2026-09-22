@@ -94,19 +94,33 @@ func TestResolveAppOptionsPrecedence(t *testing.T) {
 	}
 }
 
-func TestStaticSnippetGeneration(t *testing.T) {
-	snippet, err := caddy.GenerateStaticSnippet([]string{"static.test"}, 8080, "/var/www/dist")
-	if err != nil {
+func TestStaticIngressProxiesToTheContainerPort(t *testing.T) {
+	confDir := t.TempDir()
+	t.Setenv("GARE_CADDY_CONF_DIR", confDir)
+	t.Setenv("GARE_CADDYFILE", filepath.Join(confDir, "Caddyfile"))
+	cfg := &storage.AppConfig{
+		Name:      "static-app",
+		Domains:   []string{"static.test"},
+		Port:      8080,
+		AppType:   "static",
+		StaticDir: "public",
+	}
+
+	if err := syncAppIngress(cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(snippet, "file_server") {
-		t.Errorf("expected file_server in snippet, got: %s", snippet)
+	content, err := os.ReadFile(caddy.GetSnippetPath(confDir, "static-app"))
+	if err != nil {
+		t.Fatalf("failed to read the snippet: %v", err)
 	}
-	if !strings.Contains(snippet, "try_files") {
-		t.Errorf("expected try_files in snippet, got: %s", snippet)
+	snippet := string(content)
+	if !strings.Contains(snippet, "reverse_proxy localhost:8080") {
+		t.Errorf("static ingress must proxy to the container port, got: %s", snippet)
 	}
-	if !strings.Contains(snippet, ":8080") {
-		t.Errorf("expected :8080 in snippet, got: %s", snippet)
+	for _, forbidden := range []string{"file_server", "root *"} {
+		if strings.Contains(snippet, forbidden) {
+			t.Errorf("the host must not serve static files itself (%q), got: %s", forbidden, snippet)
+		}
 	}
 }
 

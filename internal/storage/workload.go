@@ -54,6 +54,11 @@ func (c *AppConfig) UsesPodManifest() bool {
 	return !c.IsStatic() && !c.IsCompose()
 }
 
+// UsesQuadletUnit reports whether the workload is supervised through a Quadlet source file.
+func (c *AppConfig) UsesQuadletUnit() bool {
+	return !c.IsCompose()
+}
+
 // UsesAppEnvFile reports whether environment variables live in the app env file.
 func (c *AppConfig) UsesAppEnvFile() bool {
 	return c.IsStatic() || c.IsCompose()

@@ -15,11 +15,13 @@ mise run help         # display available tasks
 
 ## Architecture
 
-`gare` synthesizes systemd user units directly. It uses no Quadlet and no generated Compose files.
+`gare` supervises container and static workloads through Quadlet: it writes a `.kube` source (Podman pod) or a `.container` source (bundled Caddy image serving `static_dir`) at `~/.config/containers/systemd/<app-name>.<type>` and lets the Podman generator produce the `<app-name>.service` unit. Compose workloads keep a gare-synthesized unit at `~/.config/systemd/user/<app-name>.service`, because Quadlet has no compose support.
 
 - Rootless user space: runs under unprivileged accounts with `systemctl --user`.
 - Zero Docker: relies entirely on `podman kube play`/`podman kube down` for `container` workloads and `podman compose up`/`down` for `compose` workloads declared in `gare.yml`.
-- Supervision: systemd user units at `~/.config/systemd/user/<app-name>.service`.
+- Supervision: Quadlet-generated systemd user units for `container` and `static` workloads, synthesized units for `compose`. Quadlet sources never carry `ExecStart`/`ExecStop`: the generator owns the pod and container lifecycle, so gare must not reintroduce `podman kube play` or `podman run` commands of its own.
+- Static serving: a `.container` source runs `docker.io/library/caddy:2-alpine` with the static directory bind-mounted read-only at `/srv` and a host port published to container port 80. No host Caddy binary serves site content; the host Caddy is ingress only.
+- Static content is served from a gare-written Caddyfile (`~/.local/share/gare/apps/<app-name>/Caddyfile`) mounted at `/etc/caddy/Caddyfile`, not from `caddy file-server` flags: `file-server` cannot express the SPA fallback (`try_files {path} /index.html`) that static sites depend on for deep links.
 - Ingress: Caddy drop-in snippets at `/etc/caddy/conf.d/<app-name>.caddy`.
 - Storage: predictable filesystem paths under `~/.local/share/gare/apps/<app-name>/`.
 - Server: lightweight webhook receiver verifying HMAC-SHA256 signatures.
@@ -32,6 +34,7 @@ internal/
   atomicfile/         crash-safe atomic file writes
   builder/            git operations and container image builds
   caddy/              caddy configuration snippets and reloads
+  quadlet/            Quadlet source files supervising Podman workloads
   server/             webhook HTTP daemon and HMAC verification
   storage/            app state, manifests, and port discovery
   systemd/            unit file synthesis and systemctl operations
@@ -55,5 +58,10 @@ internal/
 - Package `cmd/gare` must remain `package main`.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
 - Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git pull`).
-- Clean up resources completely on destroy: stop and disable unit, remove unit file, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
+- Clean up resources completely on destroy: stop unit, disable it when gare synthesized it, remove the unit file and the Quadlet source, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
+- Fail fast when the Quadlet generator is missing: never fall back to hand-written container units.
+- Tenable restarts: a `.kube` source must carry `ExitCodePropagation=` in `[Kube]`, because Quadlet's default (`none`) exits the service zero even when a container failed, leaving `Restart=on-failure` inert.
+- Never write a Quadlet source that a unit file would shadow: `~/.config/systemd/user/<app-name>.service` outranks the generated unit, so a Quadlet-backed workload fails loudly when that path is occupied instead of deploying silently behind it.
+- One Quadlet source per app: writing a `.kube` or `.container` source retires the other, because two sources in one directory would generate the same `<app-name>.service` and a workload type change must not leave both behind.
+- Paths written into a Quadlet source must be absolute and free of whitespace: Quadlet re-quotes `Yaml=` but not `Volume=`/`EnvironmentFile=`, so a space silently breaks the generated mount.
 - Port discovery begins at port 8000 and increments upwards, avoiding both recorded app ports and active system listeners.

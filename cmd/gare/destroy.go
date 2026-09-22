@@ -7,6 +7,7 @@ import (
 
 	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/caddy"
+	"github.com/FacileStudio/gare/internal/quadlet"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -32,7 +33,7 @@ func NewDestroyCmd() *cobra.Command {
 
 			cfg, _ := storage.LoadConfig(appDir)
 
-			teardownServices(ctx, name)
+			teardownServices(ctx, name, cfg)
 			removeArtifacts(ctx, name, appDir, cfg)
 			reloadDaemons(ctx)
 
@@ -42,20 +43,35 @@ func NewDestroyCmd() *cobra.Command {
 	}
 }
 
-func teardownServices(ctx context.Context, name string) {
+func teardownServices(ctx context.Context, name string, cfg *storage.AppConfig) {
+	stopService(ctx, name)
+	if cfg == nil || !cfg.UsesQuadletUnit() {
+		disableService(ctx, name)
+	}
+	removeUnitFiles(name)
+}
+
+func stopService(ctx context.Context, name string) {
 	printInfo(fmt.Sprintf("Stopping service %s...", name))
 	if err := systemd.Stop(ctx, name); err != nil {
 		printWarning(fmt.Sprintf("systemctl stop returned error: %v", err))
 	}
+}
 
+func disableService(ctx context.Context, name string) {
 	printInfo(fmt.Sprintf("Disabling service %s...", name))
 	if err := systemd.Disable(ctx, name); err != nil {
 		printWarning(fmt.Sprintf("systemctl disable returned error: %v", err))
 	}
+}
 
+func removeUnitFiles(name string) {
 	printInfo("Removing systemd unit file...")
 	if err := systemd.RemoveUnit(name); err != nil {
 		printWarning(fmt.Sprintf("removing unit file returned error: %v", err))
+	}
+	if err := quadlet.Remove(name); err != nil {
+		printWarning(fmt.Sprintf("removing quadlet unit returned error: %v", err))
 	}
 }
 
