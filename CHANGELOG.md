@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0] - 2026-09-22
+
+### Added
+
+- Quadlet supervision for container and static workloads: gare writes a `.kube` source (Podman pod) or a `.container` source (bundled Caddy image) under `~/.config/containers/systemd/`, and the Podman generator produces the `<app>.service` unit and owns the pod and container lifecycle.
+- `gare init` reports whether the Podman Quadlet generator is installed and creates the Quadlet source directory.
+- A workload moving to Quadlet retires gare's own unit file in place — stopped while its own definition is still loaded, then removed with its enable link — so upgrading or changing workload type keeps the application's configuration, domains, tags and environment.
+
+### Changed
+
+- Container and static workloads are supervised by Quadlet-generated units; gare synthesizes a unit file itself only for compose, which Quadlet cannot express.
+- Static sites are served by the bundled `docker.io/library/caddy:2-alpine` image with the static directory mounted read-only at `/srv` and the assigned port published, instead of a host Caddy `file-server` process. A static app now needs the Quadlet generator and pulls the Caddy image on its first deploy.
+- Static content is served from a gare-written Caddyfile mounted at `/etc/caddy/Caddyfile`, because `caddy file-server` cannot express the SPA fallback (`try_files {path} /index.html`) that deep links depend on.
+- Static ingress is a reverse proxy to the container port like every other workload, so the host Caddy no longer serves site content.
+- Pod workloads set `ExitCodePropagation=any`, so a container that fails exits the unit non-zero and `Restart=on-failure` restarts it instead of leaving the unit `inactive (dead)`.
+- Unit and Quadlet source directories both resolve through `$XDG_CONFIG_HOME` (defaulting to `~/.config`), so gare, systemd and the Podman generator agree on a host that sets it.
+- Deploying an application gare created before Quadlet stops its old unit, removes it with its enable link, and writes the Quadlet source in its place; run `gare init` to create the Quadlet directory first.
+
+### Fixed
+
+- Changing a workload type retires the other supervision's source in both directions and stops the previous workload while its own teardown definition is still loaded, so no stale source keeps generating a unit of the same name and no orphaned pod or container is left in front of the new one.
+- `gare destroy` removes the `default.target.wants` enable link it created, instead of leaving a dangling symlink pointing at a deleted unit.
+- A unit file gare does not own still fails the deploy loudly, naming the path, rather than starting a workload behind a shadowing unit.
+
 ## [0.11.0] - 2026-09-20
 
 ### Added
