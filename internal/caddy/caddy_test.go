@@ -37,6 +37,7 @@ func TestGenerateSnippetNoDomains(t *testing.T) {
 
 func TestWriteAndRemoveSnippet(t *testing.T) {
 	tempDir := t.TempDir()
+	t.Setenv("GARE_CADDYFILE", filepath.Join(tempDir, "Caddyfile"))
 	name := "testapp"
 	domains := []string{"test.example.com"}
 	port := 8001

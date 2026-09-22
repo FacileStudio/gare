@@ -20,7 +20,6 @@ func TestGenerateContainerUnit(t *testing.T) {
 		"[Container]",
 		"Image=docker.io/library/caddy:2-alpine",
 		"ContainerName=my-site",
-		"Entrypoint=caddy",
 		"Exec=run --config /etc/caddy/Caddyfile --adapter caddyfile",
 		"PublishPort=8100:80",
 		"Volume=/srv/repo/dist:/srv:ro,Z",
@@ -37,6 +36,19 @@ func TestGenerateContainerUnit(t *testing.T) {
 	}
 	if strings.Contains(content, `Volume="`) || strings.Contains(content, `EnvironmentFile="`) {
 		t.Errorf("quadlet does not re-quote these values, quoting breaks the generated mount:\n%s", content)
+	}
+}
+
+func TestGenerateContainerUnitLeavesEntrypointToTheImage(t *testing.T) {
+	content, err := GenerateContainerUnit(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(content, "Entrypoint=") {
+		t.Errorf("quadlet before podman 5 rejects Entrypoint= and drops the whole source; the caddy image's own entrypoint is the one to use, got:\n%s", content)
+	}
+	if !strings.Contains(content, "Exec=run --config /etc/caddy/Caddyfile --adapter caddyfile") {
+		t.Errorf("expected the command to run caddy through the image entrypoint, got:\n%s", content)
 	}
 }
 
@@ -139,7 +151,6 @@ func TestGeneratedContainerSourceIsAcceptedByQuadlet(t *testing.T) {
 	generated := runQuadletDryRun(t, unitDir)
 	expected := []string{
 		"---my-site.service---",
-		"--entrypoint caddy",
 		"-v /srv/dist:/srv:ro,Z",
 		"-v /srv/Caddyfile:/etc/caddy/Caddyfile:ro,Z",
 		"--publish 8100:80",
@@ -151,5 +162,8 @@ func TestGeneratedContainerSourceIsAcceptedByQuadlet(t *testing.T) {
 		if !strings.Contains(generated, snippet) {
 			t.Errorf("expected the generated unit to contain %q, got:\n%s", snippet, generated)
 		}
+	}
+	if strings.Contains(generated, "--entrypoint") {
+		t.Errorf("the image's own entrypoint is the one to use, got:\n%s", generated)
 	}
 }

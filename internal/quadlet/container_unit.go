@@ -24,7 +24,6 @@ Description=Gare Managed Static App: {{.Name}}
 [Container]
 Image={{.Image}}
 ContainerName={{.Name}}
-Entrypoint=caddy
 Exec=run --config {{.ConfigMount}} --adapter caddyfile
 PublishPort={{.Port}}:{{.ContainerPort}}
 Volume={{.RootDir}}:{{.RootMount}}:ro,Z
