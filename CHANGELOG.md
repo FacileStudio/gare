@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1] - 2026-09-22
+
+### Fixed
+
+- Static workloads deploy again on podman 4.x: the `.container` source no longer sets `Entrypoint=`, a key Quadlet only accepts from podman 5.0. On 4.4 to 4.9 the generator rejected the key and dropped the whole source, so the unit was never generated; the caddy image's own entrypoint already runs `caddy run --config /etc/caddy/Caddyfile --adapter caddyfile`.
+- `TestWriteAndRemoveSnippet` no longer creates the default Caddyfile, which made the `ci` workflow fail wherever the test ran without root to write `/etc/caddy`.
+
 ## [0.12.0] - 2026-09-22
 
 ### Added

@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-var version = "0.12.0"
+var version = "0.12.1"
 
 func main() {
 	if err := Execute(version); err != nil {
