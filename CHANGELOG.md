@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- The ingress refusal is pinned in both directions: an app with domains fails when Caddy refuses the configuration, and the same refusal only warns for an app without domains, because nothing then depends on ingress.
+
+### Fixed
+
+- Ingress verification asks the ingress to answer for every hostname an app is configured with, instead of only checking that something is bound to the ports those hostnames resolve to. A hostname whose snippet Caddy accepted but which the server answers nothing for now fails the deploy by name, and the report names only the hostnames nothing answered for rather than the whole list, so a partial failure does not send the operator looking at a domain that works. The probe reports whether the ingress answered, never what it answered, since an application served at the root of its own hostname may legitimately answer 404.
+- A domain that leaves the port out is probed on the standard ingress ports even when another domain of the same app names one, so an app on `app.example.com` beside `admin.example.com:8443` is verified on 80, 443 and 8443 instead of the standard ports being dropped as soon as one hostname carried one.
+- The ingress probe no longer mistakes a bound socket for a served hostname: it sends an HTTP request carrying the hostname, so a listener that accepts a connection and answers nothing is reported instead of passing.
+
+### Changed
+
+- A configured hostname now has to be answered by the ingress, where a bound port was enough before, so an app whose port is open but whose hostname nothing serves is no longer reported deployed.
+
 ## [0.13.4] - 2026-09-23
 
 ### Added

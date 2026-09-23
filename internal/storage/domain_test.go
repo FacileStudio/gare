@@ -7,20 +7,24 @@ import (
 	"testing"
 )
 
-func TestDomainPort(t *testing.T) {
-	tests := map[string]int{
-		"example.com":              0,
-		"sub.example.com":          0,
-		"localhost":                0,
-		"localhost:8080":           8080,
-		"myapp.example.com:443":    443,
-		"broken.example.com:0":     0,
-		"broken.example.com:99999": 0,
-		"broken.example.com:port":  0,
+func TestDomainHostPort(t *testing.T) {
+	tests := map[string]struct {
+		host string
+		port int
+	}{
+		"example.com":              {"example.com", 0},
+		"sub.example.com":          {"sub.example.com", 0},
+		"localhost":                {"localhost", 0},
+		"localhost:8080":           {"localhost", 8080},
+		"myapp.example.com:443":    {"myapp.example.com", 443},
+		"broken.example.com:0":     {"broken.example.com:0", 0},
+		"broken.example.com:99999": {"broken.example.com:99999", 0},
+		"broken.example.com:port":  {"broken.example.com:port", 0},
 	}
 	for hostname, want := range tests {
-		if got := DomainPort(hostname); got != want {
-			t.Errorf("DomainPort(%q) = %d, want %d", hostname, got, want)
+		host, port := DomainHostPort(hostname)
+		if host != want.host || port != want.port {
+			t.Errorf("DomainHostPort(%q) = (%q, %d), want (%q, %d)", hostname, host, port, want.host, want.port)
 		}
 	}
 }

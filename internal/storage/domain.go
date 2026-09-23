@@ -34,18 +34,19 @@ func NormalizeDomain(hostname string) string {
 	return strings.ToLower(strings.TrimSpace(hostname))
 }
 
-// DomainPort returns the explicit port a hostname carries, or zero when it relies on the standard
-// ingress ports.
-func DomainPort(hostname string) int {
+// DomainHostPort splits a domain into the hostname an ingress serves it under and the explicit port
+// it carries, reporting no port when it names none, so a probe addresses the name the ingress serves
+// rather than the socket it serves it on.
+func DomainHostPort(hostname string) (string, int) {
 	idx := strings.LastIndex(hostname, ":")
 	if idx < 0 {
-		return 0
+		return hostname, 0
 	}
 	port, err := strconv.Atoi(hostname[idx+1:])
 	if err != nil || port <= 0 || port > 65535 {
-		return 0
+		return hostname, 0
 	}
-	return port
+	return hostname[:idx], port
 }
 
 // AppByDomain scans all apps for one owning the given hostname.

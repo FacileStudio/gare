@@ -37,6 +37,7 @@ The version lives in two places and both move in the same `chore: release vX` co
 
 ```
 cmd/gare/             CLI entrypoint and Cobra commands (package main)
+  config/             `~/.gare.yml` loading and the flag overrides that outrank it
 internal/
   appname/            application name validation shared by the CLI and the webhook server
   atomicfile/         crash-safe atomic file writes
@@ -74,7 +75,7 @@ internal/
 - Clean up resources completely on destroy: stop unit, disable it, remove the unit file, its enable link and any Quadlet source an older gare left behind, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
 - Fail fast when podman cannot run the generated units: probe `podman kube play` for `--service-container` before touching anything else, so a podman older than 5.0 cannot leave a workload stopped or half-retired.
 - Every `localhost/<name>` image a generated or adopted Pod manifest runs carries `imagePullPolicy: Never`. The image exists only in Podman's local storage, since gare builds it, so an unset policy leaves `podman kube play` to resolve it as `docker://localhost/<name>` and fail wherever nothing answers as a registry on `localhost` — a restart loop whose journal looks like a deployment bug.
-- A deploy of an app with domains is not complete until its ingress is: the running Caddy must accept the snippet and a listener must answer on the ports those domains resolve to, because a snippet on disk is not the configuration a running server serves. An app reachable on its assigned port alone only warns, since nothing then depends on ingress.
+- A deploy of an app with domains is not complete until its ingress is: the running Caddy must accept the snippet and answer an HTTP request for every hostname the app is configured with, because a snippet on disk is not the configuration a running server serves and a bound socket says nothing about which hostnames it answers. The probe reports only whether the ingress answered, never what it answered, since an API served at the root of its own hostname may legitimately answer 404, and it does not verify the certificate, since the Caddy on this host may serve an internal one. An app reachable on its assigned port alone only warns, since nothing then depends on ingress.
 - Image pruning after a deploy is best-effort and reported only in verbose mode: `podman image prune -f` exits non-zero when a leftover buildah working container holds a dangling image, which says nothing about the deployment.
 - Tenable restarts: the kube unit must pass `--service-exit-code-propagation=any` to `podman kube play`, because podman otherwise exits the service zero even when a container failed, leaving `Restart=on-failure` inert.
 - Order user units after `podman-user-wait-network-online.service`, never `network-online.target`: the user manager has no `network-online.target` (`LoadState=not-found`), and systemd discards `After=`/`Wants=` on an unknown unit without warning, so the workload silently ends up with no network ordering at all.
