@@ -50,29 +50,3 @@ func Stop(ctx context.Context, name string) error {
 func Disable(ctx context.Context, name string) error {
 	return runSystemctl(ctx, "disable", name+".service")
 }
-
-// IsActive checks if the specified systemd user service is currently active.
-func IsActive(ctx context.Context, name string) (string, error) {
-	cmd := systemctlCmd(ctx, "is-active", name+".service")
-	output, err := cmd.CombinedOutput()
-	status := strings.TrimSpace(string(output))
-	if err != nil && status == "" {
-		return "inactive", err
-	}
-	return status, nil
-}
-
-// CheckLinger checks whether logind linger is enabled for the specified user.
-func CheckLinger(ctx context.Context, user string) (bool, error) {
-	if user == "" {
-		user = currentUsername()
-	}
-	cmd := exec.CommandContext(ctx, "loginctl", "show-user", user, "--property=Linger")
-	cmd.Env = userEnviron()
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	val := strings.TrimSpace(string(output))
-	return strings.EqualFold(val, "Linger=yes"), nil
-}

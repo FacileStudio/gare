@@ -146,6 +146,13 @@ func TestReplacedWorkloadType(t *testing.T) {
 	}
 }
 
+// workloadWriterCase describes one workload type's unit writer and the workload it replaces.
+type workloadWriterCase struct {
+	previous    string
+	description string
+	write       func(ctx context.Context, name, appDir string) error
+}
+
 // TestEveryWorkloadWriterRetiresWhatItReplaces pins the handover every workload type runs after it
 // writes its unit, so a writer that keeps a copy of that sequence of its own is caught drifting
 // rather than silently leaving the workload it replaces running in front of its replacement.
@@ -154,17 +161,21 @@ func TestEveryWorkloadWriterRetiresWhatItReplaces(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cases := map[string]struct {
-		previous    string
-		description string
-		write       func(ctx context.Context, name, appDir string) error
-	}{
+	for name, tc := range workloadWriterCases() {
+		t.Run(name, func(t *testing.T) {
+			assertWorkloadHandover(t, name, tc)
+		})
+	}
+}
+
+// workloadWriterCases returns each workload type's writer paired with a unit from another type, so
+// the handover is exercised across a workload type change rather than a same-type redeploy.
+func workloadWriterCases() map[string]workloadWriterCase {
+	return map[string]workloadWriterCase{
 		"container": {
 			previous:    systemd.StaticUnitDescription("myapp"),
 			description: systemd.KubeUnitDescription("myapp"),
-			write: func(ctx context.Context, name, appDir string) error {
-				return writeContainerUnit(ctx, name, appDir)
-			},
+			write:       writeContainerUnit,
 		},
 		"static": {
 			previous:    systemd.ComposeUnitDescription("myapp"),
@@ -181,28 +192,28 @@ func TestEveryWorkloadWriterRetiresWhatItReplaces(t *testing.T) {
 			},
 		},
 	}
+}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			appDir := t.TempDir()
-			unitPath := writeUnitFile(t, "myapp", "[Unit]\nDescription="+tc.previous+"\n")
-			seedLegacyQuadletSources(t, "myapp")
+// assertWorkloadHandover drives one writer through a workload type change, then checks it replaced
+// the outgoing unit in place and retired the Quadlet sources a previous gare left behind.
+func assertWorkloadHandover(t *testing.T, name string, tc workloadWriterCase) {
+	t.Helper()
+	appDir := t.TempDir()
+	unitPath := writeUnitFile(t, "myapp", "[Unit]\nDescription="+tc.previous+"\n")
+	seedLegacyQuadletSources(t, "myapp")
 
-			if err := tc.write(context.Background(), "myapp", appDir); err != nil {
-				t.Fatalf("writing the %s unit failed: %v", name, err)
-			}
-
-			data, err := os.ReadFile(unitPath)
-			if err != nil {
-				t.Fatalf("expected the %s unit to be rewritten in place: %v", name, err)
-			}
-			if !strings.Contains(string(data), "Description="+tc.description+"\n") {
-				t.Errorf("expected the %s unit to replace the workload it replaces:\n%s", name, string(data))
-			}
-			for _, path := range systemd.LegacyQuadletSources("myapp") {
-				assertGone(t, path)
-			}
-		})
+	if err := tc.write(context.Background(), "myapp", appDir); err != nil {
+		t.Fatalf("writing the %s unit failed: %v", name, err)
+	}
+	data, err := os.ReadFile(unitPath)
+	if err != nil {
+		t.Fatalf("expected the %s unit to be rewritten in place: %v", name, err)
+	}
+	if !strings.Contains(string(data), "Description="+tc.description+"\n") {
+		t.Errorf("expected the %s unit to replace the workload it replaces:\n%s", name, string(data))
+	}
+	for _, path := range systemd.LegacyQuadletSources("myapp") {
+		assertGone(t, path)
 	}
 }
 
