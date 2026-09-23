@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.13.2] - 2026-09-23
 
 ### Changed
 
@@ -9,12 +9,13 @@
 - A managed application's lookup has a home of its own rather than `app_errors.go`, and `gare deploy` uses it instead of repeating the same validation and config load.
 - A rule both sides needed is now a leaf package of its own: the readiness probe type moved from `storage` to `health`, and application name validation from `storage` to `appname`. The compose file parser no longer imports the config schema, and the webhook server no longer imports storage.
 - `gare env` resolves the store its workload reads once per command, through one type whose operations are named fields rather than two identically typed closures.
+- `gare init` checks for `podman.socket` through the same user-session systemctl invocation as every other systemd query, instead of a bare `systemctl --user` that never received `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`, so the check reaches the user manager when gare runs outside a login shell instead of reporting the socket missing.
 - `systemctlCmd` sits in `systemctl.go` beside the verbs it serves, and the delay `WaitForState` gives an already-active service is declared where the wait owns it instead of hiding inside a state comparison.
 
 ### Fixed
 
 - A failed `gare env` write names the store it could not write — the app env file or the pod manifest — instead of reporting a generic failure, and `gare env list` names it when a read fails too.
-- `gare destroy` reports a configuration it cannot read, and the consequence of proceeding without the workload type, instead of silently tearing the application down as a container.
+- `gare destroy` resolves the workload type it is tearing down explicitly instead of reading a `config.json` it could not load as a container workload, which removed a compose stack's unit and storage while leaving the stack running. An unreadable configuration or an unknown type now tears down only the type-independent artifacts — the unit, the ingress snippet and the storage — and says which workload and image it left behind for `podman ps`/`podman images`.
 
 ## [0.13.1] - 2026-09-23
 
