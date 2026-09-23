@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FacileStudio/gare/internal/quadlet"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -23,17 +22,22 @@ func TestWriteComposeArtifacts(t *testing.T) {
 	assertComposeConfig(t, appDir)
 }
 
-func TestWriteComposeArtifactsRetiresQuadletSources(t *testing.T) {
+func TestWriteComposeArtifactsRetiresLegacyQuadletSources(t *testing.T) {
 	_, appDir, _ := setupComposeApp(t, "8590:80")
-	if err := quadlet.WriteKubeUnit("myapp", storage.GetManifestPath(appDir)); err != nil {
-		t.Fatalf("WriteKubeUnit failed: %v", err)
+	for _, path := range systemd.LegacyQuadletSources("myapp") {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("[Kube]\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	opts := appCreateOptions{repo: "https://example.com/repo.git", appType: "compose", port: 8590}
 	if err := writeComposeArtifacts(context.Background(), "myapp", appDir, opts); err != nil {
 		t.Fatalf("writeComposeArtifacts failed: %v", err)
 	}
 
-	for _, path := range []string{quadlet.KubePath("myapp"), quadlet.ContainerPath("myapp")} {
+	for _, path := range systemd.LegacyQuadletSources("myapp") {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("a workload type change must not leave %s behind", path)
 		}

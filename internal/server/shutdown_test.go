@@ -49,10 +49,13 @@ func TestMaxBytesPayload(t *testing.T) {
 
 func TestShutdownWaitsForDeploy(t *testing.T) {
 	var deployFinished atomic.Bool
-	s := NewServer("0", "", func(ctx context.Context, appName string) error {
-		time.Sleep(80 * time.Millisecond)
-		deployFinished.Store(true)
-		return nil
+	s := New(Config{
+		Port: "0",
+		DeployHandler: func(ctx context.Context, appName string) error {
+			time.Sleep(80 * time.Millisecond)
+			deployFinished.Store(true)
+			return nil
+		},
 	})
 	go s.Start("127.0.0.1:0")
 	addr := waitForServerAddr(s)
@@ -78,9 +81,12 @@ func TestShutdownWaitsForDeploy(t *testing.T) {
 
 func TestShutdownTimeout(t *testing.T) {
 	release := make(chan struct{})
-	s := NewServer("0", "", func(ctx context.Context, appName string) error {
-		<-release
-		return nil
+	s := New(Config{
+		Port: "0",
+		DeployHandler: func(ctx context.Context, appName string) error {
+			<-release
+			return nil
+		},
 	})
 	go s.Start("127.0.0.1:0")
 	addr := waitForServerAddr(s)

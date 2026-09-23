@@ -34,7 +34,7 @@
 ### B. `cmd/gare/deploy.go`
 - Remove duplicate UI printing functions (`printInfo`, `printSuccess`, `printWarning`, `printError`) that conflict with `cmd/gare/ui.go`.
 - Remove duplicate `syncRepoManifest` stub that conflicts with `cmd/gare/app_artifacts.go`.
-- Remove unused `getCommitHash` helper.
+- Remove unused `getCommitHash` helper. Resolved the other way: the helper survived as `builder.GetCommitHash` (`internal/builder/builder.go`) and is now called during deploy, so nothing was removed.
 
 ### C. `cmd/gare/config/loader.go`
 - Remove duplicate declaration of `DefaultConfigPath()`.
@@ -45,13 +45,13 @@
 ## 3. Caddyfile & Systemd User Unit Synthesis
 
 ### A. Caddy Static File Server Template
-- Fix `staticSnippetTemplate` in `internal/caddy/caddy.go`: move `try_files {path} /index.html` outside `file_server` block into valid Caddyfile format.
+- Fix `staticSnippetTemplate` in `internal/caddy/caddy.go`: move `try_files {path} /index.html` outside `file_server` block into valid Caddyfile format. Superseded: a static site now runs in its own container, and the template is `staticServerConfigTemplate` in `internal/caddy/static_server.go`. `internal/caddy/caddy.go` keeps only `snippetTemplate`, for ingress.
 
 ### B. Systemd User Unit Generation
-- Update `unitTemplate` in `internal/systemd/unit.go`:
-  - Remove system-level `After=network-online.target` / `Wants=network-online.target` (not available in user sessions).
-  - Add `Delegate=yes` for proper rootless cgroup v2 delegation.
-  - Add `TimeoutStopSec=70s` for clean container shutdown.
+- Update `unitTemplate` in `internal/systemd/unit.go`. There is no `unitTemplate`: units are one template per workload type, `kubeUnitTemplate` / `containerUnitTemplate` / `composeUnitTemplate`, in `internal/systemd/kube_unit.go`, `internal/systemd/container_unit.go` and `internal/systemd/compose_unit.go`. The three directives landed as follows:
+  - Pod and static units replaced the network target with `After=` / `Wants=podman-user-wait-network-online.service`, the user-session equivalent. The item's premise holds: `systemctl --user status network-online.target` reports `LoadState=not-found`, and systemd drops ordering on an unknown unit without a warning. `composeUnitTemplate` was the last unit still naming `network-online.target` and now uses the same bridge service.
+  - `Delegate=yes` is on the static and compose units.
+  - `TimeoutStopSec=70s` is on the pod and compose units; the static unit matches what Podman's own generator produced for the same container.
 
 ---
 

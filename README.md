@@ -5,9 +5,8 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 ## Features
 
 - **Rootless user space**: Runs under unprivileged user accounts with `systemctl --user` and Podman.
-- **Quadlet supervision**: Declares container and static workloads as Quadlet sources under `~/.config/containers/systemd/` (`.kube` for Podman pods, `.container` for the bundled Caddy image), and lets the Podman generator produce their systemd user units.
-- **Native unit synthesis**: Compose stacks keep a gare-synthesized unit at `~/.config/systemd/user/<app>.service`, because Quadlet has no compose support and the alternative is translating a compose file into `.container` units, silently losing whatever that translation does not cover.
-- **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`, or multi-container stacks via `podman compose`.
+- **Native unit synthesis**: Every workload becomes a gare-written systemd user unit at `~/.config/systemd/user/<app>.service` — `podman kube play` for Podman pods, `podman run` for the bundled Caddy image, `podman compose up -d` for stacks. No `podman generate systemd`, which upstream deprecates, and no separate generator step to keep in sync.
+- **Zero Docker**: Deploys native Kubernetes YAML manifests via `podman kube play`, multi-container stacks via `podman compose`, or static sites via `podman run`.
 - **Automatic ingress**: Writes Caddy drop-in configuration snippets to `/etc/caddy/conf.d/<app>.caddy`.
 - **Static sites**: Serves static assets from the bundled Caddy image, mounted read-only, with Caddy ingress in front.
 - **Environment management**: Native `gare env` commands to set, unset, load, and inspect container environment variables.
@@ -25,7 +24,7 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 gare init
 ```
 
-Verifies that `podman`, `caddy`, and `git` are available, requires the Podman Quadlet generator (Podman 4.4 or newer) for container and static workloads, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage and Quadlet directories.
+Requires **Podman 5.0 or newer**, because the systemd units gare writes pass `--service-container` to `podman kube play`. Verifies that `podman`, `caddy`, and `git` are available, probes the installed podman for those flags, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage and unit directories.
 
 ### 2. Create an application
 
@@ -34,7 +33,7 @@ gare app create myapp --repo https://github.com/example/webapp.git --healthcheck
 gare domain add myapp myapp.example.com
 ```
 
-Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and a Quadlet source file, and records metadata in config.json. Use `gare domain add` to attach a hostname and write the Caddy ingress snippet.
+Clones the repository, discovers a free TCP port (starting at 8000), synthesizes a Kubernetes pod manifest and the systemd unit that plays it, and records metadata in config.json. Use `gare domain add` to attach a hostname and write the Caddy ingress snippet.
 
 #### Custom Containerfile or monorepos
 
@@ -116,7 +115,7 @@ gare deploy stack
 
 `podman compose` requires an external provider (`docker-compose` or `podman-compose`) and the podman API socket. `gare init` reports both, and `gare deploy` fails with a clear error when the provider is missing. Additional behavior:
 
-- Compose stacks stay on a gare-synthesized unit rather than Quadlet, which has no compose support: routing them through Quadlet would mean translating the compose file into `.container` units, losing whatever that translation does not cover.
+- Compose stacks are supervised by the same kind of gare-written unit as every other workload type, so `gare` never translates a compose file into something else, losing whatever that translation does not cover.
 - `port` is required in `gare.yml` and must match a published host port in the compose file, so Caddy routes to the port the stack actually binds.
 - The systemd unit is a `RemainAfterExit` oneshot that requires `podman.socket` (started with the app) and runs the stack detached from the repository checkout, so relative build contexts, bind mounts, and `env_file` paths resolve as written. `stop` and `restart` run `podman compose down`; containers are never left to a watching provider process.
 - Each application gets its own compose project name (the app name), so two apps never share containers, networks, or volumes.
@@ -223,7 +222,7 @@ gare logs myapp -f
 gare destroy myapp
 ```
 
-Stops the systemd service, removes the unit file, its `default.target.wants` enable link and the Quadlet source, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
+Stops the systemd service, disables it, removes the unit file, its `default.target.wants` enable link and any Quadlet source an older gare left behind, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
 
 ## Global Configuration (`~/.gare.yml`)
 
@@ -273,5 +272,7 @@ mise run test         # run test suite
 mise run all          # build and test
 mise run lint         # run go vet ./...
 ```
+
+Tests that exercise the generated systemd units need Podman 5.0 or newer and skip without it. Set `GARE_REQUIRE_PODMAN=1` to turn that skip into a failure instead, which is what CI does.
 
 Code quality and architectural constraints are enforced by [filet](https://github.com/FacileStudio/filet).

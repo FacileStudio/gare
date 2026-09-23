@@ -93,8 +93,3 @@ func (l *Loader) Load() (*GareConfig, error) {
 	l.config.LoadedAt = time.Now()
 	return l.config, nil
 }
-
-// Get returns the current merged configuration.
-func (l *Loader) Get() *GareConfig {
-	return l.config
-}

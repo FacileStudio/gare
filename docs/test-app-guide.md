@@ -8,7 +8,7 @@ This guide walks through building, configuring, deploying, and destroying a test
 
 Verify four prerequisites before creating an application:
 
-1. `podman`, `caddy`, and `git` are installed and present in `PATH`.
+1. `podman`, `caddy`, and `git` are installed and present in `PATH`. Podman must be 5.0 or newer, because the units gare writes pass `--service-container` to `podman kube play`, which earlier releases reject.
 2. Systemd user lingering is enabled for the target user. Lingering ensures systemd user units start on boot and remain running after logout:
 
 ```sh
@@ -47,7 +47,7 @@ Run `gare init` to confirm your host passes all checks:
 gare init
 ```
 
-The command verifies dependencies (including the Podman Quadlet generator), creates `~/.local/share/gare/apps/`, `~/.config/systemd/user/` and `~/.config/containers/systemd/`, and confirms Caddy directory permissions.
+The command verifies dependencies (including that the installed Podman can run the generated units, per the prerequisites above), creates `~/.local/share/gare/apps/` and `~/.config/systemd/user/`, and confirms Caddy directory permissions.
 
 ## Build a minimal test application
 
@@ -142,7 +142,7 @@ Use `gare domain add` to attach a hostname and generate the Caddy ingress snippe
 
 1. Clones the repository into `~/.local/share/gare/apps/test-app/repo`.
 2. Resolves or generates the Kubernetes Pod manifest at `~/.local/share/gare/apps/test-app/manifest.yaml`.
-3. Writes a Quadlet source at `~/.config/containers/systemd/test-app.kube`.
+3. Writes a systemd unit at `~/.config/systemd/user/test-app.service`.
 4. Records metadata in `~/.local/share/gare/apps/test-app/config.json`.
 5. Prints the assigned port.
 
@@ -172,21 +172,26 @@ spec:
       hostPort: 8000
 ```
 
-View the Quadlet source:
+View the systemd unit gare writes:
 
 ```sh
-cat ~/.config/containers/systemd/test-app.kube
+cat ~/.config/systemd/user/test-app.service
 ```
 
 ```ini
 [Unit]
 Description=Gare Managed App: test-app
-
-[Kube]
-Yaml="/home/yann/.local/share/gare/apps/test-app/manifest.yaml"
-ExitCodePropagation=any
+After=podman-user-wait-network-online.service
+Wants=podman-user-wait-network-online.service
+RequiresMountsFor=%t/containers
 
 [Service]
+Type=notify
+NotifyAccess=all
+Environment=PODMAN_SYSTEMD_UNIT=%n
+KillMode=mixed
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --service-exit-code-propagation=any /home/yann/.local/share/gare/apps/test-app/manifest.yaml
+ExecStopPost=/usr/bin/podman kube down /home/yann/.local/share/gare/apps/test-app/manifest.yaml
 Restart=on-failure
 RestartSec=5s
 TimeoutStartSec=300s
@@ -197,7 +202,7 @@ SyslogIdentifier=%N
 WantedBy=default.target
 ```
 
-The Podman Quadlet generator turns that source into the systemd unit, together with the `podman kube play --replace --service-container=true --service-exit-code-propagation=any` and `podman kube down` commands it owns. `ExitCodePropagation=any` is what makes `Restart=on-failure` real: Quadlet's default (`none`) exits the service zero even when a container failed, so the unit would stay `inactive (dead)` after a crash.
+`--service-exit-code-propagation=any` is what makes `Restart=on-failure` real: without it Podman exits the service zero even when a container failed, so the unit would stay `inactive (dead)` after a crash. `--service-container=true` is what lets `Type=notify` ever report ready. These are the same directives Podman's own generator produced for this workload.
 
 ```sh
 systemctl --user cat test-app.service
@@ -229,14 +234,14 @@ gare deploy test-app
 2. Checks for `Containerfile` or `Dockerfile`.
 3. Builds the container image tagged `localhost/test-app:latest` using rootless Podman.
 4. Synchronizes any changes from `repo/manifest.yaml` if defined in the repository.
-5. Runs `systemctl --user daemon-reload`, which regenerates the Quadlet unit.
-6. Restarts the systemd user unit `test-app.service` (Quadlet units are enabled by their `[Install]` section, so nothing else is needed for start-on-boot).
+5. Runs `systemctl --user daemon-reload` so systemd picks up the rewritten unit.
+6. Enables `test-app.service` for start-on-boot and restarts it.
 7. Reloads Caddy to activate the ingress snippet.
 8. Prunes dangling Podman container images.
 
-### Upgrading an application created before Quadlet
+### Upgrading an application supervised by Quadlet
 
-A gare that predates Quadlet left its own unit at `~/.config/systemd/user/test-app.service`, and that path outranks the unit the Quadlet generator produces. The first deploy after upgrading stops that unit while its own definition is still loaded (so its `podman kube down` teardown runs), removes it together with its `default.target.wants` enable link, and writes the Quadlet source in its place. The application keeps its configuration, domains, tags and environment.
+An older gare handed `test-app` to the Podman generator through `~/.config/containers/systemd/test-app.kube`. The first deploy after upgrading stops `test-app.service` while its own generated definition is still loaded (so its `podman kube down` teardown runs), removes the Quadlet source, and writes gare's own unit at `~/.config/systemd/user/test-app.service` in its place. The application keeps its configuration, domains, tags and environment.
 
 Nothing is retired automatically if the unit at that path was not written by gare: a hand-written `test-app.service` is left untouched and the deploy fails with the path named, rather than starting a workload the operator did not ask for.
 
@@ -344,9 +349,9 @@ When creating the application:
 gare app create blog --repo https://github.com/example/blog.git
 ```
 
-Gare reads `gare.yml` automatically, assigns the port (or discovers an unused one), runs the optional build command, and writes a Quadlet `.container` source that serves `static_dir` read-only through the bundled Caddy image (`docker.io/library/caddy:2-alpine`) on that port. Host Caddy then routes the public hostname to it, so the site is reachable both locally on the assigned port and through the ingress hostname (via `gare domain add`). CLI flags override `gare.yml` values when specified.
+Gare reads `gare.yml` automatically, assigns the port (or discovers an unused one), runs the optional build command, and writes a systemd unit that serves `static_dir` read-only through the bundled Caddy image (`docker.io/library/caddy:2-alpine`) on that port. Host Caddy then routes the public hostname to it, so the site is reachable both locally on the assigned port and through the ingress hostname (via `gare domain add`). CLI flags override `gare.yml` values when specified.
 
-Unlike container and compose workloads, a static site needs no image build: the first `gare deploy` pulls the Caddy image, and the source directory is mounted into the container rather than copied.
+Unlike container and compose workloads, a static site needs no image build: the first `gare deploy` pulls the Caddy image, and the source directory is mounted into the container rather than copied. The unit addresses its container through a cidfile, so `stop` removes the exact container it started.
 
 The container serves a gare-written Caddyfile at `~/.local/share/gare/apps/blog/Caddyfile`, mounted read-only:
 
@@ -378,7 +383,8 @@ To run `gare server` continuously under systemd user supervision, create `~/.con
 ```ini
 [Unit]
 Description=Gare Webhook Server
-After=network-online.target
+After=podman-user-wait-network-online.service
+Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec
@@ -423,8 +429,8 @@ gare destroy test-app
 
 `gare destroy` cleans up every resource:
 
-1. Stops `test-app.service` (and disables it when gare synthesized the unit).
-2. Removes the Quadlet source (`test-app.kube` for a container workload, `test-app.container` for a static site) and any synthesized unit left at `~/.config/systemd/user/test-app.service`, including the `default.target.wants` enable link a pre-Quadlet gare created for it.
+1. Stops and disables `test-app.service`.
+2. Removes `~/.config/systemd/user/test-app.service`, its `default.target.wants` enable link, and any Quadlet source an older gare left at `~/.config/containers/systemd/test-app.kube` or `.container`.
 3. Removes `/etc/caddy/conf.d/test-app.caddy`.
 4. Deletes the container image `localhost/test-app:latest`.
 5. Removes the application directory `~/.local/share/gare/apps/test-app/`.

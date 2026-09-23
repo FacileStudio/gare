@@ -45,15 +45,16 @@ compose_file: docker-compose.yml   # optional; defaults to compose.yml then dock
 
 ### Where the supervision diverges
 
-Today all apps share one codepath: systemd unit template in `unit.go` hardcodes `kube play`/`kube down`. Each divergence point:
+Every app is supervised by one gare-written unit at `~/.config/systemd/user/<name>.service`; the template in `internal/systemd/kube_unit.go`, `container_unit.go` or `compose_unit.go` decides which command it runs. Each divergence point:
 
 | Concern | `container` (Pod) | `compose` | `static` |
 |---|---|---|---|
-| Systemd unit | `ExecStart=kube play`, `ExecStopPost=kube down` | `ExecStart=compose up -d`, `ExecStop=compose down`, `Requires=podman.socket` | `ExecStart=caddy file-server`, `ExecStopPost=systemctl stop` |
+| Systemd unit | `ExecStart=podman kube play --replace --service-container=true --service-exit-code-propagation=any`, `ExecStopPost=podman kube down` | `ExecStart=podman compose up -d`, `ExecStop=podman compose down`, `Requires=podman.socket` | `ExecStart=podman run … caddy:2-alpine`, `ExecStop=podman rm -v -f -i --cidfile=%t/%N.cid` |
+| Service type | `Type=notify` | `Type=oneshot` with `RemainAfterExit=yes` | `Type=notify` |
 | Unit name | `<name>.service` | `<name>.service` (same) | `<name>.service` (same) |
 | Health probe | HTTP GET on port + healthcheck path | HTTP GET on port + healthcheck path | HTTP GET on port + healthcheck path |
-| Destroy | `kube down` then remove image | `compose down` (removes compose containers, not necessarily images) | remove Caddy snippet, stop unit |
-| Env injection | manifest YAML env section | compose env blocks + host env vars | host env vars only |
+| Destroy | `kube down` then remove image | `compose down -v`, then report any container the provider left behind | stop unit, remove the Caddy snippet and app storage; the shared Caddy image is left in place |
+| Env injection | manifest YAML env section | application env file, injected into the provider through systemd `EnvironmentFile=` | application env file, passed to `podman run --env-file` |
 
 `compose down` stops containers but does not remove images by default. `kube down` destroys the entire Pod including its image references. `gare destroy` therefore calls `compose down -v` (containers, networks, and named volumes) and then reports any project container the provider failed to remove, rather than claiming a clean teardown. Images built by `build:` sections are left in place; prune them with `podman image prune`.
 
@@ -77,19 +78,11 @@ Compose port mappings (`ports: - "8000:8000"`) become the systemd unit's `Port=8
 
 ### Systemd unit template
 
-The unit template in `unit.go` needs a small injection point. Rather than three separate unit templates, introduce a workload type abstraction:
+**Shipped: one template per workload type, not a shared abstraction.** `internal/systemd/` holds a template and its own data struct for each type — `kube_unit.go` with `KubeUnitData`, `container_unit.go` with `ContainerUnitData`, `compose_unit.go` with `ComposeUnitData` — which is what the Pod path already did.
 
-```go
-type Workload struct {
-    UpCommand   string
-    DownCommand string
-    IsCompose   bool
-}
-```
+The draft above proposed the opposite: one `UnitData` struct carrying an `UpCommand`/`DownCommand` pair, with the template parameter `ManifestPath` generalised to `ExecArg`, so a single `GenerateUnit` would stop hardcoding `kube play`/`kube down`. That was not taken, and none of `Workload`, `UnitData`, `ExecArg` or `GenerateUnit` exists. The commands differ by more than their trailing argument: compose is a `Type=oneshot` unit with `RemainAfterExit=yes`, `Requires=podman.socket` and `WorkingDirectory=`, while Pod and static are `Type=notify` units with `NotifyAccess=all` and cidfile teardown. One struct with conditional fields would have made every field optional and every template branch on type.
 
-The existing unit template parameter `ManifestPath` generalises to `ExecArg` — for Pod it is the manifest path, for compose it is the compose file path. The systemd unit no longer hardcodes `kube play`/`kube down`.
-
-This is a breaking change to `unit.go`'s template interface, but scoped to one function (`GenerateUnit`). The `systemd_test.go` coverage updates accordingly.
+`internal/systemd/unit.go` keeps only what is genuinely shared: `GetUnitPath`, `RemoveUnit`, `DefaultUserUnitDir` and `ResolvePodmanPath`.
 
 ## CLI contract
 
@@ -141,19 +134,18 @@ Add `WorkloadType string` field (or replace with typed enum if later languages a
    - Not an error — allows repos that have both a compose file and a manifest to coexist without noise.
 
 2. **`GareFile` schema** (`internal/storage/garefile.go`):
-   - Add `WorkloadType` field with `container | static | compose` values.
-   - Add `ResolveWorkloadType()` returning the parsed type.
-   - `ResolveType()` deprecated in favor of `ResolveWorkloadType()` for workload-specific paths.
+   - Add the `type` key, parsed into a `WorkloadType` (`container | static | compose`) by `ResolveWorkload()` (`internal/storage/workload.go`), which returns an error for an unknown value rather than guessing. The draft's `ResolveWorkloadType()` was never introduced.
+   - `ResolveType()` was not deprecated: it stays, delegating to `ResolveWorkload()`.
    - Load both `gare.yaml` and `gare.yml`.
 
 3. **Merge into AppConfig** (`cmd/gare/app_artifacts.go`, `cmd/gare/deploy.go`):
-   - `syncGareFileConfig` copies `WorkloadType` and `ComposeFile` into `AppConfig`.
+   - `syncGareFileConfig` copies the resolved type and `ComposeFile` into `AppConfig` as `AppType` and `ComposeFile`.
    - `syncGareFilePorts` and `applyGareWorkloadConfig` gain a workload-type branch.
 
-4. **Unit template rewrite** (`internal/systemd/unit.go`):
-   - Change `GenerateUnit` to accept a `WorkloadType` and an `ExecArg` instead of hardcoded `kube play`/`kube down`.
-   - Add a compose template string alongside the Pod template.
-   - Keep one `UnitData` struct with conditional fields.
+4. **Unit template** (`internal/systemd/compose_unit.go`):
+   - Add the compose template and `ComposeUnitData` struct as their own file, alongside the existing Pod template.
+   - The draft's `GenerateUnit`/`UnitData`/`ExecArg` injection point was not introduced; see "Systemd unit template" above.
+   - `internal/systemd/unit.go` is left holding the shared path and teardown helpers only.
 
 ### Phase 2: Compose lifecycle
 
@@ -163,7 +155,7 @@ Add `WorkloadType string` field (or replace with typed enum if later languages a
 
 6. **Deploy command** (`cmd/gare/deploy.go`):
    - Container type: `syncManifest`, then unit with `kube play`.
-   - Compose type: `compose up -d` via systemd unit with `ExecArg` = compose file path.
+   - Compose type: `podman compose -f <file> -p <name> up -d` spelled out in the unit's `ExecStart`, with `WorkingDirectory` set to the repository checkout. There is no `ExecArg` indirection.
 
 7. **Lifecycle commands** (`cmd/gare/lifecycle.go`):
    - `runStartApp`, `runStopApp`, `runRestartApp` call `systemd.Start`/`Stop`/`Restart` with the same unit path regardless of type (the unit file already reflects the correct command). No new code needed in lifecycle — it is unit-file-driven.
@@ -198,8 +190,9 @@ Add `WorkloadType string` field (or replace with typed enum if later languages a
 Modify:
 - `internal/storage/garefile.go` — add `WorkloadType`, `ComposeFile`
 - `internal/storage/garefile_test.go` — parse coverage
-- `internal/systemd/unit.go` — workload-type-aware unit generation
-- `internal/systemd/systemd_test.go` — compose unit template path
+- `internal/systemd/unit.go` — shared unit path resolution and teardown helpers
+- `internal/systemd/compose_unit.go` — the compose unit template and its data struct
+- `internal/systemd/compose_unit_test.go` — compose unit template coverage
 - `cmd/gare/app.go` — warn on compose file without `type: compose`
 - `cmd/gare/app_artifacts.go` — sync `WorkloadType`/`ComposeFile` to `AppConfig`
 - `cmd/gare/app_options_test.go` — new options

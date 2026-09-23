@@ -22,6 +22,17 @@ func DefaultUserUnitDir() string {
 	return filepath.Join(xdg.ConfigHome(), "systemd", "user")
 }
 
+// GareUnitDescriptions returns every Description= value gare's workload templates write for an
+// application. A unit file carrying one of them is one gare wrote itself, so a deploy may replace
+// it; a unit carrying none belongs to the operator and must be left alone.
+func GareUnitDescriptions(name string) []string {
+	return []string{
+		KubeUnitDescription(name),
+		StaticUnitDescription(name),
+		ComposeUnitDescription(name),
+	}
+}
+
 // GetUnitPath returns the absolute path for an application unit file in the user unit directory.
 func GetUnitPath(name string) string {
 	return filepath.Join(DefaultUserUnitDir(), name+".service")

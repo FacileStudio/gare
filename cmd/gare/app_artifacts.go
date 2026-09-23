@@ -57,7 +57,7 @@ func writeStaticArtifacts(ctx context.Context, name, appDir string, opts appCrea
 	if err := writeStaticUnit(ctx, name, appDir, staticPath, opts.port); err != nil {
 		return err
 	}
-	opts.appType = "static"
+	opts.appType = string(storage.WorkloadStatic)
 	return saveAppMetadata(name, appDir, opts)
 }
 

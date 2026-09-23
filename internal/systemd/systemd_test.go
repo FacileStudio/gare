@@ -66,6 +66,41 @@ func TestRemoveUnitToleratesMissingArtifacts(t *testing.T) {
 	}
 }
 
+// TestGareUnitDescriptionsMatchTheTemplates pins the coupling the deploy guard depends on: a
+// description that drifts from its template makes gare refuse to redeploy its own unit.
+func TestGareUnitDescriptionsMatchTheTemplates(t *testing.T) {
+	const name = "my-app"
+	kube, err := GenerateKubeUnit(KubeUnitData{Name: name, YamlPath: "/srv/manifest.yaml", PodmanPath: "/usr/bin/podman"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	static, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit(name, 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compose, err := GenerateComposeUnit(composeUnitInput(name))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	units := []struct {
+		unit        string
+		description string
+	}{
+		{kube, KubeUnitDescription(name)},
+		{static, StaticUnitDescription(name)},
+		{compose, ComposeUnitDescription(name)},
+	}
+	for _, tc := range units {
+		if !strings.Contains(tc.unit, "Description="+tc.description+"\n") {
+			t.Errorf("expected the unit to declare %q, got:\n%s", tc.description, tc.unit)
+		}
+	}
+	if got := len(GareUnitDescriptions(name)); got != len(units) {
+		t.Errorf("GareUnitDescriptions returned %d descriptions, want %d", got, len(units))
+	}
+}
+
 func TestResolvePodmanPath(t *testing.T) {
 	path := ResolvePodmanPath()
 	if path == "" {

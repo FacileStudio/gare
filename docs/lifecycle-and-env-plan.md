@@ -22,7 +22,7 @@ This document outlines the architecture and execution plan for adding environmen
 ### B. App Lifecycle Commands (`internal/systemd/`, `cmd/gare/lifecycle.go`, `cmd/gare/status.go`)
 
 - **Service Controls**:
-  - `gare start <app>`: Calls `systemd.EnableAndStart(ctx, appName)`.
+  - `gare start <app>`: Calls `systemd.Start(ctx, appName)` then `systemd.WaitForState(ctx, appName, "active")`. The drafted `systemd.EnableAndStart` was never used and has been removed; enabling happens on deploy through `systemd.Enable`.
   - `gare stop <app>`: Calls `systemd.Stop(ctx, appName)`.
   - `gare restart <app>`: Calls `systemd.Restart(ctx, appName)`.
   - For static applications, `start`/`stop`/`restart` output appropriate notices since static sites are served continuously by Caddy without systemd units.

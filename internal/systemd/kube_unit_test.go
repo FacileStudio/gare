@@ -1,4 +1,4 @@
-package quadlet
+package systemd
 
 import (
 	"os"
@@ -9,8 +9,9 @@ import (
 
 func TestGenerateKubeUnit(t *testing.T) {
 	content, err := GenerateKubeUnit(KubeUnitData{
-		Name:     "my-app",
-		YamlPath: "/home/user/.local/share/gare/apps/my-app/manifest.yaml",
+		Name:       "my-app",
+		YamlPath:   "/home/user/.local/share/gare/apps/my-app/manifest.yaml",
+		PodmanPath: "/usr/bin/podman",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -18,9 +19,10 @@ func TestGenerateKubeUnit(t *testing.T) {
 
 	expectedSnippets := []string{
 		"Description=Gare Managed App: my-app",
-		"[Kube]",
-		`Yaml="/home/user/.local/share/gare/apps/my-app/manifest.yaml"`,
-		"ExitCodePropagation=any",
+		"ExecStart=/usr/bin/podman kube play --replace --service-container=true --service-exit-code-propagation=any /home/user/.local/share/gare/apps/my-app/manifest.yaml",
+		"ExecStopPost=/usr/bin/podman kube down /home/user/.local/share/gare/apps/my-app/manifest.yaml",
+		"Type=notify",
+		"NotifyAccess=all",
 		"Restart=on-failure",
 		"RestartSec=5s",
 		"TimeoutStopSec=70s",
@@ -29,30 +31,31 @@ func TestGenerateKubeUnit(t *testing.T) {
 	}
 	for _, snippet := range expectedSnippets {
 		if !strings.Contains(content, snippet) {
-			t.Errorf("expected source to contain %q, got:\n%s", snippet, content)
+			t.Errorf("expected unit to contain %q, got:\n%s", snippet, content)
 		}
 	}
 }
 
-func TestGenerateKubeUnitLeavesCgroupSetupToQuadlet(t *testing.T) {
-	content, err := GenerateKubeUnit(KubeUnitData{Name: "my-app", YamlPath: "/srv/manifest.yaml"})
+func TestGenerateKubeUnitPropagatesContainerExitCode(t *testing.T) {
+	content, err := GenerateKubeUnit(KubeUnitData{Name: "my-app", YamlPath: "/srv/manifest.yaml", PodmanPath: "/usr/bin/podman"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if strings.Contains(content, "Delegate=") {
-		t.Errorf("quadlet owns cgroup setup; gare must not set Delegate, got:\n%s", content)
+	if !strings.Contains(content, "--service-exit-code-propagation=any") {
+		t.Errorf("Restart=on-failure stays inert without exit code propagation, got:\n%s", content)
+	}
+	if !strings.Contains(content, "--service-container=true") {
+		t.Errorf("Type=notify never becomes ready without the podman service container, got:\n%s", content)
 	}
 }
 
-func TestGenerateKubeUnitLeavesExecutionToQuadlet(t *testing.T) {
+func TestGenerateKubeUnitResolvesPodmanPath(t *testing.T) {
 	content, err := GenerateKubeUnit(KubeUnitData{Name: "my-app", YamlPath: "/srv/manifest.yaml"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, forbidden := range []string{"ExecStart=", "ExecStop", "kube play", "podman"} {
-		if strings.Contains(content, forbidden) {
-			t.Errorf("quadlet must own %q, got:\n%s", forbidden, content)
-		}
+	if !strings.Contains(content, "ExecStart="+ResolvePodmanPath()+" kube play") {
+		t.Errorf("expected the resolved podman path, got:\n%s", content)
 	}
 }
 
@@ -87,12 +90,12 @@ func TestWriteKubeUnit(t *testing.T) {
 		t.Fatalf("WriteKubeUnit failed: %v", err)
 	}
 
-	data, err := os.ReadFile(KubePath("site"))
+	data, err := os.ReadFile(GetUnitPath("site"))
 	if err != nil {
-		t.Fatalf("quadlet source was not written: %v", err)
+		t.Fatalf("unit was not written: %v", err)
 	}
-	if !strings.Contains(string(data), "Yaml=\""+manifestPath+"\"") {
-		t.Errorf("source is missing the manifest path:\n%s", string(data))
+	if !strings.Contains(string(data), manifestPath) {
+		t.Errorf("unit is missing the manifest path:\n%s", string(data))
 	}
 }
 
@@ -103,26 +106,17 @@ func TestWriteKubeUnitRejectsInvalidPath(t *testing.T) {
 	}
 }
 
-func TestGeneratedSourceIsAcceptedByQuadlet(t *testing.T) {
+func TestGeneratedKubeUnitIsAcceptedBySystemd(t *testing.T) {
 	unitDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", unitDir)
+
 	manifestPath := filepath.Join(unitDir, "manifest.yaml")
-	manifest := "apiVersion: v1\nkind: Pod\nmetadata:\n  name: site\n"
-	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("apiVersion: v1\nkind: Pod\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteKubeUnit("site", manifestPath); err != nil {
 		t.Fatal(err)
 	}
 
-	source, err := GenerateKubeUnit(KubeUnitData{Name: "site", YamlPath: manifestPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(unitDir, "site.kube"), []byte(source), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	generated := runQuadletDryRun(t, unitDir)
-	for _, snippet := range []string{"---site.service---", "--service-container=true", "ExitCodePropagation=any", "WantedBy=default.target"} {
-		if !strings.Contains(generated, snippet) {
-			t.Errorf("expected the generated unit to contain %q, got:\n%s", snippet, generated)
-		}
-	}
+	verifyUnitWithSystemd(t, GetUnitPath("site"))
 }

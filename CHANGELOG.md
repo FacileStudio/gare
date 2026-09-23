@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Every workload is now supervised by a systemd unit gare writes itself at `~/.config/systemd/user/<app>.service`. `container` workloads run `podman kube play`/`podman kube down`, `static` workloads run `podman run`/`podman rm` against the bundled Caddy image, and `compose` workloads are unchanged. The units carry the same `[Unit]` and `[Service]` directives the Podman Quadlet generator produced for them, verified line for line against its output.
+- `gare init` no longer requires the Quadlet generator and no longer creates `~/.config/containers/systemd/`. It probes the installed podman for the service-container flags the units pass to `podman kube play`, which makes **Podman 5.0 or newer** the supported floor where a Quadlet generator (4.4) was enough before.
+- `gare destroy` removes the unit, disables it, and additionally deletes any Quadlet source an older gare left behind.
+
+### Added
+
+- A unit file gare did not write is no longer overwritten: `~/.config/systemd/user/<app>.service` belonging to the operator fails the deploy by name instead of being replaced, for every workload type.
+- Redeploying an application already supervised by gare rewrites its unit in place and retires any Quadlet source an older gare left behind, stopping that workload first so its own teardown still runs.
+- Changing an application's workload type retires the workload it replaces instead of leaving it running. The unit is rewritten and the outgoing workload stopped while its own definition is still loaded, so a compose stack goes down through `podman compose down` and a pod through `podman kube down`, rather than being orphaned in front of the new unit by a teardown that names the workload it never started.
+
+### Removed
+
+- Quadlet sources. gare no longer writes `~/.config/containers/systemd/<app>.kube` or `.container`, and `gare init` no longer requires the Podman generator or creates that directory. An app deployed by an older gare keeps running; its next deploy retires the sources. Compose workloads are unaffected.
+
+### Fixed
+
+- Compose units order after `podman-user-wait-network-online.service` instead of `network-online.target`. The user manager has no `network-online.target`, so systemd discarded both the `After=` and the `Wants=` without a warning and `podman compose up -d` could start before the network was online — which is exactly when a stack's `pull` or `build:` fails.
+
 ## [0.12.1] - 2026-09-22
 
 ### Fixed

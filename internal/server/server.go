@@ -42,15 +42,6 @@ func New(cfg Config) *Server {
 	}
 }
 
-// NewServer creates a new Server with the given port, secret, and deploy handler.
-func NewServer(port, secret string, handler func(ctx context.Context, appName string) error) *Server {
-	return &Server{
-		Port:          port,
-		Secret:        secret,
-		DeployHandler: handler,
-	}
-}
-
 func (s *Server) resolveAddr(addr string) string {
 	if addr != "" {
 		if !strings.Contains(addr, ":") {

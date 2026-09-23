@@ -8,9 +8,9 @@ import (
 )
 
 const composeUnitTemplate = `[Unit]
-Description=Gare Managed Compose App: {{.Name}}
-After=network-online.target podman.socket
-Wants=network-online.target
+Description={{.Description}}
+After=podman-user-wait-network-online.service podman.socket
+Wants=podman-user-wait-network-online.service
 Requires=podman.socket
 
 [Service]
@@ -37,6 +37,7 @@ WantedBy=default.target
 // ComposeUnitData holds template parameters for synthesizing a compose systemd user unit.
 type ComposeUnitData struct {
 	Name        string
+	Description string
 	PodmanPath  string
 	RepoDir     string
 	ComposeFile string
@@ -44,7 +45,16 @@ type ComposeUnitData struct {
 	EnvFile     string
 }
 
+// ComposeUnitDescription returns the Description= value of a compose workload's unit, the marker gare
+// recognises a unit it wrote itself by.
+func ComposeUnitDescription(name string) string {
+	return "Gare Managed Compose App: " + name
+}
+
 // GenerateComposeUnit renders a systemd service unit for a supervised compose workload.
+// The network ordering goes through podman-user-wait-network-online.service rather than
+// network-online.target, because the user manager has no network-online.target: systemd drops
+// ordering on an unknown unit silently, leaving the provider to run before the network is up.
 func GenerateComposeUnit(data ComposeUnitData) (string, error) {
 	tmpl, err := template.New("compose-unit").Parse(composeUnitTemplate)
 	if err != nil {
@@ -53,6 +63,7 @@ func GenerateComposeUnit(data ComposeUnitData) (string, error) {
 	if data.PodmanPath == "" {
 		data.PodmanPath = ResolvePodmanPath()
 	}
+	data.Description = ComposeUnitDescription(data.Name)
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {

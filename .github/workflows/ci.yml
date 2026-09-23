@@ -10,18 +10,18 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    env:
+      GARE_REQUIRE_PODMAN: "1"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: install podman for quadlet tests
+      - name: check podman
         run: |
-          command -v podman >/dev/null 2>&1 || {
-            sudo apt-get update
-            sudo apt-get install -y podman
-          }
+          podman --version
+          podman kube play --service-container=true --service-exit-code-propagation=any --help
       - name: test
         run: go test -v -race ./...

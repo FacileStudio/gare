@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/builder"
-	"github.com/FacileStudio/gare/internal/quadlet"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -34,6 +33,10 @@ func composeProjectName(name string) string {
 // a previous workload type left behind so no stale source keeps generating a unit of the same name.
 // The unit is written first so a failure to write it never stops a workload that was running fine.
 func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile string) error {
+	previous, err := guardUnitFile(name)
+	if err != nil {
+		return err
+	}
 	unitData := systemd.ComposeUnitData{
 		Name:        name,
 		RepoDir:     repoDir,
@@ -44,13 +47,8 @@ func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile st
 	if err := systemd.WriteComposeUnit(unitData); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
-	if err := stopQuadletWorkload(ctx, name); err != nil {
-		return err
-	}
-	if err := quadlet.Remove(name); err != nil {
-		return fmt.Errorf("failed to retire the quadlet sources: %w", err)
-	}
-	return nil
+	retireChangedWorkload(ctx, name, previous, systemd.ComposeUnitDescription(name))
+	return retireLegacyQuadletWorkload(ctx, name)
 }
 
 func writeComposeArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {

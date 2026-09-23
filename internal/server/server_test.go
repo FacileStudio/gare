@@ -39,8 +39,11 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestServerLifecycle(t *testing.T) {
-	s := NewServer("0", "", func(ctx context.Context, appName string) error {
-		return nil
+	s := New(Config{
+		Port: "0",
+		DeployHandler: func(ctx context.Context, appName string) error {
+			return nil
+		},
 	})
 	errCh := make(chan error, 1)
 	go func() {

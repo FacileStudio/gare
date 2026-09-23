@@ -16,6 +16,11 @@ func GetAppEnvPath(appDir string) string {
 	return filepath.Join(appDir, "env")
 }
 
+// GetAppStaticConfigPath returns the Caddyfile path a static workload's container serves.
+func GetAppStaticConfigPath(appDir string) string {
+	return filepath.Join(appDir, "Caddyfile")
+}
+
 // GetAppEnv reads environment variables from the application env file.
 func GetAppEnv(appDir string) (map[string]string, error) {
 	data, err := os.ReadFile(GetAppEnvPath(appDir))

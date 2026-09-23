@@ -74,7 +74,7 @@ Verify the canonical suite endpoints:
 
 ## Phase 1: Host preparation on ruche
 
-Prepare the unprivileged user account `yann` and system packages.
+Prepare the unprivileged user account `yann` and system packages. `gare` needs Podman 5.0 or newer: the systemd units it writes pass `--service-container` to `podman kube play`, which earlier releases reject.
 
 ### 1. Configure systemd user lingering
 
@@ -497,8 +497,8 @@ Write `~/.config/systemd/user/gare-server.service`:
 ```ini
 [Unit]
 Description=Gare GitOps Webhook Server
-After=network-online.target
-Wants=network-online.target
+After=podman-user-wait-network-online.service
+Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec

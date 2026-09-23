@@ -16,15 +16,6 @@ func DaemonReload(ctx context.Context) error {
 	return nil
 }
 
-// EnableAndStart enables and immediately starts the specified user service.
-func EnableAndStart(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "enable", "--now", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
-}
-
 // Enable enables the specified user service for auto-start.
 func Enable(ctx context.Context, name string) error {
 	cmd := systemctlCmd(ctx, "enable", name+".service")

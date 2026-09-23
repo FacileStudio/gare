@@ -80,10 +80,8 @@ func restartAppServices(ctx context.Context, cfg *storage.AppConfig) error {
 	if err := systemd.DaemonReload(ctx); err != nil {
 		return fmt.Errorf("systemctl daemon-reload failed: %w", err)
 	}
-	if !cfg.UsesQuadletUnit() {
-		if err := systemd.Enable(ctx, cfg.Name); err != nil {
-			return fmt.Errorf("failed to enable service: %w", err)
-		}
+	if err := systemd.Enable(ctx, cfg.Name); err != nil {
+		return fmt.Errorf("failed to enable service: %w", err)
 	}
 	if err := systemd.Restart(ctx, cfg.Name); err != nil {
 		return fmt.Errorf("failed to restart service: %w", err)

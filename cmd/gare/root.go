@@ -39,8 +39,7 @@ func newRootCmd(version string) *cobra.Command {
 		Long: "gare is a minimalist, self-contained application manager that embraces\n" +
 			"native Linux primitives for Podman and Kubernetes workloads:\n" +
 			"- Zero Docker: uses podman kube play natively\n" +
-			"- Quadlet units: container and static workloads become systemd user units through Quadlet\n" +
-			"- Direct units: compose workloads keep gare-synthesized units\n" +
+			"- Native units: every workload becomes a gare-synthesized systemd user unit\n" +
 			"- Caddy ingress: drop-in snippets under /etc/caddy/conf.d/\n" +
 			"- Stateless & file-driven: state stored purely on the filesystem",
 	}

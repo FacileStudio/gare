@@ -117,7 +117,7 @@ Helpers live in a new `internal/storage/domain.go` (storage.go is already at 8 f
 
 Uniqueness is checked by the command against `storage.ListApps`, not by a separate registry file. Scanning `~/.local/share/gare/apps/*/config.json` is the source of truth.
 
-`GareFile.Domain` / `ResolveDomain` stay parseable so old `gare.yml` files do not fail YAML, but create and deploy **stop applying them**.
+`GareFile.Domain` stays parseable so old `gare.yml` files do not fail YAML, but create and deploy **stop applying it**. `ResolveDomain()` was never added: the legacy key is migrated once in `LoadConfig` by `migrateDomain` (`internal/storage/domain.go`), and nothing resolves it afterwards.
 
 ## Ingress helper
 
@@ -127,21 +127,18 @@ Put it in `cmd/gare/domain_ingress.go` (cmd files are near the filet function ca
 
 `syncAppIngress(cfg *storage.AppConfig) error`
 
-- container + `len(Domains) > 0` → `WriteSnippet` with all hostnames
-- container + no hostnames → `RemoveSnippet`
-- static + hostnames and/or port → `WriteStaticSnippet` with all hostnames
-- static + nothing to bind → error (already required by `GenerateStaticSnippet`)
+Shipped as a single path with no workload-type branch: domains plus a port → `WriteSnippet` with all hostnames, anything else → `RemoveSnippet`. The static-only snippet generator drafted below was dropped, because a static site now runs in its own container on a published port and the host Caddy only reverse-proxies to it, exactly like a container workload.
 
 `internal/caddy/caddy.go` is also at 8 funcs. Change signatures in place, do not add functions:
 
 - `GenerateSnippet(domains []string, port int)`
 - `WriteSnippet(confDir, name string, domains []string, port int)`
-- `GenerateStaticSnippet(domains []string, port int, rootDir string)` — join hostnames, then optional `, :port`
-- `WriteStaticSnippet` follows
 
-Empty `domains` + port 0 still errors for static. Empty `domains` for container `WriteSnippet` should not be called; `syncAppIngress` removes instead.
+Both keep these signatures, and the address is only ever the hostnames joined with `", "` — no variant appends `, :port`. The static path planned here was replaced by a different artifact in a separate file: `GenerateStaticServerConfig(rootMount string, port int)` and `WriteStaticServerConfig(path, rootMount string, port int)` in `internal/caddy/static_server.go`. Those write the Caddyfile the static *container* serves, including the SPA fallback, not an ingress snippet.
 
-While touching `WriteSnippet` / `WriteStaticSnippet` / `Reload`, delete the dead `confErr` branches (`internal/caddy/caddy.go:119-123`, `:138-142`, `:163-167`). They swallow `EnsureCaddyfilePaths` errors today.
+Empty `domains` never reaches `WriteSnippet` for any workload type: `syncAppIngress` calls `RemoveSnippet` instead, and the workload stays reachable on its published port. `GenerateSnippet` itself still errors on zero domains, but nothing calls it that way.
+
+While touching `WriteSnippet` / `Reload`, delete the dead `confErr` branches (`internal/caddy/caddy.go:119-123`, `:138-142`, `:163-167`). They swallow `EnsureCaddyfilePaths` errors today.
 
 ## Steps (ordered)
 
@@ -193,7 +190,7 @@ New:
 
 - `gare app create … --domain x` is an unknown flag.
 - `gare.yml` `domain:` does not populate `config.json` on create or deploy.
-- `gare domain add myapp a.example.com` then `gare domain add myapp b.example.com` writes one snippet whose site address is `a.example.com, b.example.com` (static also keeps `, :port`).
+- `gare domain add myapp a.example.com` then `gare domain add myapp b.example.com` writes one snippet whose site address is `a.example.com, b.example.com`. No variant appends `, :port`, for static or otherwise.
 - `gare domain add otherapp a.example.com` fails (duplicate).
 - `gare domain list` shows hostname → app; `gare domain rm myapp a.example.com` rewrites or removes the snippet and reloads if the unit is active.
 - `gare start` / `deploy` rebuild the snippet from `Domains`; `gare stop` / `destroy` still remove `/etc/caddy/conf.d/<app>.caddy`.
