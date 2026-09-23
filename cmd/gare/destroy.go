@@ -29,13 +29,13 @@ func NewDestroyCmd() *cobra.Command {
 			defer cancel()
 
 			appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-			cfg, cfgErr := storage.LoadConfig(appDir)
-			if cfgErr != nil {
-				printWarning(fmt.Sprintf("Could not read %s (%v) — destroying without knowing the workload type, so a compose stack may keep running: check it with `podman ps`", storage.GetConfigPath(appDir), cfgErr))
+			cfg, workload, err := resolveDestroyWorkload(appDir)
+			if err != nil {
+				printWarning(fmt.Sprintf("%v — tearing down only what does not depend on the workload type, so a workload may keep running and its image survives: check them with `podman ps` and `podman images`", err))
 			}
 
 			teardownServices(ctx, name)
-			removeArtifacts(ctx, name, appDir, cfg)
+			removeArtifacts(ctx, name, appDir, workload, cfg)
 			reloadDaemons(ctx)
 
 			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
@@ -64,20 +64,51 @@ func teardownServices(ctx context.Context, name string) {
 	bestEffort("removing stale Quadlet sources", func() error { return systemd.RemoveLegacyQuadletSources(name) })
 }
 
-func removeArtifacts(ctx context.Context, name, appDir string, cfg *storage.AppConfig) {
+// resolveDestroyWorkload resolves the workload type an application was deployed as, before anything
+// is torn down. destroy branches on this explicit type rather than on the IsStatic and IsCompose
+// predicates, which read a configuration gare could not load as a container workload — the reading
+// that once removed a compose stack's unit and storage while leaving the stack itself running.
+func resolveDestroyWorkload(appDir string) (*storage.AppConfig, storage.WorkloadType, error) {
+	cfg, err := storage.LoadConfig(appDir)
+	if err != nil {
+		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read %s: %w", storage.GetConfigPath(appDir), err)
+	}
+	workload, err := cfg.ResolveWorkloadType()
+	if err != nil {
+		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read the workload type from %s: %w", storage.GetConfigPath(appDir), err)
+	}
+	return cfg, workload, nil
+}
+
+func removeArtifacts(ctx context.Context, name, appDir string, workload storage.WorkloadType, cfg *storage.AppConfig) {
 	printInfo("Removing Caddy snippet...")
 	bestEffort("removing caddy snippet", func() error { return caddy.RemoveSnippet(caddy.ResolveConfDir(), name) })
 
-	if cfg.IsCompose() {
-		destroyComposeWorkload(ctx, appDir, cfg)
-	} else if !cfg.IsStatic() {
-		imageName := fmt.Sprintf("localhost/%s:latest", name)
-		printInfo(fmt.Sprintf("Removing container image %s...", imageName))
-		bestEffort("removing container image", func() error { return podman.RemoveImage(ctx, imageName) })
-	}
+	teardownWorkload(ctx, name, appDir, workload, cfg)
 
 	printInfo(fmt.Sprintf("Removing app storage at %s...", appDir))
 	bestEffort("removing storage", func() error { return storage.DeleteAppStorage(appDir) })
+}
+
+// teardownWorkload tears down the workload itself, the one part of a destroy that depends on the
+// workload type. Only a compose stack and a container image need it: a static site's content is the
+// storage removed either way, and an unknown type is left alone because gare does not know which
+// workload it started, so a guessed teardown would be worse than none.
+func teardownWorkload(ctx context.Context, name, appDir string, workload storage.WorkloadType, cfg *storage.AppConfig) {
+	switch workload {
+	case storage.WorkloadCompose:
+		destroyComposeWorkload(ctx, appDir, cfg)
+	case storage.WorkloadContainer:
+		removeContainerImage(ctx, name)
+	}
+}
+
+// removeContainerImage removes the local image a container workload was built from, so a destroy
+// does not leave a versionless image behind for the next build to reuse silently.
+func removeContainerImage(ctx context.Context, name string) {
+	imageName := fmt.Sprintf("localhost/%s:latest", name)
+	printInfo(fmt.Sprintf("Removing container image %s...", imageName))
+	bestEffort("removing container image", func() error { return podman.RemoveImage(ctx, imageName) })
 }
 
 func reloadDaemons(ctx context.Context) {
