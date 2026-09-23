@@ -15,6 +15,10 @@ mise run help         # display available tasks
 
 Tests that need a working podman are skipped on a machine that cannot run the generated units, and fail instead under `GARE_REQUIRE_PODMAN=1`, which CI sets. CI runs on the `ubuntu-26.04` image for its podman 5.7: the 24.04 image was rolled back to podman 4.9, which cannot run these units at all.
 
+## Releasing
+
+The version lives in two places and both move in the same `chore: release vX` commit: the git tag, which GoReleaser injects with `-X main.version={{.Version}}`, and the fallback literal in `cmd/gare/main.go`, which is what a plain `go build` reports. Bump only the tag and the repository declares the previous version to everyone who builds it from source.
+
 ## Architecture
 
 `gare` supervises every workload through a systemd user unit it writes itself at `~/.config/systemd/user/<app-name>.service`: `container` workloads get `podman kube play`/`podman kube down` around their pod manifest, `static` workloads get `podman run`/`podman rm` around the bundled Caddy image serving `static_dir`, and `compose` workloads get `podman compose up -d`/`down`.
