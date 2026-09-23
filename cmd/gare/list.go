@@ -128,12 +128,19 @@ func outputTable(w io.Writer, items []appListItem) error {
 		if len(item.Tags) > 0 {
 			tagsStr = strings.Join(item.Tags, ",")
 		}
-		created := item.CreatedAt
-		if t, err := time.Parse(time.RFC3339, created); err == nil {
-			created = t.Format("2006-01-02 15:04")
-		}
+		created := renderCreatedAt(item.CreatedAt)
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			item.Name, item.Status, domain, portStr, tagsStr, item.Branch, item.Commit, created)
 	}
 	return tw.Flush()
+}
+
+// renderCreatedAt shows the stored UTC timestamp in the operator's own timezone, so an app created
+// seconds ago does not read as hours old. A value the storage layer cannot parse is shown as stored.
+func renderCreatedAt(created string) string {
+	parsed, err := time.Parse(time.RFC3339, created)
+	if err != nil {
+		return created
+	}
+	return parsed.Local().Format("2006-01-02 15:04")
 }

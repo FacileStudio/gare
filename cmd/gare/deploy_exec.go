@@ -13,6 +13,8 @@ import (
 	"github.com/FacileStudio/gare/internal/systemd"
 )
 
+const unitFailureLogLines = 10
+
 // prepareStaticDeploy runs the static workload's build step and writes the unit serving its directory.
 func prepareStaticDeploy(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
 	if err := runBuildCommand(ctx, repoDir, cfg.BuildCmd); err != nil {
@@ -79,9 +81,20 @@ func restartAppServices(ctx context.Context, cfg *storage.AppConfig) error {
 		return fmt.Errorf("failed to enable service: %w", err)
 	}
 	if err := systemd.Restart(ctx, cfg.Name); err != nil {
+		printUnitFailure(ctx, cfg.Name)
 		return fmt.Errorf("failed to restart service: %w", err)
 	}
 	return nil
+}
+
+// printUnitFailure shows the unit's own journal, because systemd only reports that the control
+// process exited while the reason a workload refused to start is in its logs.
+func printUnitFailure(ctx context.Context, name string) {
+	logs := systemd.RecentLogs(ctx, name, unitFailureLogLines)
+	if logs == "" {
+		return
+	}
+	fmt.Fprintln(os.Stderr, logs)
 }
 
 func cleanupAppDeploy(ctx context.Context) {

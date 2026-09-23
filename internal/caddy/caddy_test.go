@@ -12,7 +12,7 @@ func TestGenerateSnippet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := "example.com {\n\t\treverse_proxy localhost:8080\n\t}\n\t"
+	expected := "example.com {\n\treverse_proxy localhost:8080\n}\n"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}
@@ -23,7 +23,7 @@ func TestGenerateSnippetMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := "a.example.com, www.example.com {\n\t\treverse_proxy localhost:8080\n\t}\n\t"
+	expected := "a.example.com, www.example.com {\n\treverse_proxy localhost:8080\n}\n"
 	if snippet != expected {
 		t.Errorf("got %q, want %q", snippet, expected)
 	}

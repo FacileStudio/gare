@@ -12,8 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultLogLines = 100
-
 // NewLogsCmd builds the logs command.
 func NewLogsCmd() *cobra.Command {
 	var follow bool
@@ -28,7 +26,7 @@ func NewLogsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log stream in real-time")
-	cmd.Flags().IntVarP(&lines, "lines", "n", defaultLogLines, "Number of journal lines to show")
+	cmd.Flags().IntVarP(&lines, "lines", "n", systemd.DefaultLogLines, "Number of journal lines to show")
 	return cmd
 }
 

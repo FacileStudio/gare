@@ -22,7 +22,7 @@ func TestGenerateContainerUnit(t *testing.T) {
 		"-v /home/user/.local/share/gare/apps/my-site/Caddyfile:/etc/caddy/Caddyfile:ro,Z",
 		"--publish 8100:80",
 		"--env-file /home/user/.local/share/gare/apps/my-site/env",
-		"docker.io/library/caddy:2-alpine run --config /etc/caddy/Caddyfile --adapter caddyfile",
+		"docker.io/library/caddy:2-alpine /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile",
 		"Type=notify",
 		"NotifyAccess=all",
 		"Restart=on-failure",
@@ -39,16 +39,16 @@ func TestGenerateContainerUnit(t *testing.T) {
 	}
 }
 
-func TestGenerateContainerUnitUsesTheImageEntrypoint(t *testing.T) {
+func TestGenerateContainerUnitRunsTheServerBinaryNotTheImageCmd(t *testing.T) {
 	content, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(content, "--entrypoint") {
-		t.Errorf("the caddy image's own entrypoint is the one to run, got:\n%s", content)
+		t.Errorf("the image needs no entrypoint override, got:\n%s", content)
 	}
-	if !strings.Contains(content, "run --config /etc/caddy/Caddyfile --adapter caddyfile") {
-		t.Errorf("expected caddy to reload from the mounted Caddyfile, got:\n%s", content)
+	if !strings.Contains(content, "caddy:2-alpine /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile") {
+		t.Errorf("the caddy image carries its invocation in Cmd, so arguments appended after the image replace it and the runtime execs a binary named run, got:\n%s", content)
 	}
 }
 

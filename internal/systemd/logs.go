@@ -6,10 +6,12 @@ import (
 	"io"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
-const defaultLogLines = 100
+// DefaultLogLines is how many journal lines a command shows when the caller names no count.
+const DefaultLogLines = 100
 
 // LogOptions defines options for streaming systemd journal logs.
 type LogOptions struct {
@@ -39,12 +41,25 @@ func buildLogArgs(name string, opts LogOptions) []string {
 	}
 	lines := opts.Lines
 	if lines == 0 {
-		lines = defaultLogLines
+		lines = DefaultLogLines
 	}
 	if lines > 0 {
 		args = append(args, "-n", strconv.Itoa(lines))
 	}
 	return args
+}
+
+// RecentLogs returns the most recent journal lines for a unit, so a failed start can report what
+// actually went wrong instead of systemd's generic "control process exited with error code".
+// Diagnostics are best-effort: an unreadable journal yields no lines rather than another error.
+func RecentLogs(ctx context.Context, name string, lines int) string {
+	cmd := exec.CommandContext(ctx, "journalctl", buildLogArgs(name, LogOptions{Lines: lines})...)
+	cmd.Env = userEnviron()
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }
 
 func isInterrupt(ctx context.Context, err error) bool {

@@ -17,6 +17,10 @@ const (
 	staticConfigMount   = "/etc/caddy/Caddyfile"
 )
 
+// containerUnitTemplate renders a static site's unit. The command after the image spells the caddy
+// binary out in full because the official image declares no Entrypoint: its Cmd carries the whole
+// invocation, so appending arguments replaces it and the runtime then tries to exec the first
+// argument as a binary of its own.
 const containerUnitTemplate = `[Unit]
 Description={{.Description}}
 After=podman-user-wait-network-online.service
@@ -31,7 +35,7 @@ NotifyAccess=all
 Environment=PODMAN_SYSTEMD_UNIT=%n
 KillMode=mixed
 Delegate=yes
-ExecStart={{.PodmanPath}} run --name {{.Name}} --cidfile=%t/%N.cid --replace --rm --cgroups=split --sdnotify=conmon -d -v {{.RootDir}}:{{.RootMount}}:ro,Z -v {{.ConfigFile}}:{{.ConfigMount}}:ro,Z --publish {{.Port}}:{{.ContainerPort}} --env-file {{.EnvFile}} {{.Image}} run --config {{.ConfigMount}} --adapter caddyfile
+ExecStart={{.PodmanPath}} run --name {{.Name}} --cidfile=%t/%N.cid --replace --rm --cgroups=split --sdnotify=conmon -d -v {{.RootDir}}:{{.RootMount}}:ro,Z -v {{.ConfigFile}}:{{.ConfigMount}}:ro,Z --publish {{.Port}}:{{.ContainerPort}} --env-file {{.EnvFile}} {{.Image}} /usr/bin/caddy run --config {{.ConfigMount}} --adapter caddyfile
 ExecStop={{.PodmanPath}} rm -v -f -i --cidfile=%t/%N.cid
 ExecStopPost=-{{.PodmanPath}} rm -v -f -i --cidfile=%t/%N.cid
 Restart=on-failure
@@ -82,8 +86,8 @@ func StaticSiteUnit(name string, port int, rootDir, envFile, configFile string) 
 }
 
 // GenerateContainerUnit renders the systemd unit running a static site's container.
-// The command mirrors what Podman's own generator produced for this container, so the image
-// entrypoint stays in charge of startup and cidfile-based teardown can find the container.
+// The unit names the server binary itself rather than leaning on the image, and teardown goes
+// through the cidfile so it removes the exact container the unit started.
 func GenerateContainerUnit(data ContainerUnitData) (string, error) {
 	if err := validateUnitPath("static root", data.RootDir); err != nil {
 		return "", err

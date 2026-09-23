@@ -1,10 +1,7 @@
 package caddy
 
 import (
-	"errors"
 	"os"
-	"strings"
-	"syscall"
 )
 
 // ResolveConfDir returns the active Caddy snippet directory, allowing GARE_CADDY_CONF_DIR override.
@@ -21,15 +18,4 @@ func ResolveCaddyfilePath() string {
 		return path
 	}
 	return DefaultCaddyfile
-}
-
-// CheckReloadError filters out non-fatal errors such as connection refused when Caddy daemon is offline.
-func CheckReloadError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, syscall.ECONNREFUSED) || strings.Contains(err.Error(), "connection refused") {
-		return nil
-	}
-	return err
 }

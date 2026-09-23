@@ -17,9 +17,12 @@ import (
 )
 
 const snippetTemplate = `{{.Address}} {
-		reverse_proxy localhost:{{.Port}}
-	}
-	`
+	reverse_proxy localhost:{{.Port}}
+}
+`
+
+// adminAPIURL is Caddy's local configuration endpoint, which reloads a running server in place.
+const adminAPIURL = "http://127.0.0.1:2019/load"
 
 // DefaultConfDir defines the default filesystem path for Caddy drop-in configuration snippets.
 const DefaultConfDir = "/etc/caddy/conf.d"
@@ -83,35 +86,38 @@ func RemoveSnippet(confDir, name string) error {
 	return nil
 }
 
-// Reload instructs Caddy to reload its configuration using the CLI or Admin API.
+// Reload instructs Caddy to reload its configuration using the CLI or Admin API. A reload that
+// cannot be delivered is reported rather than swallowed, because the snippet on disk is then not
+// the configuration the running server serves.
 func Reload(ctx context.Context) error {
 	if err := EnsureCaddyfile(); err != nil {
 		return err
 	}
 	caddyfile := ResolveCaddyfilePath()
 	cmd := exec.CommandContext(ctx, "caddy", "reload", "--config", caddyfile)
-	if err := cmd.Run(); err == nil {
+	cliErr := cmd.Run()
+	if cliErr == nil {
 		return nil
 	}
-	return reloadViaAdminAPI(ctx, caddyfile)
+	if apiErr := reloadViaAdminAPI(ctx, adminAPIURL, caddyfile); apiErr != nil {
+		return fmt.Errorf("caddy reload failed: %v: %w", cliErr, apiErr)
+	}
+	return nil
 }
 
-func reloadViaAdminAPI(ctx context.Context, configPath string) error {
+func reloadViaAdminAPI(ctx context.Context, url, configPath string) error {
 	content, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:2019/load", bytes.NewReader(content))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(content))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "text/caddyfile")
-	resp, reqErr := http.DefaultClient.Do(req)
-	if err := CheckReloadError(reqErr); err != nil {
-		return err
-	}
-	if resp == nil {
-		return nil
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("caddy admin api at %s unreachable: %w", url, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
