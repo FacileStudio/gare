@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.3] - 2026-09-23
+
+### Added
+
+- The unit handover is pinned by a test of its own: a workload type change stops the outgoing unit, and the stop is recorded against a unit file that already holds the replacement, so the order the handover depends on cannot be reordered without failing. A redeploy of the same workload type is asserted to stop nothing, and the recording stub makes the container and static cases run wherever the tests run rather than skipping on a host without podman.
+- The atomic write, XDG path resolution and per-workload-type destroy teardown the release before this one changed are covered: a rewrite replaces the file and its mode, the temp file is staged beside its target, is removed when the rename fails, and is never visible as a partial read, and a destroy tears down only the workload type it resolved, leaving the image of an unknown type alone.
+
 ## [0.13.2] - 2026-09-23
 
 ### Changed
