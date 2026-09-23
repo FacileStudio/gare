@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+// systemctlCmd builds a systemctl invocation in the current user's session, which is where every
+// unit gare writes lives.
+func systemctlCmd(ctx context.Context, args ...string) *exec.Cmd {
+	fullArgs := append([]string{"--user"}, args...)
+	cmd := exec.CommandContext(ctx, "systemctl", fullArgs...)
+	cmd.Env = userEnviron()
+	return cmd
+}
+
 // runSystemctl invokes a systemctl user verb, folding systemctl's own diagnostic into the error so
 // a failed command reports why it failed rather than a bare exit status.
 func runSystemctl(ctx context.Context, args ...string) error {

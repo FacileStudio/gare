@@ -29,7 +29,10 @@ func NewDestroyCmd() *cobra.Command {
 			defer cancel()
 
 			appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-			cfg, _ := storage.LoadConfig(appDir)
+			cfg, cfgErr := storage.LoadConfig(appDir)
+			if cfgErr != nil {
+				printWarning(fmt.Sprintf("Could not read %s (%v) — destroying without knowing the workload type, so a compose stack may keep running: check it with `podman ps`", storage.GetConfigPath(appDir), cfgErr))
+			}
 
 			teardownServices(ctx, name)
 			removeArtifacts(ctx, name, appDir, cfg)

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The unit handover every workload writer runs after it writes its unit is one function instead of three copies: guard the name, write, report, stop the workload being replaced while systemd still holds its own definition, then retire any Quadlet source an older gare left behind. That sequence decides whether an outgoing compose stack goes down through `podman compose down` or is orphaned in front of its replacement, so it can no longer drift between workload types; a test drives all three writers through a workload type change.
+- The static workload's unit is named for the workload it renders: `static_unit.go`, `StaticUnitData`, `GenerateStaticUnit` and `WriteStaticUnit`, where `ContainerUnit` previously meant both the kube-play workload and the Caddy container serving a static site.
+- A managed application's lookup has a home of its own rather than `app_errors.go`, and `gare deploy` uses it instead of repeating the same validation and config load.
+- A rule both sides needed is now a leaf package of its own: the readiness probe type moved from `storage` to `health`, and application name validation from `storage` to `appname`. The compose file parser no longer imports the config schema, and the webhook server no longer imports storage.
+- `gare env` resolves the store its workload reads once per command, through one type whose operations are named fields rather than two identically typed closures.
+- `systemctlCmd` sits in `systemctl.go` beside the verbs it serves, and the delay `WaitForState` gives an already-active service is declared where the wait owns it instead of hiding inside a state comparison.
+
+### Fixed
+
+- A failed `gare env` write names the store it could not write — the app env file or the pod manifest — instead of reporting a generic failure, and `gare env list` names it when a read fails too.
+- `gare destroy` reports a configuration it cannot read, and the consequence of proceeding without the workload type, instead of silently tearing the application down as a container.
+
 ## [0.13.1] - 2026-09-23
 
 ### Fixed

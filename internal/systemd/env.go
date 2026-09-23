@@ -1,9 +1,7 @@
 package systemd
 
 import (
-	"context"
 	"os"
-	"os/exec"
 	"os/user"
 	"strconv"
 )
@@ -40,11 +38,4 @@ func userEnviron() []string {
 		env = append(env, "DBUS_SESSION_BUS_ADDRESS=unix:path="+runtimeDir+"/bus")
 	}
 	return env
-}
-
-func systemctlCmd(ctx context.Context, args ...string) *exec.Cmd {
-	fullArgs := append([]string{"--user"}, args...)
-	cmd := exec.CommandContext(ctx, "systemctl", fullArgs...)
-	cmd.Env = userEnviron()
-	return cmd
 }

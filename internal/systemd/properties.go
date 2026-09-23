@@ -19,6 +19,11 @@ type ServiceProperties struct {
 	MemoryCurrent        uint64
 }
 
+// activeStateSettleTime is how long a service systemd already reports active is given to finish
+// starting, so a caller that acts on the result does not race its first request against a port that
+// is not listening yet.
+const activeStateSettleTime = 50 * time.Millisecond
+
 // Start starts the specified user service.
 func Start(ctx context.Context, name string) error {
 	return runSystemctl(ctx, "start", name+".service")
@@ -35,6 +40,7 @@ func WaitForState(ctx context.Context, name, target string) error {
 			return stateErr
 		}
 		if matched {
+			settleActiveState(target)
 			return nil
 		}
 		select {
@@ -45,14 +51,21 @@ func WaitForState(ctx context.Context, name, target string) error {
 	}
 }
 
+// settleActiveState waits out the settle time for the active state, the one target a caller waits
+// for a service to reach rather than to leave.
+func settleActiveState(target string) {
+	if target == "active" {
+		time.Sleep(activeStateSettleTime)
+	}
+}
+
+// checkStateMatch reports whether the queried properties match the target state, treating a query
+// that failed as not matched yet so the caller keeps polling.
 func checkStateMatch(props *ServiceProperties, err error, target, name string) (bool, error) {
 	if err != nil || props == nil {
 		return false, nil
 	}
 	if props.ActiveState == target {
-		if target == "active" {
-			time.Sleep(50 * time.Millisecond)
-		}
 		return true, nil
 	}
 	if target == "active" && props.ActiveState == "failed" {
