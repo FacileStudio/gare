@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"strings"
 
 	"github.com/FacileStudio/gare/internal/podman"
+	"github.com/FacileStudio/gare/internal/systemd"
 )
 
 func checkComposeProvider(ctx context.Context) {
@@ -26,7 +25,6 @@ func checkComposeProvider(ctx context.Context) {
 }
 
 func podmanSocketAvailable(ctx context.Context) bool {
-	cmd := exec.CommandContext(ctx, "systemctl", "--user", "list-unit-files", "podman.socket", "--no-legend")
-	output, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(output)) != ""
+	installed, err := systemd.UnitFileInstalled(ctx, "podman.socket")
+	return err == nil && installed
 }
