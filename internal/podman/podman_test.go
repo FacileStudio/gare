@@ -74,10 +74,8 @@ func TestPodmanOperations(t *testing.T) {
 		Stderr:        &stderr,
 	}
 	buildAndRemove(t, ctx, customOpts)
-	stdout.Reset()
-	stderr.Reset()
-	if err := PruneImages(ctx, &stdout, &stderr); err != nil {
-		t.Fatalf("PruneImages failed: %v", err)
+	if output, err := PruneImages(ctx); err != nil {
+		t.Fatalf("PruneImages failed: %v: %s", err, output)
 	}
 }
 

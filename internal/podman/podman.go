@@ -73,12 +73,12 @@ func ImageExists(ctx context.Context, ref string) (bool, error) {
 	return false, fmt.Errorf("failed to inspect image %s: %w: %s", ref, err, strings.TrimSpace(string(output)))
 }
 
-// PruneImages cleans up dangling container images via podman image prune.
-func PruneImages(ctx context.Context, stdout, stderr io.Writer) error {
+// PruneImages cleans up dangling container images via podman image prune. It returns podman's
+// combined output so the caller decides whether routine cleanup noise is worth showing.
+func PruneImages(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "podman", "image", "prune", "-f")
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	return cmd.Run()
+	output, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(output)), err
 }
 
 // RemoveImage forcefully deletes the specified container image by name.

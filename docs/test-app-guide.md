@@ -241,8 +241,8 @@ gare deploy test-app
 4. Synchronizes any changes from `repo/manifest.yaml` if defined in the repository.
 5. Runs `systemctl --user daemon-reload` so systemd picks up the rewritten unit.
 6. Enables `test-app.service` for start-on-boot and restarts it.
-7. Reloads Caddy to activate the ingress snippet.
-8. Prunes dangling Podman container images.
+7. Reloads Caddy to activate the ingress snippet. An application with domains fails the deploy when Caddy does not accept the configuration or nothing is listening on the ports those domains resolve to, so a snippet on disk is never mistaken for a served site.
+8. Prunes dangling Podman container images as best-effort cleanup; its output is shown only with `--verbose`, because podman reports a harmless non-zero exit when a leftover buildah working container holds a dangling image.
 
 ### Upgrading an application supervised by Quadlet
 

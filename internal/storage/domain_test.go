@@ -7,6 +7,24 @@ import (
 	"testing"
 )
 
+func TestDomainPort(t *testing.T) {
+	tests := map[string]int{
+		"example.com":              0,
+		"sub.example.com":          0,
+		"localhost":                0,
+		"localhost:8080":           8080,
+		"myapp.example.com:443":    443,
+		"broken.example.com:0":     0,
+		"broken.example.com:99999": 0,
+		"broken.example.com:port":  0,
+	}
+	for hostname, want := range tests {
+		if got := DomainPort(hostname); got != want {
+			t.Errorf("DomainPort(%q) = %d, want %d", hostname, got, want)
+		}
+	}
+}
+
 func TestValidateDomain(t *testing.T) {
 	valid := []string{
 		"example.com",

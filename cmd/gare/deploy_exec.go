@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
@@ -97,11 +96,16 @@ func printUnitFailure(ctx context.Context, name string) {
 	fmt.Fprintln(os.Stderr, logs)
 }
 
+// cleanupAppDeploy runs the best-effort cleanup after a deploy. Pruning is a nicety rather than a
+// deployment step, so its output is shown only in verbose mode: podman exits non-zero when a
+// leftover buildah working container holds a dangling image, which says nothing about the deploy.
 func cleanupAppDeploy(ctx context.Context) {
-	if err := caddy.Reload(ctx); err != nil {
-		printWarning(fmt.Sprintf("Caddy reload returned error: %v", err))
+	output, err := podman.PruneImages(ctx)
+	if err != nil {
+		printVerbose(ctx, "Skipped image pruning: %v (%s)", err, output)
+		return
 	}
-	if err := podman.PruneImages(ctx, os.Stdout, os.Stderr); err != nil {
-		printWarning(fmt.Sprintf("Image pruning returned error: %v", err))
+	if output != "" {
+		printVerbose(ctx, "Image pruning: %s", output)
 	}
 }

@@ -68,10 +68,8 @@ func runStartApp(ctx context.Context, name string) error {
 		return err
 	}
 	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
-	if err := syncAppIngress(cfg); err != nil {
-		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
-	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-		printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
+	if err := activateIngress(ctx, cfg); err != nil {
+		return err
 	}
 	if err := systemd.Start(ctx, name); err != nil {
 		return fmt.Errorf("failed to start %q: %w", name, err)
@@ -118,10 +116,8 @@ func runRestartApp(ctx context.Context, name string) error {
 		return err
 	}
 	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
-	if err := syncAppIngress(cfg); err != nil {
-		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
-	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-		printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
+	if err := activateIngress(ctx, cfg); err != nil {
+		return err
 	}
 	if err := systemd.Restart(ctx, name); err != nil {
 		return fmt.Errorf("failed to restart %q: %w", name, err)

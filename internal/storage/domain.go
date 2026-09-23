@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +32,20 @@ func ValidateDomain(hostname string) error {
 // NormalizeDomain trims whitespace and lowercases the hostname.
 func NormalizeDomain(hostname string) string {
 	return strings.ToLower(strings.TrimSpace(hostname))
+}
+
+// DomainPort returns the explicit port a hostname carries, or zero when it relies on the standard
+// ingress ports.
+func DomainPort(hostname string) int {
+	idx := strings.LastIndex(hostname, ":")
+	if idx < 0 {
+		return 0
+	}
+	port, err := strconv.Atoi(hostname[idx+1:])
+	if err != nil || port <= 0 || port > 65535 {
+		return 0
+	}
+	return port
 }
 
 // AppByDomain scans all apps for one owning the given hostname.

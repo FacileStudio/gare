@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/FacileStudio/gare/internal/git"
@@ -62,15 +61,12 @@ func fetchAppRevision(ctx context.Context, baseDir, appDir, repoDir string, cfg 
 	return syncDeployConfig(baseDir, repoDir, appDir, cfg)
 }
 
-// activateApp syncs ingress, restarts the unit, and only reports success once the health probes pass.
+// activateApp syncs ingress, restarts the unit, and only reports success once the ingress serves the
+// app's domains and the health probes pass.
 func activateApp(ctx context.Context, cfg *storage.AppConfig, repoDir string) error {
 	warnComposeReachability(repoDir, cfg)
-	if err := syncAppIngress(cfg); err != nil {
-		printWarning(fmt.Sprintf("Could not update the Caddy snippet (%v)", err))
-	} else if len(cfg.Domains) > 0 {
-		printVerbose(ctx, "Wrote the Caddy snippet for %s: %s", cfg.Name, strings.Join(cfg.Domains, ", "))
-	} else {
-		printVerbose(ctx, "Removed the Caddy snippet for %s (no domains configured)", cfg.Name)
+	if err := activateIngress(ctx, cfg); err != nil {
+		return err
 	}
 	printVerbose(ctx, "Enabling and restarting %s.service", cfg.Name)
 	if err := restartAppServices(ctx, cfg); err != nil {
