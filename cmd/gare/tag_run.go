@@ -20,14 +20,9 @@ type appTagItem struct {
 }
 
 func runTagAdd(appName string, tags []string) error {
-	if err := storage.ValidateAppName(appName); err != nil {
-		return err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, appName)
-	cfg, err := storage.LoadConfig(appDir)
+	appDir, cfg, err := loadAppConfig(appName)
 	if err != nil {
-		return appConfigError(appName, err)
+		return err
 	}
 	if err := cfg.AddTags(tags...); err != nil {
 		return err
@@ -40,14 +35,9 @@ func runTagAdd(appName string, tags []string) error {
 }
 
 func runTagRemove(appName string, tags []string) error {
-	if err := storage.ValidateAppName(appName); err != nil {
-		return err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, appName)
-	cfg, err := storage.LoadConfig(appDir)
+	appDir, cfg, err := loadAppConfig(appName)
 	if err != nil {
-		return appConfigError(appName, err)
+		return err
 	}
 	if !cfg.RemoveTags(tags...) {
 		printWarning(fmt.Sprintf("None of the specified tags were found on app %q", appName))
@@ -63,12 +53,9 @@ func runTagRemove(appName string, tags []string) error {
 func runTagList(w io.Writer, targetApp string, opts tagListOptions) error {
 	baseDir := storage.DefaultBaseDir()
 	if targetApp != "" {
-		if err := storage.ValidateAppName(targetApp); err != nil {
-			return err
-		}
-		cfg, err := storage.LoadConfig(storage.GetAppDir(baseDir, targetApp))
+		_, cfg, err := loadAppConfig(targetApp)
 		if err != nil {
-			return appConfigError(targetApp, err)
+			return err
 		}
 		return outputAppTags(w, targetApp, cfg.Tags, opts.jsonOutput)
 	}

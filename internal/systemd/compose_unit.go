@@ -1,12 +1,5 @@
 package systemd
 
-import (
-	"bytes"
-	"text/template"
-
-	"github.com/FacileStudio/gare/internal/atomicfile"
-)
-
 const composeUnitTemplate = `[Unit]
 Description={{.Description}}
 After=podman-user-wait-network-online.service podman.socket
@@ -56,21 +49,11 @@ func ComposeUnitDescription(name string) string {
 // network-online.target, because the user manager has no network-online.target: systemd drops
 // ordering on an unknown unit silently, leaving the provider to run before the network is up.
 func GenerateComposeUnit(data ComposeUnitData) (string, error) {
-	tmpl, err := template.New("compose-unit").Parse(composeUnitTemplate)
-	if err != nil {
-		return "", err
-	}
 	if data.PodmanPath == "" {
 		data.PodmanPath = ResolvePodmanPath()
 	}
 	data.Description = ComposeUnitDescription(data.Name)
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
+	return renderUnit("compose-unit", composeUnitTemplate, data)
 }
 
 // WriteComposeUnit generates and writes a compose systemd user unit file atomically.
@@ -79,6 +62,5 @@ func WriteComposeUnit(data ComposeUnitData) error {
 	if err != nil {
 		return err
 	}
-
-	return atomicfile.WriteFile(GetUnitPath(data.Name), []byte(content), 0644)
+	return writeUnitFile(data.Name, content)
 }

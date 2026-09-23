@@ -27,9 +27,7 @@ func NewDestroyCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 			defer cancel()
 
-			baseDir := storage.DefaultBaseDir()
-			appDir := storage.GetAppDir(baseDir, name)
-
+			appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
 			cfg, _ := storage.LoadConfig(appDir)
 
 			teardownServices(ctx, name)
@@ -42,66 +40,46 @@ func NewDestroyCmd() *cobra.Command {
 	}
 }
 
+// bestEffort runs one teardown step and reports its failure as a warning, because a destroy keeps
+// going through whatever is already gone rather than abandoning the rest of the teardown.
+func bestEffort(label string, action func() error) {
+	if err := action(); err != nil {
+		printWarning(fmt.Sprintf("%s returned error: %v", label, err))
+	}
+}
+
 func teardownServices(ctx context.Context, name string) {
-	stopService(ctx, name)
-	disableService(ctx, name)
-	removeUnitFiles(name)
-}
-
-func stopService(ctx context.Context, name string) {
 	printInfo(fmt.Sprintf("Stopping service %s...", name))
-	if err := systemd.Stop(ctx, name); err != nil {
-		printWarning(fmt.Sprintf("systemctl stop returned error: %v", err))
-	}
-}
+	bestEffort("systemctl stop", func() error { return systemd.Stop(ctx, name) })
 
-func disableService(ctx context.Context, name string) {
 	printInfo(fmt.Sprintf("Disabling service %s...", name))
-	if err := systemd.Disable(ctx, name); err != nil {
-		printWarning(fmt.Sprintf("systemctl disable returned error: %v", err))
-	}
-}
+	bestEffort("systemctl disable", func() error { return systemd.Disable(ctx, name) })
 
-func removeUnitFiles(name string) {
 	printInfo("Removing systemd unit file and enable link...")
-	if err := systemd.RemoveUnit(name); err != nil {
-		printWarning(fmt.Sprintf("removing unit file returned error: %v", err))
-	}
-	if err := systemd.RemoveLegacyQuadletSources(name); err != nil {
-		printWarning(fmt.Sprintf("removing stale Quadlet sources returned error: %v", err))
-	}
+	bestEffort("removing unit file", func() error { return systemd.RemoveUnit(name) })
+	bestEffort("removing stale Quadlet sources", func() error { return systemd.RemoveLegacyQuadletSources(name) })
 }
 
 func removeArtifacts(ctx context.Context, name, appDir string, cfg *storage.AppConfig) {
 	printInfo("Removing Caddy snippet...")
-	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err != nil {
-		printWarning(fmt.Sprintf("removing caddy snippet returned error: %v", err))
-	}
+	bestEffort("removing caddy snippet", func() error { return caddy.RemoveSnippet(caddy.ResolveConfDir(), name) })
 
 	if cfg.IsCompose() {
 		destroyComposeWorkload(ctx, appDir, cfg)
 	} else if !cfg.IsStatic() {
 		imageName := fmt.Sprintf("localhost/%s:latest", name)
 		printInfo(fmt.Sprintf("Removing container image %s...", imageName))
-		if err := podman.RemoveImage(ctx, imageName); err != nil {
-			printWarning(fmt.Sprintf("removing container image returned error: %v", err))
-		}
+		bestEffort("removing container image", func() error { return podman.RemoveImage(ctx, imageName) })
 	}
 
 	printInfo(fmt.Sprintf("Removing app storage at %s...", appDir))
-	if err := storage.DeleteAppStorage(appDir); err != nil {
-		printWarning(fmt.Sprintf("removing storage returned error: %v", err))
-	}
+	bestEffort("removing storage", func() error { return storage.DeleteAppStorage(appDir) })
 }
 
 func reloadDaemons(ctx context.Context) {
 	printInfo("Reloading systemd daemon...")
-	if err := systemd.DaemonReload(ctx); err != nil {
-		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
-	}
+	bestEffort("daemon-reload", func() error { return systemd.DaemonReload(ctx) })
 
 	printInfo("Reloading Caddy...")
-	if err := caddy.Reload(ctx); err != nil {
-		printWarning(fmt.Sprintf("caddy reload error: %v", err))
-	}
+	bestEffort("caddy reload", func() error { return caddy.Reload(ctx) })
 }

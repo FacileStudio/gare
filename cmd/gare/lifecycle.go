@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/caddy"
-	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
@@ -60,7 +59,7 @@ func NewRestartCmd() *cobra.Command {
 }
 
 func runStartApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
+	_, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func runStartApp(ctx context.Context, name string) error {
 }
 
 func runStopApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
+	_, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func runStopApp(ctx context.Context, name string) error {
 }
 
 func runRestartApp(ctx context.Context, name string) error {
-	cfg, err := loadAppForLifecycle(name)
+	_, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
@@ -123,17 +122,4 @@ func runRestartApp(ctx context.Context, name string) error {
 	}
 	printSuccess(fmt.Sprintf("Restarted %s.service (active)", name))
 	return nil
-}
-
-func loadAppForLifecycle(name string) (*storage.AppConfig, error) {
-	if err := storage.ValidateAppName(name); err != nil {
-		return nil, err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
-	cfg, err := storage.LoadConfig(appDir)
-	if err != nil {
-		return nil, appConfigError(name, err)
-	}
-	return cfg, nil
 }

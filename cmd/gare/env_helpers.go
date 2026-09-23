@@ -11,17 +11,36 @@ import (
 	"github.com/FacileStudio/gare/internal/systemd"
 )
 
+// applyEnvChange writes environment changes through the store the workload actually reads: the app
+// env file for static and compose workloads, the pod manifest otherwise. It returns the store's name
+// so the caller can say where the change landed.
+func applyEnvChange(name string, appEnv func(appDir string) error, podEnv func(manifestPath string) error) (string, error) {
+	appDir, cfg, err := loadAppConfig(name)
+	if err != nil {
+		return "", err
+	}
+	if cfg.UsesAppEnvFile() {
+		if err := appEnv(appDir); err != nil {
+			return "", err
+		}
+		return "app env file", nil
+	}
+	if err := podEnv(storage.GetManifestPath(appDir)); err != nil {
+		return "", err
+	}
+	return "manifest", nil
+}
+
 func runEnvList(w io.Writer, name string, opts envListOptions) error {
-	manifestPath, cfg, err := getAppManifestInfo(name)
+	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
 	var envs map[string]string
 	if cfg.UsesAppEnvFile() {
-		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
 		envs, err = storage.GetAppEnv(appDir)
 	} else {
-		envs, err = manifest.GetEnv(manifestPath)
+		envs, err = manifest.GetEnv(storage.GetManifestPath(appDir))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to read environment variables: %w", err)
@@ -46,20 +65,6 @@ func outputEnvPlain(w io.Writer, envs map[string]string) error {
 		fmt.Fprintf(w, "%s=%s\n", k, envs[k])
 	}
 	return nil
-}
-
-func getAppManifestInfo(name string) (string, *storage.AppConfig, error) {
-	if err := storage.ValidateAppName(name); err != nil {
-		return "", nil, err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
-	cfg, err := storage.LoadConfig(appDir)
-	if err != nil {
-		return "", nil, appConfigError(name, err)
-	}
-	manifestPath := storage.GetManifestPath(appDir)
-	return manifestPath, cfg, nil
 }
 
 func reloadIfActive(ctx context.Context, name string) error {

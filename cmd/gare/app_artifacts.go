@@ -7,14 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/manifest"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
 func writeAppArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
-	manifestPath := storage.GetManifestPath(appDir)
-	if err := resolveManifest(name, appDir, manifestPath, opts.port, opts.containerPort); err != nil {
+	if err := resolveManifest(name, appDir, opts); err != nil {
 		return err
 	}
 	if err := writeContainerUnit(ctx, name, appDir); err != nil {
@@ -62,18 +60,19 @@ func writeStaticArtifacts(ctx context.Context, name, appDir string, opts appCrea
 	return saveAppMetadata(name, appDir, opts)
 }
 
-func resolveManifest(name, appDir, manifestPath string, port int, containerPort int) error {
-	repoManifest := filepath.Join(storage.GetRepoDir(appDir), "manifest.yaml")
-	if data, err := os.ReadFile(repoManifest); err == nil {
-		if err := atomicfile.WriteFile(manifestPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to write manifest: %w", err)
-		}
-		return nil
+// resolveManifest adopts the repository's own manifest when it ships one, and otherwise generates a
+// default. Adoption goes through the same path a deploy uses, so a manifest gare adopts at create
+// time keeps the environment a later deploy would have preserved.
+func resolveManifest(name, appDir string, opts appCreateOptions) error {
+	repoDir := storage.GetRepoDir(appDir)
+	if _, err := os.Stat(filepath.Join(repoDir, "manifest.yaml")); err == nil {
+		return syncRepoManifest(appDir, repoDir)
 	}
+	containerPort := opts.containerPort
 	if containerPort <= 0 {
-		containerPort = port
+		containerPort = opts.port
 	}
-	return manifest.Generate(name, containerPort, port, manifestPath)
+	return manifest.Generate(name, containerPort, opts.port, storage.GetManifestPath(appDir))
 }
 
 func saveAppMetadata(name, appDir string, opts appCreateOptions) error {

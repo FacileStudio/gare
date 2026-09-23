@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
@@ -31,13 +30,8 @@ func NewLogsCmd() *cobra.Command {
 }
 
 func runLogs(ctx context.Context, name string, follow bool, lines int) error {
-	if err := storage.ValidateAppName(name); err != nil {
+	if _, _, err := loadAppConfig(name); err != nil {
 		return err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
-	if _, err := storage.LoadConfig(appDir); err != nil {
-		return appConfigError(name, err)
 	}
 	deployed, err := appUnitExists(name)
 	if err != nil {

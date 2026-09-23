@@ -1,6 +1,7 @@
 package systemd
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -68,6 +69,23 @@ func TestGenerateComposeUnitWaitsForNetworkInAUserSession(t *testing.T) {
 		!strings.Contains(unit, "After=podman-user-wait-network-online.service") {
 		t.Errorf("compose unit must wait for the user-session network bridge, got:\n%s", unit)
 	}
+}
+
+func TestGeneratedComposeUnitIsAcceptedBySystemd(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	repoDir := t.TempDir()
+	envFile := repoDir + "/env"
+	if err := os.WriteFile(envFile, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	data := composeUnitInput("my-app")
+	data.RepoDir = repoDir
+	data.EnvFile = envFile
+	if err := WriteComposeUnit(data); err != nil {
+		t.Fatal(err)
+	}
+	verifyUnitWithSystemd(t, GetUnitPath("my-app"))
 }
 
 func TestGenerateComposeUnitResolvesPodmanPath(t *testing.T) {

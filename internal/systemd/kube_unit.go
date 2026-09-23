@@ -1,15 +1,5 @@
 package systemd
 
-import (
-	"bytes"
-	"fmt"
-	"os"
-	"path/filepath"
-	"text/template"
-
-	"github.com/FacileStudio/gare/internal/atomicfile"
-)
-
 const kubeUnitTemplate = `[Unit]
 Description={{.Description}}
 After=podman-user-wait-network-online.service
@@ -58,15 +48,7 @@ func GenerateKubeUnit(data KubeUnitData) (string, error) {
 		data.PodmanPath = ResolvePodmanPath()
 	}
 	data.Description = KubeUnitDescription(data.Name)
-	tmpl, err := template.New("kube-unit").Parse(kubeUnitTemplate)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return renderUnit("kube-unit", kubeUnitTemplate, data)
 }
 
 // WriteKubeUnit generates and writes the systemd unit supervising an application's pod manifest.
@@ -75,9 +57,5 @@ func WriteKubeUnit(name, yamlPath string) error {
 	if err != nil {
 		return err
 	}
-	unitPath := GetUnitPath(name)
-	if err := os.MkdirAll(filepath.Dir(unitPath), 0755); err != nil {
-		return fmt.Errorf("failed to create unit directory %s: %w", filepath.Dir(unitPath), err)
-	}
-	return atomicfile.WriteFile(unitPath, []byte(content), 0644)
+	return writeUnitFile(name, content)
 }

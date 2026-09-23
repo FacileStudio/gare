@@ -148,7 +148,7 @@ func TestTagViaAppCmdAndListFilter(t *testing.T) {
 	setupTagTestApp(t, tmpDir, "app1", []string{"client-a", "prod"})
 	setupTagTestApp(t, tmpDir, "app2", []string{"client-b", "prod"})
 
-	root := NewRootCmd("0.1.0")
+	root := newRootCmd("0.1.0")
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{"list", "--tag", "client-a", "--json"})

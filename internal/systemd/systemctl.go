@@ -7,49 +7,39 @@ import (
 	"strings"
 )
 
-// DaemonReload triggers a systemd user daemon reload.
-func DaemonReload(ctx context.Context) error {
-	cmd := systemctlCmd(ctx, "daemon-reload")
+// runSystemctl invokes a systemctl user verb, folding systemctl's own diagnostic into the error so
+// a failed command reports why it failed rather than a bare exit status.
+func runSystemctl(ctx context.Context, args ...string) error {
+	cmd := systemctlCmd(ctx, args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+// DaemonReload triggers a systemd user daemon reload.
+func DaemonReload(ctx context.Context) error {
+	return runSystemctl(ctx, "daemon-reload")
 }
 
 // Enable enables the specified user service for auto-start.
 func Enable(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "enable", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
+	return runSystemctl(ctx, "enable", name+".service")
 }
 
 // Restart restarts the specified user service.
 func Restart(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "restart", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
+	return runSystemctl(ctx, "restart", name+".service")
 }
 
 // Stop stops the specified user service.
 func Stop(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "stop", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
+	return runSystemctl(ctx, "stop", name+".service")
 }
 
 // Disable disables the specified user service from auto-starting.
 func Disable(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "disable", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
+	return runSystemctl(ctx, "disable", name+".service")
 }
 
 // IsActive checks if the specified systemd user service is currently active.

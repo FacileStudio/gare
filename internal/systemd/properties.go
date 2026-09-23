@@ -21,11 +21,7 @@ type ServiceProperties struct {
 
 // Start starts the specified user service.
 func Start(ctx context.Context, name string) error {
-	cmd := systemctlCmd(ctx, "start", name+".service")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
+	return runSystemctl(ctx, "start", name+".service")
 }
 
 // WaitForState polls the service until it reaches the expected active state or context expires.

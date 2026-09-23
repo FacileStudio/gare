@@ -23,11 +23,6 @@ func Execute(version string) error {
 	return fang.Execute(context.Background(), newRootCmd(version), fang.WithVersion(version))
 }
 
-// NewRootCmd builds the root gare command and registers subcommands.
-func NewRootCmd(version string) *cobra.Command {
-	return newRootCmd(version)
-}
-
 func newRootCmd(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gare",

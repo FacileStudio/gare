@@ -1,13 +1,7 @@
 package systemd
 
 import (
-	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
-	"text/template"
-
-	"github.com/FacileStudio/gare/internal/atomicfile"
 )
 
 const (
@@ -108,15 +102,7 @@ func GenerateContainerUnit(data ContainerUnitData) (string, error) {
 		data.PodmanPath = ResolvePodmanPath()
 	}
 	data.Description = StaticUnitDescription(data.Name)
-	tmpl, err := template.New("container-unit").Parse(containerUnitTemplate)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return renderUnit("container-unit", containerUnitTemplate, data)
 }
 
 // WriteContainerUnit generates and writes the systemd unit running an application's static site.
@@ -125,9 +111,5 @@ func WriteContainerUnit(data ContainerUnitData) error {
 	if err != nil {
 		return err
 	}
-	unitPath := GetUnitPath(data.Name)
-	if err := os.MkdirAll(filepath.Dir(unitPath), 0755); err != nil {
-		return fmt.Errorf("failed to create unit directory %s: %w", filepath.Dir(unitPath), err)
-	}
-	return atomicfile.WriteFile(unitPath, []byte(content), 0644)
+	return writeUnitFile(data.Name, content)
 }

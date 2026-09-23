@@ -50,14 +50,9 @@ func NewStatusCmd() *cobra.Command {
 }
 
 func runStatus(ctx context.Context, w io.Writer, name string, opts statusOptions) error {
-	if err := storage.ValidateAppName(name); err != nil {
-		return err
-	}
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
-	cfg, err := storage.LoadConfig(appDir)
+	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
-		return appConfigError(name, err)
+		return err
 	}
 
 	details := collectAppStatus(ctx, appDir, cfg)

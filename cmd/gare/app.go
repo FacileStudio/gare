@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -113,10 +114,7 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	}
 
 	if err := cloneAppRepo(ctx, appDir, opts); err != nil {
-		if rmErr := storage.DeleteAppStorage(appDir); rmErr != nil {
-			return err
-		}
-		return err
+		return errors.Join(err, storage.DeleteAppStorage(appDir))
 	}
 
 	return setupAppWorkload(ctx, baseDir, name, appDir, opts)

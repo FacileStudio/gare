@@ -96,42 +96,26 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 	if err != nil {
 		return err
 	}
-	manifestPath, cfg, err := getAppManifestInfo(name)
+	store, err := applyEnvChange(name,
+		func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
+		func(manifestPath string) error { return manifest.SetEnv(manifestPath, vars) },
+	)
 	if err != nil {
-		return err
-	}
-	if cfg.UsesAppEnvFile() {
-		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.SetAppEnv(appDir, vars); err != nil {
-			return fmt.Errorf("failed to set app env: %w", err)
-		}
-		printSuccess(fmt.Sprintf("Updated %d environment variable(s) in app env file", len(vars)))
-		return reloadIfActive(ctx, name)
-	}
-	if err := manifest.SetEnv(manifestPath, vars); err != nil {
 		return fmt.Errorf("failed to set environment variables: %w", err)
 	}
-	printSuccess(fmt.Sprintf("Updated %d environment variable(s) in manifest", len(vars)))
+	printSuccess(fmt.Sprintf("Updated %d environment variable(s) in %s", len(vars), store))
 	return reloadIfActive(ctx, name)
 }
 
 func runEnvUnset(ctx context.Context, name string, keys []string) error {
-	manifestPath, cfg, err := getAppManifestInfo(name)
+	store, err := applyEnvChange(name,
+		func(appDir string) error { return storage.UnsetAppEnv(appDir, keys) },
+		func(manifestPath string) error { return manifest.UnsetEnv(manifestPath, keys) },
+	)
 	if err != nil {
-		return err
-	}
-	if cfg.UsesAppEnvFile() {
-		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.UnsetAppEnv(appDir, keys); err != nil {
-			return fmt.Errorf("failed to unset app env: %w", err)
-		}
-		printSuccess(fmt.Sprintf("Removed %d environment variable(s) from app env file", len(keys)))
-		return reloadIfActive(ctx, name)
-	}
-	if err := manifest.UnsetEnv(manifestPath, keys); err != nil {
 		return fmt.Errorf("failed to unset environment variables: %w", err)
 	}
-	printSuccess(fmt.Sprintf("Removed %d environment variable(s) from manifest", len(keys)))
+	printSuccess(fmt.Sprintf("Removed %d environment variable(s) from %s", len(keys), store))
 	return reloadIfActive(ctx, name)
 }
 
@@ -140,19 +124,10 @@ func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to read env file: %w", err)
 	}
-	manifestPath, cfg, err := getAppManifestInfo(name)
-	if err != nil {
-		return err
-	}
-	if cfg.UsesAppEnvFile() {
-		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-		if err := storage.SetAppEnv(appDir, vars); err != nil {
-			return fmt.Errorf("failed to load app env: %w", err)
-		}
-		printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))
-		return reloadIfActive(ctx, name)
-	}
-	if err := manifest.SetEnv(manifestPath, vars); err != nil {
+	if _, err := applyEnvChange(name,
+		func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
+		func(manifestPath string) error { return manifest.SetEnv(manifestPath, vars) },
+	); err != nil {
 		return fmt.Errorf("failed to load environment variables: %w", err)
 	}
 	printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))

@@ -167,7 +167,7 @@ func TestDomainViaAppCmd(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	setupDomainTestApp(t, tmpDir, "testapp", []string{"test.example.com"})
 
-	root := NewRootCmd("0.1.0")
+	root := newRootCmd("0.1.0")
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{"app", "domain", "list", "testapp", "--json"})

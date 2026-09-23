@@ -65,6 +65,14 @@ func appendImportDirective(content, confDir string) string {
 	return trimmed + "\n\n" + directive + "\n"
 }
 
+// tryMkdir creates a directory gare only needs if it still has to write into it, so a directory it
+// cannot create is left for the write that follows to report.
+func tryMkdir(dir string) {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return
+	}
+}
+
 func writeCaddyfile(path string, data []byte) error {
 	if err := atomicfile.WriteFile(path, data, 0644); err != nil {
 		return handleWriteError(path, err)
@@ -80,10 +88,4 @@ func handleWriteError(path string, err error) error {
 		return fmt.Errorf("could not write %s: quota exceeded", path)
 	}
 	return fmt.Errorf("could not write %s: %w", path, err)
-}
-
-func tryMkdir(dir string) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return
-	}
 }

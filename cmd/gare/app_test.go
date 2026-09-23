@@ -60,7 +60,7 @@ func testMissingRequired(t *testing.T) {
 }
 
 func TestRootCmdVersion(t *testing.T) {
-	cmd := NewRootCmd("0.1.0")
+	cmd := newRootCmd("0.1.0")
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"--version"})
@@ -167,7 +167,7 @@ func TestAppListExecutionViaAppCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	root := NewRootCmd("0.1.0")
+	root := newRootCmd("0.1.0")
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{"app", "list", "--json"})

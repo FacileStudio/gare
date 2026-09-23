@@ -24,20 +24,11 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
 	defer r.Body.Close()
 
