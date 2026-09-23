@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/FacileStudio/gare/internal/manifest"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
 func setupTestApp(t *testing.T, name string, isStatic bool) (string, string) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_DATA_HOME", "")
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", name)
 	appType := "container"
 	if isStatic {
@@ -28,7 +30,7 @@ func setupTestApp(t *testing.T, name string, isStatic bool) (string, string) {
 	}
 	manifestPath := storage.GetManifestPath(appDir)
 	if !isStatic {
-		if err := storage.GenerateDefaultManifest(name, 8080, 8080, manifestPath); err != nil {
+		if err := manifest.Generate(name, 8080, 8080, manifestPath); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,7 +46,7 @@ func TestEnvSetAndList(t *testing.T) {
 	}
 
 	manifestPath := storage.GetManifestPath(appDir)
-	envs, err := storage.GetManifestEnv(manifestPath)
+	envs, err := manifest.GetEnv(manifestPath)
 	if err != nil || len(envs) != 2 || envs["KEY1"] != "VAL1" {
 		t.Fatalf("unexpected manifest envs: %+v, err: %v", envs, err)
 	}
@@ -69,7 +71,7 @@ func TestEnvSetAndList(t *testing.T) {
 func TestEnvUnset(t *testing.T) {
 	_, appDir := setupTestApp(t, "testenv2", false)
 	manifestPath := storage.GetManifestPath(appDir)
-	if err := storage.SetManifestEnv(manifestPath, map[string]string{"K1": "V1", "K2": "V2"}); err != nil {
+	if err := manifest.SetEnv(manifestPath, map[string]string{"K1": "V1", "K2": "V2"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,7 +81,7 @@ func TestEnvUnset(t *testing.T) {
 		t.Fatalf("env unset failed: %v", err)
 	}
 
-	envs, _ := storage.GetManifestEnv(manifestPath)
+	envs, _ := manifest.GetEnv(manifestPath)
 	if _, ok := envs["K1"]; ok {
 		t.Fatalf("expected K1 to be unset, got %+v", envs)
 	}
@@ -99,7 +101,7 @@ func TestEnvLoad(t *testing.T) {
 	}
 
 	manifestPath := storage.GetManifestPath(appDir)
-	envs, _ := storage.GetManifestEnv(manifestPath)
+	envs, _ := manifest.GetEnv(manifestPath)
 	if envs["FROM_FILE"] != "loaded" {
 		t.Errorf("expected FROM_FILE=loaded, got %s", envs["FROM_FILE"])
 	}

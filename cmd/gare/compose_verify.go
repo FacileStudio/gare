@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -12,7 +12,7 @@ func verifyComposeContainersGone(ctx context.Context, cfg *storage.AppConfig, ac
 	if !cfg.IsCompose() {
 		return
 	}
-	leftovers, err := builder.ComposeProjectContainers(ctx, composeProjectName(cfg.Name))
+	leftovers, err := podman.ComposeProjectContainers(ctx, composeProjectName(cfg.Name))
 	if err != nil || len(leftovers) == 0 {
 		return
 	}

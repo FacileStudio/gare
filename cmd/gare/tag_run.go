@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -86,12 +85,7 @@ func outputAppTags(w io.Writer, targetApp string, tags []string, jsonOut bool) e
 		for _, tag := range tags {
 			items = append(items, appTagItem{Tag: tag})
 		}
-		data, err := json.MarshalIndent(items, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(w, string(data))
-		return nil
+		return writeJSON(w, items)
 	}
 	if len(tags) == 0 {
 		fmt.Fprintf(w, "No tags configured for app %q\n", targetApp)
@@ -118,12 +112,7 @@ func outputAllTags(w io.Writer, apps []*storage.AppConfig, jsonOut bool) error {
 		return items[i].Tag < items[j].Tag
 	})
 	if jsonOut {
-		data, err := json.MarshalIndent(items, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(w, string(data))
-		return nil
+		return writeJSON(w, items)
 	}
 	if len(items) == 0 {
 		fmt.Fprintln(w, "No tags configured")

@@ -9,7 +9,6 @@ func (l *Loader) SetVerbose(verbose bool) {
 // SetConfigPath overrides the config file path.
 func (l *Loader) SetConfigPath(path string) {
 	l.config.ConfigPath = path
-	l.changed["config_path"] = true
 }
 
 // SetGitProvider overrides the git provider.

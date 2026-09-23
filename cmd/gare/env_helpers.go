@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 
+	"github.com/FacileStudio/gare/internal/manifest"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -21,13 +21,13 @@ func runEnvList(w io.Writer, name string, opts envListOptions) error {
 		appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
 		envs, err = storage.GetAppEnv(appDir)
 	} else {
-		envs, err = storage.GetManifestEnv(manifestPath)
+		envs, err = manifest.GetEnv(manifestPath)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to read environment variables: %w", err)
 	}
 	if opts.jsonOutput {
-		return outputEnvJSON(w, envs)
+		return writeJSON(w, envs)
 	}
 	return outputEnvPlain(w, envs)
 }
@@ -45,15 +45,6 @@ func outputEnvPlain(w io.Writer, envs map[string]string) error {
 	for _, k := range keys {
 		fmt.Fprintf(w, "%s=%s\n", k, envs[k])
 	}
-	return nil
-}
-
-func outputEnvJSON(w io.Writer, envs map[string]string) error {
-	data, err := json.MarshalIndent(envs, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(w, string(data))
 	return nil
 }
 

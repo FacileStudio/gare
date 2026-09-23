@@ -17,7 +17,6 @@ type ServiceProperties struct {
 	MainPID              int
 	ActiveEnterTimestamp string
 	MemoryCurrent        uint64
-	CPUUsageNSec         uint64
 }
 
 // Start starts the specified user service.
@@ -100,7 +99,6 @@ func GetServiceProperties(ctx context.Context, name string) (*ServiceProperties,
 		"MainPID",
 		"ActiveEnterTimestamp",
 		"MemoryCurrent",
-		"CPUUsageNSec",
 	}
 	args := []string{"show", name + ".service"}
 	for _, p := range props {
@@ -143,10 +141,6 @@ func assignServiceProperty(res *ServiceProperties, key, val string) {
 	case "MemoryCurrent":
 		if val != "[not set]" {
 			res.MemoryCurrent, _ = strconv.ParseUint(val, 10, 64)
-		}
-	case "CPUUsageNSec":
-		if val != "[not set]" {
-			res.CPUUsageNSec, _ = strconv.ParseUint(val, 10, 64)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package storage
+package compose
 
 import (
 	"strconv"

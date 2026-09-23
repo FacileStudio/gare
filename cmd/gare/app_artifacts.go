@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
+	"github.com/FacileStudio/gare/internal/manifest"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -32,22 +33,22 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) (appCrea
 	}
 	opts.appType = defaultStr(opts.appType, string(workload))
 	opts.composeFile = defaultStr(opts.composeFile, gf.ResolveComposeFile())
-	opts.containerfile = defaultStr(opts.containerfile, gf.ResolveContainerfile())
-	opts.contextDir = defaultStr(opts.contextDir, gf.ResolveContext())
-	opts.staticDir = defaultStr(opts.staticDir, gf.ResolveStaticDir())
-	opts.buildCmd = defaultStr(opts.buildCmd, gf.ResolveBuildCmd())
-	opts.healthcheck = defaultStr(opts.healthcheck, gf.ResolveHealthcheck())
+	opts.containerfile = defaultStr(opts.containerfile, gf.Containerfile)
+	opts.contextDir = defaultStr(opts.contextDir, gf.Context)
+	opts.staticDir = defaultStr(opts.staticDir, gf.StaticDir)
+	opts.buildCmd = defaultStr(opts.buildCmd, gf.BuildCmd)
+	opts.healthcheck = defaultStr(opts.healthcheck, gf.Healthcheck)
 	if len(opts.healthProbes) == 0 {
-		opts.healthProbes = gf.ResolveHealthProbes()
+		opts.healthProbes = gf.Healthchecks
 	}
 	if opts.port == 0 {
-		opts.port = gf.ResolvePort()
+		opts.port = gf.Port
 	}
 	if opts.containerPort == 0 {
-		opts.containerPort = gf.ResolveContainerPort()
+		opts.containerPort = gf.ContainerPort
 	}
 	if len(opts.tags) == 0 {
-		opts.tags = gf.ResolveTags()
+		opts.tags = gf.Tags
 	}
 	return opts, nil
 }
@@ -72,7 +73,7 @@ func resolveManifest(name, appDir, manifestPath string, port int, containerPort 
 	if containerPort <= 0 {
 		containerPort = port
 	}
-	return storage.GenerateDefaultManifest(name, containerPort, port, manifestPath)
+	return manifest.Generate(name, containerPort, port, manifestPath)
 }
 
 func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
@@ -110,9 +111,9 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 		return err
 	}
 	if cfg.BuildCmd == "" {
-		cfg.BuildCmd = gf.ResolveBuildCmd()
+		cfg.BuildCmd = gf.BuildCmd
 	}
-	if err := storage.ValidateHealthProbes(gf.ResolveHealthProbes()); err != nil {
+	if err := storage.ValidateHealthProbes(gf.Healthchecks); err != nil {
 		return err
 	}
 	applyGareTags(cfg, gf)
@@ -125,7 +126,7 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 }
 
 func applyGareTags(cfg *storage.AppConfig, gf *storage.GareFile) {
-	tags := gf.ResolveTags()
+	tags := gf.Tags
 	if tags == nil {
 		return
 	}

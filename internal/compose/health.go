@@ -1,28 +1,24 @@
-package storage
+package compose
 
 import (
-	"fmt"
 	"net/url"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/FacileStudio/gare/internal/storage"
 )
 
 var healthcheckURLRegex = regexp.MustCompile(`https?://[^\s"']+`)
 
-// ComposeHealthProbes derives HTTP probes from HTTP healthchecks declared in a compose file.
-func ComposeHealthProbes(composePath string) ([]HealthProbe, error) {
-	data, err := os.ReadFile(composePath)
+// HealthProbes derives HTTP probes from HTTP healthchecks declared in a compose file. Only services
+// whose healthcheck reaches a published container port qualify, because a container-internal check
+// cannot be reached from the host.
+func HealthProbes(composePath string) ([]storage.HealthProbe, error) {
+	doc, err := readDocument(composePath)
 	if err != nil {
 		return nil, err
-	}
-	var doc composeDocument
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", composePath, err)
 	}
 
 	names := make([]string, 0, len(doc.Services))
@@ -31,7 +27,7 @@ func ComposeHealthProbes(composePath string) ([]HealthProbe, error) {
 	}
 	slices.Sort(names)
 
-	var probes []HealthProbe
+	var probes []storage.HealthProbe
 	for _, name := range names {
 		if probe, ok := probeFromHealthcheck(name, doc.Services[name]); ok {
 			probes = append(probes, probe)
@@ -40,20 +36,20 @@ func ComposeHealthProbes(composePath string) ([]HealthProbe, error) {
 	return probes, nil
 }
 
-func probeFromHealthcheck(name string, service composeService) (HealthProbe, bool) {
-	target := healthcheckURL(healthcheckCommand(service.Healthcheck))
+func probeFromHealthcheck(name string, svc service) (storage.HealthProbe, bool) {
+	target := healthcheckURL(healthcheckCommand(svc.Healthcheck))
 	if target == "" {
-		return HealthProbe{}, false
+		return storage.HealthProbe{}, false
 	}
 	parsed, err := url.Parse(target)
 	if err != nil {
-		return HealthProbe{}, false
+		return storage.HealthProbe{}, false
 	}
-	hostPort := servicePortMap(service.Ports)[urlPort(parsed)]
+	hostPort := servicePortMap(svc.Ports)[urlPort(parsed)]
 	if hostPort <= 0 {
-		return HealthProbe{}, false
+		return storage.HealthProbe{}, false
 	}
-	return HealthProbe{Name: name, Port: hostPort, Path: parsed.Path}, true
+	return storage.HealthProbe{Name: name, Port: hostPort, Path: parsed.Path}, true
 }
 
 func servicePortMap(ports []any) map[int]int {
@@ -67,11 +63,11 @@ func servicePortMap(ports []any) map[int]int {
 	return mapping
 }
 
-func healthcheckCommand(healthcheck *composeHealthcheck) string {
-	if healthcheck == nil {
+func healthcheckCommand(check *healthcheck) string {
+	if check == nil {
 		return ""
 	}
-	switch test := healthcheck.Test.(type) {
+	switch test := check.Test.(type) {
 	case string:
 		return test
 	case []any:

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -96,7 +95,7 @@ func runDomainList(w io.Writer, targetApp string, opts domainListOptions) error 
 		items = collectAllDomains(apps)
 	}
 	if opts.jsonOutput {
-		return outputDomainJSON(w, items)
+		return writeJSON(w, items)
 	}
 	return outputDomainTable(w, targetApp, items)
 }
@@ -126,15 +125,6 @@ func collectAllDomains(apps []*storage.AppConfig) []domainItem {
 		return items[i].App < items[j].App
 	})
 	return items
-}
-
-func outputDomainJSON(w io.Writer, items []domainItem) error {
-	data, err := json.MarshalIndent(items, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(w, string(data))
-	return nil
 }
 
 func outputDomainTable(w io.Writer, targetApp string, items []domainItem) error {

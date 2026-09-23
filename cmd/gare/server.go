@@ -40,7 +40,6 @@ func runWebhookDaemon(opts serverOptions) error {
 	}
 
 	srv := server.New(server.Config{
-		Port:   opts.port,
 		Secret: opts.secret,
 		DeployHandler: func(ctx context.Context, appName string) error {
 			if err := storage.ValidateAppName(appName); err != nil {

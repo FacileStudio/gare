@@ -13,17 +13,6 @@ func writeLegacyConfig(appDir, content string) error {
 	return os.WriteFile(GetConfigPath(appDir), []byte(content), 0644)
 }
 
-func TestResolveHealthProbes(t *testing.T) {
-	var nilGf *GareFile
-	if got := nilGf.ResolveHealthProbes(); got != nil {
-		t.Errorf("nil ResolveHealthProbes: got %+v, want nil", got)
-	}
-	gf := &GareFile{Healthchecks: []HealthProbe{{Name: "api", Port: 8100, Path: "/health"}}}
-	if got := gf.ResolveHealthProbes(); len(got) != 1 || got[0].Name != "api" {
-		t.Errorf("ResolveHealthProbes: got %+v", got)
-	}
-}
-
 func TestAppConfigHealthProbes(t *testing.T) {
 	var nilCfg *AppConfig
 	if got := nilCfg.HealthProbes(); got != nil {

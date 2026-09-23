@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -58,5 +58,5 @@ func detectContainerPort(repoDir string, opts appCreateOptions) int {
 	if opts.containerPort != 0 {
 		return opts.containerPort
 	}
-	return builder.DetectExposedPort(repoDir, opts.containerfile)
+	return podman.DetectExposedPort(repoDir, opts.containerfile)
 }

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -47,6 +50,25 @@ func printInfo(msg string) {
 func printWarning(msg string) {
 	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(colorWarning)).Bold(true).Render("!")
 	lipgloss.Fprintln(os.Stderr, icon, msg)
+}
+
+// printVerbose writes an extra detail line when the command was given --verbose.
+func printVerbose(ctx context.Context, format string, args ...any) {
+	if !settingsFrom(ctx).verbose {
+		return
+	}
+	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(colorSubtle)).Render("·")
+	lipgloss.Println(icon, fmt.Sprintf(format, args...))
+}
+
+// writeJSON renders v as an indented JSON document to w.
+func writeJSON(w io.Writer, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(w, string(data))
+	return err
 }
 
 func statusStyle(status string) lipgloss.Style {

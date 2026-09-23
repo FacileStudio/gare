@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
-// GareConfig represents the global configuration that can be set via file or CLI flags.
+// GareConfig represents the global configuration that can be set via file or CLI flags. ConfigPath
+// is where the loader read the file from, so the file itself cannot set it.
 type GareConfig struct {
-	Verbose          bool      `yaml:"verbose"`
-	ConfigPath       string    `yaml:"config_path"`
-	GitProvider      string    `yaml:"git_provider"`
-	UseGitHubCLI     bool      `yaml:"use_github_cli"`
-	UseGitLabCLI     bool      `yaml:"use_gitlab_cli"`
-	CredentialHelper string    `yaml:"credential_helper"`
-	LoadedAt         time.Time `yaml:"-" json:"-"`
+	Verbose          bool   `yaml:"verbose"`
+	ConfigPath       string `yaml:"-"`
+	GitProvider      string `yaml:"git_provider"`
+	UseGitHubCLI     bool   `yaml:"use_github_cli"`
+	UseGitLabCLI     bool   `yaml:"use_gitlab_cli"`
+	CredentialHelper string `yaml:"credential_helper"`
 }
 
 // Loader holds the configuration and provides methods to load and override it.
@@ -31,7 +30,6 @@ func NewLoader() *Loader {
 	return &Loader{
 		config: &GareConfig{
 			ConfigPath: DefaultConfigPath(),
-			LoadedAt:   time.Now(),
 		},
 		changed: make(map[string]bool),
 	}
@@ -58,9 +56,6 @@ func expandHomePath(path string) string {
 func (l *Loader) mergeFile(fileCfg *GareConfig) {
 	if !l.changed["verbose"] {
 		l.config.Verbose = fileCfg.Verbose
-	}
-	if !l.changed["config_path"] {
-		l.config.ConfigPath = fileCfg.ConfigPath
 	}
 	if !l.changed["git_provider"] && fileCfg.GitProvider != "" {
 		l.config.GitProvider = fileCfg.GitProvider
@@ -90,6 +85,5 @@ func (l *Loader) Load() (*GareConfig, error) {
 		}
 		l.mergeFile(&fileCfg)
 	}
-	l.config.LoadedAt = time.Now()
 	return l.config, nil
 }

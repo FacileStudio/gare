@@ -50,7 +50,6 @@ func TestMaxBytesPayload(t *testing.T) {
 func TestShutdownWaitsForDeploy(t *testing.T) {
 	var deployFinished atomic.Bool
 	s := New(Config{
-		Port: "0",
 		DeployHandler: func(ctx context.Context, appName string) error {
 			time.Sleep(80 * time.Millisecond)
 			deployFinished.Store(true)
@@ -82,7 +81,6 @@ func TestShutdownWaitsForDeploy(t *testing.T) {
 func TestShutdownTimeout(t *testing.T) {
 	release := make(chan struct{})
 	s := New(Config{
-		Port: "0",
 		DeployHandler: func(ctx context.Context, appName string) error {
 			<-release
 			return nil

@@ -72,25 +72,3 @@ func TestGetSnippetPath(t *testing.T) {
 		t.Errorf("got %q, want %q", p, expected)
 	}
 }
-
-func TestEnsureCaddyfileAtPath(t *testing.T) {
-	tempDir := t.TempDir()
-	caddyfilePath := filepath.Join(tempDir, "Caddyfile")
-
-	if err := EnsureCaddyfileAtPath(caddyfilePath); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	content, err := os.ReadFile(caddyfilePath)
-	if err != nil {
-		t.Fatalf("failed to read created Caddyfile: %v", err)
-	}
-
-	if string(content) != defaultCaddyfileContent {
-		t.Errorf("got %q, want %q", string(content), defaultCaddyfileContent)
-	}
-
-	if err := EnsureCaddyfileAtPath(caddyfilePath); err != nil {
-		t.Fatalf("unexpected error on second call: %v", err)
-	}
-}

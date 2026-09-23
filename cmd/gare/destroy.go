@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/caddy"
+	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -83,7 +83,7 @@ func removeArtifacts(ctx context.Context, name, appDir string, cfg *storage.AppC
 	} else if !cfg.IsStatic() {
 		imageName := fmt.Sprintf("localhost/%s:latest", name)
 		printInfo(fmt.Sprintf("Removing container image %s...", imageName))
-		if err := builder.RemoveImage(ctx, imageName); err != nil {
+		if err := podman.RemoveImage(ctx, imageName); err != nil {
 			printWarning(fmt.Sprintf("removing container image returned error: %v", err))
 		}
 	}

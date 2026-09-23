@@ -33,13 +33,6 @@ func TestResolveWorkload(t *testing.T) {
 	}
 }
 
-func TestResolveTypeForUnknownValue(t *testing.T) {
-	gf := &GareFile{Type: "kubernetes"}
-	if got := gf.ResolveType(); got != string(WorkloadContainer) {
-		t.Errorf("ResolveType for unknown value: got %q, want container", got)
-	}
-}
-
 func TestGareFileResolveComposeFile(t *testing.T) {
 	var nilGf *GareFile
 	if got := nilGf.ResolveComposeFile(); got != "" {

@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
+	"github.com/FacileStudio/gare/internal/dotenv"
 )
 
 // GetAppEnvPath returns the path to the application env file.
@@ -30,7 +31,7 @@ func GetAppEnv(appDir string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseDotEnv(string(data))
+	return dotenv.Parse(string(data))
 }
 
 // EnsureAppEnvFile creates the application env file when it does not exist yet.

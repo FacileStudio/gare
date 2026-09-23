@@ -6,8 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/git"
+	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +27,8 @@ func NewDeployCmd() *cobra.Command {
 	}
 }
 
-// RunDeploy executes the deployment pipeline for a single application.
+// RunDeploy executes the deployment pipeline for a single application. Every workload type runs the
+// same tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up.
 func RunDeploy(ctx context.Context, name string) error {
 	if err := storage.ValidateAppName(name); err != nil {
 		return err
@@ -39,21 +42,54 @@ func RunDeploy(ctx context.Context, name string) error {
 	}
 
 	repoDir := storage.GetRepoDir(appDir)
-	printInfo(fmt.Sprintf("Pulling latest git changes for %s...", name))
-	if err := builder.Pull(ctx, repoDir, os.Stdout, os.Stderr); err != nil {
-		return fmt.Errorf("git pull failed: %w", err)
-	}
-	if err := syncDeployConfig(baseDir, repoDir, appDir, cfg); err != nil {
+	printVerbose(ctx, "Resolved %s app %s: repo %s, port %d, container port %d, unit %s",
+		cfg.AppType, name, repoDir, cfg.Port, cfg.ContainerPort, systemd.GetUnitPath(name))
+	if err := fetchAppRevision(ctx, baseDir, appDir, repoDir, cfg); err != nil {
 		return err
 	}
+	if err := prepareWorkload(ctx, name, appDir, repoDir, cfg); err != nil {
+		return err
+	}
+	if err := activateApp(ctx, cfg); err != nil {
+		return err
+	}
+	printSuccess(fmt.Sprintf("Successfully deployed %s app %s (%s) -> %s",
+		cfg.AppType, name, deployedCommit(ctx, repoDir), formatDeployTarget(cfg)))
+	return nil
+}
 
+func fetchAppRevision(ctx context.Context, baseDir, appDir, repoDir string, cfg *storage.AppConfig) error {
+	printInfo(fmt.Sprintf("Pulling latest git changes for %s...", cfg.Name))
+	if err := git.Pull(ctx, repoDir, settingsFrom(ctx).auth, os.Stdout, os.Stderr); err != nil {
+		return fmt.Errorf("git pull failed: %w", err)
+	}
+	return syncDeployConfig(baseDir, repoDir, appDir, cfg)
+}
+
+// activateApp syncs ingress, restarts the unit, and only reports success once the health probes pass.
+func activateApp(ctx context.Context, cfg *storage.AppConfig) error {
+	if err := syncAppIngress(cfg); err != nil {
+		printWarning(fmt.Sprintf("Could not update the Caddy snippet (%v)", err))
+	}
+	if err := restartAppServices(ctx, cfg); err != nil {
+		return err
+	}
+	if err := verifyHealth(ctx, cfg); err != nil {
+		return err
+	}
+	cleanupAppDeploy(ctx)
+	return nil
+}
+
+// prepareWorkload writes the artifacts the configured workload type needs before it restarts.
+func prepareWorkload(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
 	if cfg.IsStatic() {
-		return deployStaticApp(ctx, name, appDir, repoDir, cfg)
+		return prepareStaticDeploy(ctx, name, appDir, repoDir, cfg)
 	}
 	if cfg.IsCompose() {
-		return deployComposeApp(ctx, name, appDir, repoDir, cfg)
+		return prepareComposeDeploy(ctx, name, appDir, repoDir, cfg)
 	}
-	return deployContainerApp(ctx, name, appDir, repoDir, cfg)
+	return prepareContainerDeploy(ctx, name, appDir, repoDir, cfg)
 }
 
 func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) error {
@@ -69,7 +105,7 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 		cfg.Port = port
 	}
 	if cfg.UsesPodManifest() && cfg.ContainerPort == 0 {
-		if exposed := builder.DetectExposedPort(repoDir, cfg.Containerfile); exposed > 0 {
+		if exposed := podman.DetectExposedPort(repoDir, cfg.Containerfile); exposed > 0 {
 			cfg.ContainerPort = exposed
 		}
 	}
@@ -79,41 +115,10 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 	return nil
 }
 
-func deployStaticApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
-	if err := prepareStaticDeploy(ctx, name, appDir, repoDir, cfg); err != nil {
-		return err
+func deployedCommit(ctx context.Context, repoDir string) string {
+	commit, _ := git.GetCommitHash(ctx, repoDir)
+	if commit == "" {
+		return "-"
 	}
-	if err := restartAppServices(ctx, cfg); err != nil {
-		return err
-	}
-	if err := verifyHealth(ctx, cfg); err != nil {
-		return err
-	}
-	cleanupAppDeploy(ctx)
-	target := formatDeployTarget(cfg)
-	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
-	if commitHash == "" {
-		commitHash = "-"
-	}
-	printSuccess(fmt.Sprintf("Successfully deployed static app %s (%s) -> %s", name, commitHash, target))
-	return nil
-}
-
-func deployContainerApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
-	if err := executePreDeploy(ctx, name, appDir, repoDir, cfg); err != nil {
-		return err
-	}
-
-	updateContainerIngress(cfg)
-
-	if err := restartAppServices(ctx, cfg); err != nil {
-		return err
-	}
-
-	if err := verifyHealth(ctx, cfg); err != nil {
-		return err
-	}
-
-	cleanupAppDeploy(ctx)
-	return nil
+	return commit
 }

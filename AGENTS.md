@@ -30,7 +30,7 @@ The version lives in two places and both move in the same `chore: release vX` co
 - Static containers are addressed through a cidfile (`%t/%N.cid`) so `ExecStop` can remove the exact container the unit started.
 - Static content is served from a gare-written Caddyfile (`~/.local/share/gare/apps/<app-name>/Caddyfile`) mounted at `/etc/caddy/Caddyfile`, not from `caddy file-server` flags: `file-server` cannot express the SPA fallback (`try_files {path} /index.html`) that static sites depend on for deep links.
 - Ingress: Caddy drop-in snippets at `/etc/caddy/conf.d/<app-name>.caddy`.
-- Storage: predictable filesystem paths under `~/.local/share/gare/apps/<app-name>/`.
+- Storage: predictable filesystem paths under `$XDG_DATA_HOME/gare/apps/<app-name>/`, defaulting to `~/.local/share/gare/apps/<app-name>/`.
 - Server: lightweight webhook receiver verifying HMAC-SHA256 signatures.
 
 ## Directory layout
@@ -39,10 +39,15 @@ The version lives in two places and both move in the same `chore: release vX` co
 cmd/gare/             CLI entrypoint and Cobra commands (package main)
 internal/
   atomicfile/         crash-safe atomic file writes
-  builder/            git operations and container image builds
   caddy/              caddy configuration snippets and reloads
+  compose/            compose file discovery, published ports, derived probes
+  dotenv/             dotenv parsing and writing
+  git/                git clone, pull, commit lookup and credential plumbing
+  health/             HTTP readiness probing
+  manifest/           Pod manifest generation and env/port rewriting
+  podman/             podman build, image, Containerfile and compose CLI invocation
   server/             webhook HTTP daemon and HMAC verification
-  storage/            app state, manifests, and port discovery
+  storage/            app state, workload types, tags, domains, health, ports
   systemd/            unit file synthesis and systemctl operations
   xdg/                XDG base directory resolution for the current user
 ```
@@ -74,6 +79,7 @@ internal/
 - A workload type change retires the workload it replaces: write the new unit first, then stop the old one before any `daemon-reload`. systemd keeps serving the loaded definition until it reloads, so the stop still runs the outgoing unit's own `ExecStop` — a compose stack goes down through `podman compose down` rather than being replaced by a `kube down` that names no pod, which would leave the stack running in front of the new unit.
 - Each template's `Description=` comes from `systemd.KubeUnitDescription`, `StaticUnitDescription` or `ComposeUnitDescription`, and `GareUnitDescriptions` proves the set. Those strings are the ownership marker that tells a deploy whether it may replace a unit file, so never spell one out in a template or a guard: a description that drifts from its template makes gare refuse to redeploy its own unit.
 - Retire legacy Quadlet sources on write: an older gare left `~/.config/containers/systemd/<app-name>.kube` or `.container` for the Podman generator. Remove them, stopping the workload first, because after `daemon-reload` the generated definition is gone and its own teardown never runs, leaving an orphaned pod or container in front of the new unit.
-- Resolve user paths through the XDG base directories: `$XDG_CONFIG_HOME` (defaulting to `~/.config`) locates the systemd user units, so gare agrees with systemd on a host that sets it.
+- Resolve user paths through the XDG base directories: `$XDG_CONFIG_HOME` (defaulting to `~/.config`) locates the systemd user units and `$XDG_DATA_HOME` (defaulting to `~/.local/share`) locates application storage, so gare agrees with systemd and the rest of the desktop on a host that sets them.
+- Every documented global flag must change behaviour. The `~/.gare.yml` loader feeds verbosity and git authentication, and only a flag the operator actually passed may override the file, so a setting in the file survives unless the command line contradicts it.
 - Paths written into a unit must be absolute and free of whitespace: systemd splits `ExecStart` on whitespace without honouring quotes, so a space silently becomes an extra argument and the unit starts the wrong command.
 - Port discovery begins at port 8000 and increments upwards, avoiding both recorded app ports and active system listeners.

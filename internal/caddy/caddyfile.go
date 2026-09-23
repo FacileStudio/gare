@@ -16,11 +16,6 @@ func EnsureCaddyfile() error {
 	return EnsureCaddyfilePaths(ResolveCaddyfilePath(), ResolveConfDir())
 }
 
-// EnsureCaddyfileAtPath creates or updates a root Caddyfile at the specified path.
-func EnsureCaddyfileAtPath(caddyfilePath string) error {
-	return EnsureCaddyfilePaths(caddyfilePath, ResolveConfDir())
-}
-
 // EnsureCaddyfilePaths creates or updates a root Caddyfile ensuring the snippet directory is imported.
 func EnsureCaddyfilePaths(caddyfilePath, confDir string) error {
 	if confDir == "" {

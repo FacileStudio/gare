@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"charm.land/fang/v2"
 	"github.com/FacileStudio/gare/cmd/gare/config"
@@ -66,16 +64,11 @@ func setupPersistentPreRun(root *cobra.Command, flags *rootFlags) {
 		if err := applyColorPreference(flags.noColor); err != nil {
 			return err
 		}
-		cfg := NewConfig()
-		cfg.loader.SetVerbose(flags.verbose)
-		cfg.loader.SetConfigPath(flags.configPath)
-		cfg.loader.SetGitProvider(flags.gitProvider)
-		cfg.loader.SetUseGitHubCLI(flags.useGitHubCLI)
-		cfg.loader.SetUseGitLabCLI(flags.useGitLabCLI)
-		cfg.loader.SetCredentialHelper(flags.credentialHelper)
-		if _, err := cfg.loader.Load(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to load configuration: %v\n", err)
+		resolved, err := loadSettings(cmd, flags)
+		if err != nil {
+			return err
 		}
+		cmd.SetContext(withSettings(cmd.Context(), resolved))
 		return nil
 	}
 }

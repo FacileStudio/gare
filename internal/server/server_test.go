@@ -40,7 +40,6 @@ func TestHealthCheck(t *testing.T) {
 
 func TestServerLifecycle(t *testing.T) {
 	s := New(Config{
-		Port: "0",
 		DeployHandler: func(ctx context.Context, appName string) error {
 			return nil
 		},

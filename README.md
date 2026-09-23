@@ -230,21 +230,29 @@ Gare optionally loads settings from `~/.gare.yml`:
 
 ```yaml
 verbose: false
-config_path: ~/.gare.yml
 git_provider: github
 use_github_cli: true
 use_gitlab_cli: false
 credential_helper: ""
 ```
 
-All configuration values can be overridden via CLI flags:
+- `verbose` makes gare print the resolved workload, paths and unit file behind each command.
+- `git_provider` restricts the credentials gare configures to `github` or `gitlab`; an unknown provider fails the command.
+- `use_github_cli` / `use_gitlab_cli` select the `gh`/`glab` credential helper even when it is not the one gare would pick by itself.
+- `credential_helper` replaces the helper command gare configures for both remotes.
+
+Without a token in `GITHUB_TOKEN`/`GH_TOKEN` or `GITLAB_TOKEN`/`GL_TOKEN` and without the matching CLI installed, the remote is fetched unauthenticated.
+
+Each setting can be overridden per invocation:
 - `-c, --config`: Path to config file (default: `~/.gare.yml`)
 - `--git-provider`: Override git provider (`github`, `gitlab`)
 - `--use-github-cli`: Force use of GitHub CLI
 - `--use-gitlab-cli`: Force use of GitLab CLI
 - `--credential-helper`: Override credential helper
-- `-v, --verbose`: Enable verbose logging
+- `-v, --verbose`: Print the resolved configuration and files behind each command
 - `--no-color`: Disable colored output (also honoured via the `NO_COLOR` environment variable)
+
+A flag only overrides the file when you actually pass it, so a value in `~/.gare.yml` stands unless the command line contradicts it. A malformed config file fails the command instead of being silently ignored.
 
 ## GitOps Webhook Daemon
 

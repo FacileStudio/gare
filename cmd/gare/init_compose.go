@@ -6,11 +6,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/podman"
 )
 
 func checkComposeProvider(ctx context.Context) {
-	if err := builder.CheckComposeProvider(ctx); err != nil {
+	if err := podman.CheckComposeProvider(ctx); err != nil {
 		printWarning("podman compose provider is not available")
 		fmt.Printf("\nCompose workloads need an external provider. Install one with:\n" +
 			"  sudo apt install docker-compose-v2\n  # or\n  pipx install podman-compose\n\n")

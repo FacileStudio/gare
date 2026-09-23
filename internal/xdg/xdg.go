@@ -25,3 +25,11 @@ func ConfigHome() string {
 	}
 	return filepath.Join(Home(), ".config")
 }
+
+// DataHome returns the XDG data directory, defaulting to ~/.local/share.
+func DataHome() string {
+	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
+		return dataHome
+	}
+	return filepath.Join(Home(), ".local", "share")
+}

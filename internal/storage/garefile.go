@@ -3,109 +3,32 @@ package storage
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// StaticSection holds static site configuration.
-type StaticSection struct {
-	Dir  string `yaml:"dir"`
-	Root string `yaml:"root"`
-}
-
-// BuildSection holds build command and containerfile configuration.
-type BuildSection struct {
-	Command       string `yaml:"command"`
-	Containerfile string `yaml:"containerfile"`
-	Context       string `yaml:"context"`
-}
-
 // GareFile represents the configuration parsed from gare.yaml or gare.yml.
 type GareFile struct {
-	Type          string         `yaml:"type"`
-	ComposeFile   string         `yaml:"compose_file,omitempty"`
-	Port          int            `yaml:"port"`
-	ContainerPort int            `yaml:"container_port,omitempty"`
-	Domain        string         `yaml:"domain"`
-	Containerfile string         `yaml:"containerfile"`
-	Context       string         `yaml:"context"`
-	StaticDir     string         `yaml:"static_dir"`
-	BuildCmd      string         `yaml:"build_cmd"`
-	Healthcheck   string         `yaml:"healthcheck"`
-	HealthCheck   string         `yaml:"health_check"`
-	Healthchecks  []HealthProbe  `yaml:"healthchecks,omitempty"`
-	Tags          []string       `yaml:"tags,omitempty"`
-	Static        *StaticSection `yaml:"static"`
-	Build         *BuildSection  `yaml:"build"`
+	Type          string        `yaml:"type"`
+	ComposeFile   string        `yaml:"compose_file,omitempty"`
+	Port          int           `yaml:"port"`
+	ContainerPort int           `yaml:"container_port,omitempty"`
+	Containerfile string        `yaml:"containerfile"`
+	Context       string        `yaml:"context"`
+	StaticDir     string        `yaml:"static_dir"`
+	BuildCmd      string        `yaml:"build_cmd"`
+	Healthcheck   string        `yaml:"healthcheck"`
+	Healthchecks  []HealthProbe `yaml:"healthchecks,omitempty"`
+	Tags          []string      `yaml:"tags,omitempty"`
 }
 
-// ResolveType returns the application type, defaulting to "container" for unknown values.
-func (g *GareFile) ResolveType() string {
-	workload, err := g.ResolveWorkload()
-	if err != nil {
-		return string(WorkloadContainer)
-	}
-	return string(workload)
-}
-
-// ResolveContainerfile returns the containerfile path if configured.
-func (g *GareFile) ResolveContainerfile() string {
+// ResolveComposeFile returns the configured compose file name, trimmed of surrounding whitespace.
+func (g *GareFile) ResolveComposeFile() string {
 	if g == nil {
 		return ""
 	}
-	if g.Build != nil && g.Build.Containerfile != "" {
-		return g.Build.Containerfile
-	}
-	return g.Containerfile
-}
-
-// ResolveContext returns the build context directory if configured.
-func (g *GareFile) ResolveContext() string {
-	if g == nil {
-		return ""
-	}
-	if g.Build != nil && g.Build.Context != "" {
-		return g.Build.Context
-	}
-	return g.Context
-}
-
-// ResolveStaticDir returns the static directory path if configured.
-func (g *GareFile) ResolveStaticDir() string {
-	if g == nil {
-		return ""
-	}
-	if g.Static != nil {
-		if g.Static.Dir != "" {
-			return g.Static.Dir
-		}
-		if g.Static.Root != "" {
-			return g.Static.Root
-		}
-	}
-	return g.StaticDir
-}
-
-// ResolveBuildCmd returns the build command if configured.
-func (g *GareFile) ResolveBuildCmd() string {
-	if g == nil {
-		return ""
-	}
-	if g.Build != nil && g.Build.Command != "" {
-		return g.Build.Command
-	}
-	return g.BuildCmd
-}
-
-// ResolveHealthcheck returns the healthcheck path if configured.
-func (g *GareFile) ResolveHealthcheck() string {
-	if g == nil {
-		return ""
-	}
-	if g.Healthcheck != "" {
-		return g.Healthcheck
-	}
-	return g.HealthCheck
+	return strings.TrimSpace(g.ComposeFile)
 }
 
 // LoadGareFile reads and parses gare.yaml or gare.yml from the repo directory.

@@ -11,12 +11,12 @@ import (
 
 func (s *Server) verifyAuth(r *http.Request, body []byte) bool {
 	if gitlabToken := r.Header.Get("X-Gitlab-Token"); gitlabToken != "" {
-		return subtle.ConstantTimeCompare([]byte(gitlabToken), []byte(s.Secret)) == 1
+		return subtle.ConstantTimeCompare([]byte(gitlabToken), []byte(s.secret)) == 1
 	}
 
 	hubSig := r.Header.Get("X-Hub-Signature-256")
 	if strings.HasPrefix(hubSig, "sha256=") {
-		return verifyHubSignature(hubSig[len("sha256="):], s.Secret, body)
+		return verifyHubSignature(hubSig[len("sha256="):], s.secret, body)
 	}
 
 	return false

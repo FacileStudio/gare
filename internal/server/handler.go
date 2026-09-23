@@ -47,7 +47,7 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.Secret != "" && !s.verifyAuth(r, body) {
+	if s.secret != "" && !s.verifyAuth(r, body) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -68,10 +68,10 @@ func (s *Server) dispatchDeploy(appName string) {
 	s.wg.Go(func() {
 		lock.Lock()
 		defer lock.Unlock()
-		if s.DeployHandler != nil {
+		if s.deployHandler != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 			defer cancel()
-			if err := s.DeployHandler(ctx, appName); err != nil {
+			if err := s.deployHandler(ctx, appName); err != nil {
 				fmt.Fprintf(os.Stderr, "deploy error for %s: %v\n", appName, err)
 			}
 		}

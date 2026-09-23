@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/git"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -175,14 +175,15 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 func cloneAppRepo(ctx context.Context, appDir string, opts appCreateOptions) error {
 	repoDir := storage.GetRepoDir(appDir)
 	printInfo(fmt.Sprintf("Cloning %s (%s) into %s...", opts.repo, opts.branch, repoDir))
-	cloneOpts := builder.CloneOptions{
+	cloneOpts := git.CloneOptions{
 		RepoURL:   opts.repo,
 		Branch:    opts.branch,
 		TargetDir: repoDir,
+		Auth:      settingsFrom(ctx).auth,
 		Stdout:    os.Stdout,
 		Stderr:    os.Stderr,
 	}
-	return builder.Clone(ctx, cloneOpts)
+	return git.Clone(ctx, cloneOpts)
 }
 
 func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, error) {

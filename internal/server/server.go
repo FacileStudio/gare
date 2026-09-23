@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -15,16 +14,14 @@ const DefaultPort = "8080"
 
 // Config contains configuration options for Server.
 type Config struct {
-	Port          string
 	Secret        string
 	DeployHandler func(ctx context.Context, appName string) error
 }
 
 // Server handles incoming HTTP webhooks and dispatches deployments.
 type Server struct {
-	Port          string
-	Secret        string
-	DeployHandler func(ctx context.Context, appName string) error
+	secret        string
+	deployHandler func(ctx context.Context, appName string) error
 
 	httpServer *http.Server
 	listener   net.Listener
@@ -36,26 +33,19 @@ type Server struct {
 // New creates a new Server with the given configuration.
 func New(cfg Config) *Server {
 	return &Server{
-		Port:          cfg.Port,
-		Secret:        cfg.Secret,
-		DeployHandler: cfg.DeployHandler,
+		secret:        cfg.Secret,
+		deployHandler: cfg.DeployHandler,
 	}
 }
 
+// resolveAddr turns the caller's listen address into one net.Listen accepts, defaulting to the
+// default port when the caller passes none. The port lives in the address alone so there is a
+// single place to read it from.
 func (s *Server) resolveAddr(addr string) string {
-	if addr != "" {
-		if !strings.Contains(addr, ":") {
-			return ":" + addr
-		}
-		return addr
-	}
-	if s.Port == "" {
+	if addr == "" {
 		return ":" + DefaultPort
 	}
-	if strings.Contains(s.Port, ":") {
-		return s.Port
-	}
-	return ":" + s.Port
+	return addr
 }
 
 // Start listens and serves HTTP requests on the specified address.

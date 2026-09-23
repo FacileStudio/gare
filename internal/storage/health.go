@@ -74,14 +74,6 @@ func (c *AppConfig) SetHealth(path string, probes []HealthProbe) {
 	c.Health = &HealthSection{Path: path, Probes: probes}
 }
 
-// ResolveHealthProbes returns the probes declared in the gare configuration.
-func (g *GareFile) ResolveHealthProbes() []HealthProbe {
-	if g == nil {
-		return nil
-	}
-	return g.Healthchecks
-}
-
 // ValidateHealthProbes validates probe ports and paths.
 func ValidateHealthProbes(probes []HealthProbe) error {
 	for _, probe := range probes {

@@ -7,18 +7,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/compose"
+	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
 
 // resolveComposeWorkload resolves the compose file to run and validates the routed port.
 func resolveComposeWorkload(repoDir, configured string, port int) (string, error) {
-	composeFile, err := storage.LocateComposeFile(repoDir, configured)
+	composeFile, err := compose.LocateFile(repoDir, configured)
 	if err != nil {
 		return "", err
 	}
-	if err := storage.ValidateComposePort(filepath.Join(repoDir, composeFile), port); err != nil {
+	if err := compose.ValidatePort(filepath.Join(repoDir, composeFile), port); err != nil {
 		return "", err
 	}
 	return composeFile, nil
@@ -65,57 +66,32 @@ func writeComposeArtifacts(ctx context.Context, name, appDir string, opts appCre
 	return saveAppMetadata(name, appDir, opts)
 }
 
+// prepareComposeDeploy resolves the compose file, checks the provider and the routed port, runs the
+// build command, then writes the synthesized unit the stack is started and torn down through.
 func prepareComposeDeploy(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
 	composeFile, err := resolveComposeWorkload(repoDir, cfg.ComposeFile, cfg.Port)
 	if err != nil {
 		return err
 	}
-	if err := builder.CheckComposeProvider(ctx); err != nil {
+	if err := podman.CheckComposeProvider(ctx); err != nil {
 		return err
 	}
-	if cfg.BuildCmd != "" {
-		printInfo(fmt.Sprintf("Running build command: %s", cfg.BuildCmd))
-		if err := builder.RunBuildCommand(ctx, repoDir, cfg.BuildCmd, os.Stdout, os.Stderr); err != nil {
-			return fmt.Errorf("build command failed: %w", err)
-		}
+	if err := runBuildCommand(ctx, repoDir, cfg.BuildCmd); err != nil {
+		return err
 	}
 	return writeComposeUnit(ctx, name, appDir, repoDir, composeFile)
 }
 
-func deployComposeApp(ctx context.Context, name, appDir, repoDir string, cfg *storage.AppConfig) error {
-	if err := prepareComposeDeploy(ctx, name, appDir, repoDir, cfg); err != nil {
-		return err
-	}
-
-	updateContainerIngress(cfg)
-
-	if err := restartAppServices(ctx, cfg); err != nil {
-		return err
-	}
-
-	if err := verifyHealth(ctx, cfg); err != nil {
-		return err
-	}
-
-	cleanupAppDeploy(ctx)
-	commitHash, _ := builder.GetCommitHash(ctx, repoDir)
-	if commitHash == "" {
-		commitHash = "-"
-	}
-	printSuccess(fmt.Sprintf("Successfully deployed compose app %s (%s) -> %s", name, commitHash, formatDeployTarget(cfg)))
-	return nil
-}
-
 func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.AppConfig) {
 	repoDir := storage.GetRepoDir(appDir)
-	composeFile, err := storage.LocateComposeFile(repoDir, cfg.ComposeFile)
+	composeFile, err := compose.LocateFile(repoDir, cfg.ComposeFile)
 	if err != nil {
 		printWarning(fmt.Sprintf("Skipping compose teardown: %v", err))
 		return
 	}
 
 	printInfo(fmt.Sprintf("Removing compose stack %s including volumes...", composeFile))
-	downOpts := builder.ComposeDownOptions{
+	downOpts := podman.ComposeDownOptions{
 		RepoDir:     repoDir,
 		ComposeFile: composeFile,
 		Project:     composeProjectName(cfg.Name),
@@ -123,7 +99,7 @@ func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.App
 		Stdout:      os.Stdout,
 		Stderr:      os.Stderr,
 	}
-	if err := builder.ComposeDown(ctx, downOpts); err != nil {
+	if err := podman.ComposeDown(ctx, downOpts); err != nil {
 		printWarning(fmt.Sprintf("podman compose down returned error: %v", err))
 	}
 	verifyComposeContainersGone(ctx, cfg, "teardown")
@@ -133,7 +109,7 @@ func warnStrayComposeFile(repoDir string, isCompose bool) {
 	if isCompose {
 		return
 	}
-	if detected := storage.DetectComposeFile(repoDir); detected != "" {
+	if detected := compose.DetectFile(repoDir); detected != "" {
 		printWarning(fmt.Sprintf("compose file %s found but the workload type is not compose; set type: compose in gare.yml to deploy it", detected))
 	}
 }

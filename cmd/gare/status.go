@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/builder"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -65,17 +62,13 @@ func runStatus(ctx context.Context, w io.Writer, name string, opts statusOptions
 
 	details := collectAppStatus(ctx, appDir, cfg)
 	if opts.jsonOutput {
-		return outputStatusJSON(w, details)
+		return writeJSON(w, details)
 	}
 	return outputStatusHuman(w, details)
 }
 
 func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig) *AppStatusDetails {
 	repoDir := storage.GetRepoDir(appDir)
-	commit, _ := builder.GetCommitHash(ctx, repoDir)
-	if commit == "" {
-		commit = "-"
-	}
 	details := &AppStatusDetails{
 		Name:          cfg.Name,
 		AppType:       cfg.AppType,
@@ -85,7 +78,7 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		ContainerPort: cfg.ContainerPort,
 		RepoURL:       cfg.RepoURL,
 		Branch:        cfg.Branch,
-		Commit:        commit,
+		Commit:        deployedCommit(ctx, repoDir),
 		CreatedAt:     cfg.CreatedAt,
 		Healthcheck:   cfg.HealthPath(),
 		Probes:        cfg.HealthProbes(),
@@ -97,13 +90,4 @@ func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig
 		details.Status = props.ActiveState
 	}
 	return details
-}
-
-func outputStatusJSON(w io.Writer, details *AppStatusDetails) error {
-	data, err := json.MarshalIndent(details, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(w, string(data))
-	return nil
 }

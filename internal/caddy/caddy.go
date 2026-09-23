@@ -27,9 +27,6 @@ const DefaultConfDir = "/etc/caddy/conf.d"
 // DefaultCaddyfile is the root Caddyfile that imports gare's drop-in configuration snippets.
 const DefaultCaddyfile = `/etc/caddy/Caddyfile`
 
-const defaultCaddyfileContent = `import /etc/caddy/conf.d/*.caddy
-`
-
 // SnippetData holds the template parameters for generating a Caddy reverse proxy snippet.
 type SnippetData struct {
 	Address string

@@ -7,22 +7,8 @@ import (
 	"testing"
 )
 
-const expectedManifest = `apiVersion: v1
-kind: Pod
-metadata:
-  name: webapp
-  labels:
-    app: webapp
-spec:
-  containers:
-  - name: webapp
-    image: localhost/webapp:latest
-    ports:
-    - containerPort: 3011
-      hostPort: 8080
-`
-
 func TestAppPaths(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
 	baseDir := DefaultBaseDir()
 	if baseDir == "" || !strings.HasSuffix(baseDir, filepath.Join(".local", "share", "gare", "apps")) {
 		t.Fatalf("unexpected baseDir %q", baseDir)
@@ -101,29 +87,6 @@ func testInvalidConfigs(t *testing.T, tmpDir string) {
 	}
 	if _, err := LoadConfig(badPath); err == nil {
 		t.Error("expected unmarshal error for invalid json, got nil")
-	}
-}
-
-func TestGenerateDefaultManifest(t *testing.T) {
-	tmpDir := t.TempDir()
-	manifestFile := filepath.Join(tmpDir, "manifest.yaml")
-	if err := GenerateDefaultManifest("webapp", 3011, 8080, manifestFile); err != nil {
-		t.Fatalf("GenerateDefaultManifest failed: %v", err)
-	}
-	content, err := os.ReadFile(manifestFile)
-	if err != nil || string(content) != expectedManifest {
-		t.Fatalf("manifest content mismatch: %v", err)
-	}
-
-	appDir := filepath.Join(tmpDir, "appwithdir")
-	if err := os.MkdirAll(appDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := GenerateDefaultManifest("webapp2", 3011, 9000, appDir); err != nil {
-		t.Fatalf("GenerateDefaultManifest with dir failed: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(appDir, "manifest.yaml")); err != nil {
-		t.Fatalf("expected manifest.yaml to be created: %v", err)
 	}
 }
 

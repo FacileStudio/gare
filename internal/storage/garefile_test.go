@@ -6,6 +6,17 @@ import (
 	"testing"
 )
 
+func assertWorkloadType(t *testing.T, gf *GareFile, want string) {
+	t.Helper()
+	workload, err := gf.ResolveWorkload()
+	if err != nil {
+		t.Fatalf("unexpected workload resolution error: %v", err)
+	}
+	if string(workload) != want {
+		t.Errorf("workload type: got %q, want %q", workload, want)
+	}
+}
+
 func TestLoadGareFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	gf, err := LoadGareFile(tmpDir)
@@ -25,9 +36,10 @@ func TestLoadGareFile(t *testing.T) {
 	if err != nil || gf == nil {
 		t.Fatalf("failed to load gare.yaml: %v", err)
 	}
-	if gf.ResolveType() != "static" || gf.ResolveContainerfile() != "Containerfile.dev" ||
-		gf.ResolveContext() != "./src" || gf.ResolveStaticDir() != "dist" || gf.ResolveBuildCmd() != "npm run build" {
-		t.Errorf("unexpected resolved values from gare.yaml: %+v", gf)
+	assertWorkloadType(t, gf, "static")
+	if gf.Containerfile != "Containerfile.dev" ||
+		gf.Context != "./src" || gf.StaticDir != "dist" || gf.BuildCmd != "npm run build" {
+		t.Errorf("unexpected parsed values from gare.yaml: %+v", gf)
 	}
 
 	testLoadGareYmlAndInvalid(t, tmpDir)
@@ -38,7 +50,7 @@ func testLoadGareYmlAndInvalid(t *testing.T, tmpDir string) {
 	if err := os.MkdirAll(ymlDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	ymlContent := "type: container\nstatic:\n  dir: build\nbuild:\n  command: cargo build\n  containerfile: Dockerfile\n  context: .\n"
+	ymlContent := "type: container\ncontainerfile: Dockerfile\ncontext: .\nstatic_dir: build\nbuild_cmd: cargo build\n"
 	if err := os.WriteFile(filepath.Join(ymlDir, "gare.yml"), []byte(ymlContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -46,9 +58,10 @@ func testLoadGareYmlAndInvalid(t *testing.T, tmpDir string) {
 	if err != nil || gf == nil {
 		t.Fatalf("failed to load gare.yml: %v", err)
 	}
-	if gf.ResolveType() != "container" || gf.ResolveContainerfile() != "Dockerfile" ||
-		gf.ResolveContext() != "." || gf.ResolveStaticDir() != "build" || gf.ResolveBuildCmd() != "cargo build" {
-		t.Errorf("unexpected resolved values from gare.yml: %+v", gf)
+	assertWorkloadType(t, gf, "container")
+	if gf.Containerfile != "Dockerfile" ||
+		gf.Context != "." || gf.StaticDir != "build" || gf.BuildCmd != "cargo build" {
+		t.Errorf("unexpected parsed values from gare.yml: %+v", gf)
 	}
 
 	badDir := filepath.Join(tmpDir, "baddir")
@@ -63,45 +76,23 @@ func testLoadGareYmlAndInvalid(t *testing.T, tmpDir string) {
 	}
 }
 
-func TestGareFileResolveMethods(t *testing.T) {
+func TestGareFileFlatFields(t *testing.T) {
 	var nilGf *GareFile
-	if got := nilGf.ResolveType(); got != "container" {
-		t.Errorf("nil ResolveType: got %q, want container", got)
-	}
-	if got := nilGf.ResolveContainerfile(); got != "" {
-		t.Errorf("nil ResolveContainerfile: got %q, want empty", got)
-	}
-	if got := nilGf.ResolveContext(); got != "" {
-		t.Errorf("nil ResolveContext: got %q, want empty", got)
-	}
-	if got := nilGf.ResolveStaticDir(); got != "" {
-		t.Errorf("nil ResolveStaticDir: got %q, want empty", got)
-	}
-	if got := nilGf.ResolveBuildCmd(); got != "" {
-		t.Errorf("nil ResolveBuildCmd: got %q, want empty", got)
-	}
-	if got := nilGf.ResolveHealthcheck(); got != "" {
-		t.Errorf("nil ResolveHealthcheck: got %q, want empty", got)
+	assertWorkloadType(t, nilGf, "container")
+	if nilGf.ResolveComposeFile() != "" {
+		t.Errorf("nil ResolveComposeFile: got %q, want empty", nilGf.ResolveComposeFile())
 	}
 
-	testGareFileOverrides(t)
-}
-
-func testGareFileOverrides(t *testing.T) {
 	gf := &GareFile{
-		Type: "static", Containerfile: "flat.dockerfile", Context: "flat-context",
-		StaticDir: "flat-static", BuildCmd: "flat-build", Healthcheck: "/healthz",
-		Static: &StaticSection{Dir: "nested-static"},
-		Build:  &BuildSection{Command: "nested-build", Containerfile: "nested.dockerfile", Context: "nested-context"},
+		Type: "static", Containerfile: "nested.dockerfile", Context: "nested-context",
+		StaticDir: "nested-static", BuildCmd: "nested-build", Healthcheck: "/healthz",
 	}
-	if gf.ResolveType() != "static" || gf.ResolveContainerfile() != "nested.dockerfile" {
-		t.Errorf("unexpected type/containerfile: %+v", gf)
+	assertWorkloadType(t, gf, "static")
+	if gf.Containerfile != "nested.dockerfile" || gf.Context != "nested-context" {
+		t.Errorf("unexpected containerfile/context: %+v", gf)
 	}
-	if gf.ResolveContext() != "nested-context" || gf.ResolveStaticDir() != "nested-static" {
-		t.Errorf("unexpected context/static dir: %+v", gf)
-	}
-	if gf.ResolveBuildCmd() != "nested-build" || gf.ResolveHealthcheck() != "/healthz" {
-		t.Errorf("unexpected build cmd/healthcheck: %+v", gf)
+	if gf.StaticDir != "nested-static" || gf.BuildCmd != "nested-build" || gf.Healthcheck != "/healthz" {
+		t.Errorf("unexpected static dir/build cmd/healthcheck: %+v", gf)
 	}
 }
 

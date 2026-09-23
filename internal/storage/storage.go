@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
+	"github.com/FacileStudio/gare/internal/xdg"
 )
 
 var appNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`)
@@ -35,11 +36,7 @@ type AppConfig struct {
 
 // DefaultBaseDir returns the default directory path for app storage.
 func DefaultBaseDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		home = os.Getenv("HOME")
-	}
-	return filepath.Join(home, ".local", "share", "gare", "apps")
+	return filepath.Join(xdg.DataHome(), "gare", "apps")
 }
 
 // ValidateAppName validates an application name against allowed pattern.

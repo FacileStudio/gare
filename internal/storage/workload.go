@@ -31,14 +31,6 @@ func (g *GareFile) ResolveWorkload() (WorkloadType, error) {
 	}
 }
 
-// ResolveComposeFile returns the configured compose file name or empty when unset.
-func (g *GareFile) ResolveComposeFile() string {
-	if g == nil {
-		return ""
-	}
-	return strings.TrimSpace(g.ComposeFile)
-}
-
 // IsStatic reports whether the application is configured as a static site.
 func (c *AppConfig) IsStatic() bool {
 	return c != nil && strings.EqualFold(c.AppType, string(WorkloadStatic))

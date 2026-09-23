@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/builder"
+	"github.com/FacileStudio/gare/internal/git"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -70,7 +69,7 @@ func runList(ctx context.Context, w io.Writer, opts listOptions) error {
 
 	items := collectAppItems(ctx, baseDir, apps)
 	if opts.jsonOutput {
-		return outputJSON(w, items)
+		return writeJSON(w, items)
 	}
 	return outputTable(w, items)
 }
@@ -80,7 +79,7 @@ func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppCon
 	for _, app := range apps {
 		appDir := storage.GetAppDir(baseDir, app.Name)
 		repoDir := storage.GetRepoDir(appDir)
-		commit, _ := builder.GetCommitHash(ctx, repoDir)
+		commit, _ := git.GetCommitHash(ctx, repoDir)
 		status := "inactive"
 		s, _ := systemd.IsActive(ctx, app.Name)
 		if s != "" {
@@ -105,15 +104,6 @@ func outputQuiet(w io.Writer, apps []*storage.AppConfig) error {
 	for _, app := range apps {
 		fmt.Fprintln(w, app.Name)
 	}
-	return nil
-}
-
-func outputJSON(w io.Writer, items []appListItem) error {
-	data, err := json.MarshalIndent(items, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(w, string(data))
 	return nil
 }
 
