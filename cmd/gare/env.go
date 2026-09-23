@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/dotenv"
-	"github.com/FacileStudio/gare/internal/manifest"
-	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -96,26 +94,26 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 	if err != nil {
 		return err
 	}
-	store, err := applyEnvChange(name,
-		func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
-		func(manifestPath string) error { return manifest.SetEnv(manifestPath, vars) },
-	)
+	appDir, store, err := resolveEnvStore(name)
 	if err != nil {
-		return fmt.Errorf("failed to set environment variables: %w", err)
+		return err
 	}
-	printSuccess(fmt.Sprintf("Updated %d environment variable(s) in %s", len(vars), store))
+	if err := store.write(appDir, vars); err != nil {
+		return envStoreError("set", store, err)
+	}
+	printSuccess(fmt.Sprintf("Updated %d environment variable(s) in %s", len(vars), store.label))
 	return reloadIfActive(ctx, name)
 }
 
 func runEnvUnset(ctx context.Context, name string, keys []string) error {
-	store, err := applyEnvChange(name,
-		func(appDir string) error { return storage.UnsetAppEnv(appDir, keys) },
-		func(manifestPath string) error { return manifest.UnsetEnv(manifestPath, keys) },
-	)
+	appDir, store, err := resolveEnvStore(name)
 	if err != nil {
-		return fmt.Errorf("failed to unset environment variables: %w", err)
+		return err
 	}
-	printSuccess(fmt.Sprintf("Removed %d environment variable(s) from %s", len(keys), store))
+	if err := store.remove(appDir, keys); err != nil {
+		return envStoreError("unset", store, err)
+	}
+	printSuccess(fmt.Sprintf("Removed %d environment variable(s) from %s", len(keys), store.label))
 	return reloadIfActive(ctx, name)
 }
 
@@ -124,11 +122,12 @@ func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to read env file: %w", err)
 	}
-	if _, err := applyEnvChange(name,
-		func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
-		func(manifestPath string) error { return manifest.SetEnv(manifestPath, vars) },
-	); err != nil {
-		return fmt.Errorf("failed to load environment variables: %w", err)
+	appDir, store, err := resolveEnvStore(name)
+	if err != nil {
+		return err
+	}
+	if err := store.write(appDir, vars); err != nil {
+		return envStoreError("load", store, err)
 	}
 	printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))
 	return reloadIfActive(ctx, name)

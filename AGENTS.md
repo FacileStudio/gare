@@ -38,12 +38,13 @@ The version lives in two places and both move in the same `chore: release vX` co
 ```
 cmd/gare/             CLI entrypoint and Cobra commands (package main)
 internal/
+  appname/            application name validation shared by the CLI and the webhook server
   atomicfile/         crash-safe atomic file writes
   caddy/              caddy configuration snippets and reloads
   compose/            compose file discovery, published ports, derived probes
   dotenv/             dotenv parsing and writing
   git/                git clone, pull, commit lookup and credential plumbing
-  health/             HTTP readiness probing
+  health/             the readiness probe type and HTTP polling
   manifest/           Pod manifest generation and env/port rewriting
   podman/             podman build, image, Containerfile and compose CLI invocation
   server/             webhook HTTP daemon and HMAC verification

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/FacileStudio/gare/internal/appname"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -8,7 +9,7 @@ import (
 // command that operates on one application agrees on validation and on the error an unknown app
 // reports.
 func loadAppConfig(name string) (string, *storage.AppConfig, error) {
-	if err := storage.ValidateAppName(name); err != nil {
+	if err := appname.Validate(name); err != nil {
 		return "", nil, err
 	}
 	appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)

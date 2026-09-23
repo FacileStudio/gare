@@ -148,30 +148,3 @@ func TestDeleteAppStorage(t *testing.T) {
 		t.Errorf("DeleteAppStorage on nonexistent dir error: %v", err)
 	}
 }
-
-func TestValidateAppName(t *testing.T) {
-	cases := []struct {
-		name    string
-		wantErr bool
-	}{
-		{"a", false},
-		{"my-app", false},
-		{"my_app-123", false},
-		{strings.Repeat("a", 63), false},
-		{"", true},
-		{"../etc", true},
-		{"../../bad", true},
-		{"-leading-dash", true},
-		{"_leading-under", true},
-		{"has spaces", true},
-		{"invalid@char", true},
-		{"invalid.dot", true},
-		{strings.Repeat("a", 64), true},
-	}
-	for _, tc := range cases {
-		err := ValidateAppName(tc.name)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ValidateAppName(%q) error = %v, wantErr %v", tc.name, err, tc.wantErr)
-		}
-	}
-}

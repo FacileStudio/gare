@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/appname"
 )
 
 // Handler returns the HTTP handler with all registered server routes.
@@ -85,7 +85,7 @@ func (s *Server) extractAppName(r *http.Request, body []byte) string {
 			app = payload.App
 		}
 	}
-	if storage.ValidateAppName(app) != nil {
+	if appname.Validate(app) != nil {
 		return ""
 	}
 	return app

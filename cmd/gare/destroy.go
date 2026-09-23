@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/FacileStudio/gare/internal/appname"
 	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
@@ -21,7 +22,7 @@ func NewDestroyCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			if err := storage.ValidateAppName(name); err != nil {
+			if err := appname.Validate(name); err != nil {
 				return err
 			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)

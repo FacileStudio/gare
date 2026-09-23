@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FacileStudio/gare/internal/health"
 )
 
 func writeLegacyConfig(appDir, content string) error {
@@ -30,7 +32,7 @@ func TestAppConfigHealthProbes(t *testing.T) {
 
 	explicit := &AppConfig{Name: "web", Port: 8100, Health: &HealthSection{
 		Path:   "/health",
-		Probes: []HealthProbe{{Name: "api", Port: 8100, Path: "/health"}, {Name: "db", Port: 8200}},
+		Probes: []health.Probe{{Name: "api", Port: 8100, Path: "/health"}, {Name: "db", Port: 8200}},
 	}}
 	if got := explicit.HealthProbes(); len(got) != 2 || got[1].Port != 8200 {
 		t.Errorf("explicit probes: got %+v", got)
@@ -48,7 +50,7 @@ func TestSetHealthClearsWhenEmpty(t *testing.T) {
 	if cfg.Health != nil {
 		t.Errorf("SetHealth with empty values must clear the section, got %+v", cfg.Health)
 	}
-	cfg.SetHealth("/readyz", []HealthProbe{{Port: 8100, Path: "/readyz"}})
+	cfg.SetHealth("/readyz", []health.Probe{{Port: 8100, Path: "/readyz"}})
 	if cfg.HealthPath() != "/readyz" || len(cfg.Health.Probes) != 1 {
 		t.Errorf("SetHealth did not store values: %+v", cfg.Health)
 	}
@@ -72,10 +74,10 @@ func TestMigrateLegacyHealthcheck(t *testing.T) {
 }
 
 func TestValidateHealthProbes(t *testing.T) {
-	if err := ValidateHealthProbes([]HealthProbe{{Name: "api", Port: 8100, Path: "/health"}}); err != nil {
+	if err := ValidateHealthProbes([]health.Probe{{Name: "api", Port: 8100, Path: "/health"}}); err != nil {
 		t.Errorf("valid probe rejected: %v", err)
 	}
-	invalid := [][]HealthProbe{
+	invalid := [][]health.Probe{
 		{{Port: 0}},
 		{{Port: 70000}},
 		{{Port: 8100, Path: "/he alth"}},
@@ -85,14 +87,5 @@ func TestValidateHealthProbes(t *testing.T) {
 		if err := ValidateHealthProbes(probes); err == nil {
 			t.Errorf("expected error for probes %+v", probes)
 		}
-	}
-}
-
-func TestHealthProbeLabel(t *testing.T) {
-	if got := (HealthProbe{Name: "api", Port: 8100}).Label(); got != "api" {
-		t.Errorf("Label with name: got %q", got)
-	}
-	if got := (HealthProbe{Port: 8100}).Label(); got != "port 8100" {
-		t.Errorf("Label without name: got %q", got)
 	}
 }

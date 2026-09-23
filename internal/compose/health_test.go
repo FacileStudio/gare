@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/health"
 )
 
 func TestHealthProbes(t *testing.T) {
@@ -27,7 +27,7 @@ func TestHealthProbes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HealthProbes failed: %v", err)
 	}
-	want := []storage.HealthProbe{
+	want := []health.Probe{
 		{Name: "admin", Port: 18421, Path: "/"},
 		{Name: "web", Port: 18420, Path: "/health"},
 	}
@@ -44,7 +44,7 @@ func TestHealthProbesSkipsUnprobeableServices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HealthProbes failed: %v", err)
 	}
-	want := []storage.HealthProbe{{Name: "hostport", Port: 18432, Path: "/readyz"}}
+	want := []health.Probe{{Name: "hostport", Port: 18432, Path: "/readyz"}}
 	if !slices.Equal(probes, want) {
 		t.Errorf("only host-reachable http healthchecks must be probed: got %+v, want %+v", probes, want)
 	}
@@ -90,7 +90,7 @@ func TestHealthProbesLongSyntaxPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HealthProbes failed: %v", err)
 	}
-	want := []storage.HealthProbe{{Name: "api", Port: 18440, Path: "/healthz"}}
+	want := []health.Probe{{Name: "api", Port: 18440, Path: "/healthz"}}
 	if !slices.Equal(probes, want) {
 		t.Errorf("long syntax mapping: got %+v, want %+v", probes, want)
 	}

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/health"
 )
 
 var healthcheckURLRegex = regexp.MustCompile(`https?://[^\s"']+`)
@@ -15,7 +15,7 @@ var healthcheckURLRegex = regexp.MustCompile(`https?://[^\s"']+`)
 // HealthProbes derives HTTP probes from HTTP healthchecks declared in a compose file. Only services
 // whose healthcheck reaches a published container port qualify, because a container-internal check
 // cannot be reached from the host.
-func HealthProbes(composePath string) ([]storage.HealthProbe, error) {
+func HealthProbes(composePath string) ([]health.Probe, error) {
 	doc, err := readDocument(composePath)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func HealthProbes(composePath string) ([]storage.HealthProbe, error) {
 	}
 	slices.Sort(names)
 
-	var probes []storage.HealthProbe
+	var probes []health.Probe
 	for _, name := range names {
 		if probe, ok := probeFromHealthcheck(name, doc.Services[name]); ok {
 			probes = append(probes, probe)
@@ -36,20 +36,20 @@ func HealthProbes(composePath string) ([]storage.HealthProbe, error) {
 	return probes, nil
 }
 
-func probeFromHealthcheck(name string, svc service) (storage.HealthProbe, bool) {
+func probeFromHealthcheck(name string, svc service) (health.Probe, bool) {
 	target := healthcheckURL(healthcheckCommand(svc.Healthcheck))
 	if target == "" {
-		return storage.HealthProbe{}, false
+		return health.Probe{}, false
 	}
 	parsed, err := url.Parse(target)
 	if err != nil {
-		return storage.HealthProbe{}, false
+		return health.Probe{}, false
 	}
 	hostPort := servicePortMap(svc.Ports)[urlPort(parsed)]
 	if hostPort <= 0 {
-		return storage.HealthProbe{}, false
+		return health.Probe{}, false
 	}
-	return storage.HealthProbe{Name: name, Port: hostPort, Path: parsed.Path}, true
+	return health.Probe{Name: name, Port: hostPort, Path: parsed.Path}, true
 }
 
 func servicePortMap(ports []any) map[int]int {

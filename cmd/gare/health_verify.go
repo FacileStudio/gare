@@ -41,18 +41,18 @@ func verifyServiceActive(ctx context.Context, cfg *storage.AppConfig) error {
 		cfg.Name, props.ActiveState, props.SubState, props.Result, cfg.Name)
 }
 
-func verifyHealthProbes(ctx context.Context, probes []storage.HealthProbe, appName string) error {
+func verifyHealthProbes(ctx context.Context, probes []health.Probe, appName string) error {
 	for _, probe := range probes {
 		target := probeTarget(probe)
 		printInfo(fmt.Sprintf("Verifying health probe %s at %s...", probe.Label(), target))
-		if err := health.Probe(ctx, target, 30*time.Second); err != nil {
+		if err := health.Verify(ctx, target, 30*time.Second); err != nil {
 			return fmt.Errorf("health probe %s failed — check the service with `gare logs %s`: %w", probe.Label(), appName, err)
 		}
 	}
 	return nil
 }
 
-func probeSummary(probes []storage.HealthProbe) string {
+func probeSummary(probes []health.Probe) string {
 	labels := make([]string, 0, len(probes))
 	for _, probe := range probes {
 		labels = append(labels, probe.Label())
@@ -63,7 +63,7 @@ func probeSummary(probes []storage.HealthProbe) string {
 	return strings.Join(labels, ", ")
 }
 
-func probeTarget(probe storage.HealthProbe) string {
+func probeTarget(probe health.Probe) string {
 	path := probe.Path
 	if path == "" {
 		path = "/"

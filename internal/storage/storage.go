@@ -2,18 +2,14 @@ package storage
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/xdg"
 )
-
-var appNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`)
 
 // AppConfig represents an application's configuration and deployment metadata.
 type AppConfig struct {
@@ -37,14 +33,6 @@ type AppConfig struct {
 // DefaultBaseDir returns the default directory path for app storage.
 func DefaultBaseDir() string {
 	return filepath.Join(xdg.DataHome(), "gare", "apps")
-}
-
-// ValidateAppName validates an application name against allowed pattern.
-func ValidateAppName(name string) error {
-	if !appNameRegex.MatchString(name) {
-		return fmt.Errorf("invalid app name %q: must match ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$", name)
-	}
-	return nil
 }
 
 // GetAppDir returns the directory path for a named app.

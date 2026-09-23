@@ -7,8 +7,23 @@ import (
 	"time"
 )
 
-// Probe repeatedly sends HTTP GET requests to targetURL until a 2xx or 3xx status is returned.
-func Probe(ctx context.Context, targetURL string, timeout time.Duration) error {
+// Probe describes a single HTTP readiness probe for a workload.
+type Probe struct {
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+	Port int    `yaml:"port" json:"port"`
+	Path string `yaml:"path,omitempty" json:"path,omitempty"`
+}
+
+// Label returns a human readable identifier for the probe.
+func (p Probe) Label() string {
+	if p.Name != "" {
+		return p.Name
+	}
+	return fmt.Sprintf("port %d", p.Port)
+}
+
+// Verify repeatedly sends HTTP GET requests to targetURL until a 2xx or 3xx status is returned.
+func Verify(ctx context.Context, targetURL string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

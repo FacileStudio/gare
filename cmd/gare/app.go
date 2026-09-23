@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FacileStudio/gare/internal/appname"
 	"github.com/FacileStudio/gare/internal/git"
+	"github.com/FacileStudio/gare/internal/health"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -26,7 +28,7 @@ type appCreateOptions struct {
 	staticDir     string
 	buildCmd      string
 	healthcheck   string
-	healthProbes  []storage.HealthProbe
+	healthProbes  []health.Probe
 	tags          []string
 }
 
@@ -153,7 +155,7 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	if name == "" {
 		return fmt.Errorf("app name is required as an argument or inferrable from --repo")
 	}
-	if err := storage.ValidateAppName(name); err != nil {
+	if err := appname.Validate(name); err != nil {
 		return err
 	}
 	if opts.repo == "" {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/FacileStudio/gare/internal/health"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ type AppStatusDetails struct {
 	Commit        string                     `json:"commit"`
 	CreatedAt     string                     `json:"created_at"`
 	Healthcheck   string                     `json:"healthcheck,omitempty"`
-	Probes        []storage.HealthProbe      `json:"probes,omitempty"`
+	Probes        []health.Probe             `json:"probes,omitempty"`
 	Tags          []string                   `json:"tags,omitempty"`
 	Service       *systemd.ServiceProperties `json:"service,omitempty"`
 }

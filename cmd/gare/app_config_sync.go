@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/FacileStudio/gare/internal/compose"
+	"github.com/FacileStudio/gare/internal/health"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -48,7 +49,7 @@ func applyGareHealthConfig(repoDir string, cfg *storage.AppConfig, gf *storage.G
 	cfg.SetHealth(path, probes)
 }
 
-func deriveComposeProbes(repoDir string, cfg *storage.AppConfig) []storage.HealthProbe {
+func deriveComposeProbes(repoDir string, cfg *storage.AppConfig) []health.Probe {
 	if !cfg.IsCompose() {
 		return nil
 	}

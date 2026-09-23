@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/FacileStudio/gare/internal/appname"
 	"github.com/FacileStudio/gare/internal/server"
-	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +42,7 @@ func runWebhookDaemon(opts serverOptions) error {
 	srv := server.New(server.Config{
 		Secret: opts.secret,
 		DeployHandler: func(ctx context.Context, appName string) error {
-			if err := storage.ValidateAppName(appName); err != nil {
+			if err := appname.Validate(appName); err != nil {
 				return err
 			}
 			return RunDeploy(ctx, appName)

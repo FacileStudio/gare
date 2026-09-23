@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/storage"
+	"github.com/FacileStudio/gare/internal/health"
 )
 
 func TestVerifyHealthProbes(t *testing.T) {
 	api := newTestServer(t, map[string]int{"/health": http.StatusOK})
 	admin := newTestServer(t, map[string]int{"/": http.StatusOK})
 
-	probes := []storage.HealthProbe{
+	probes := []health.Probe{
 		{Name: "api", Port: api.port, Path: "/health"},
 		{Name: "admin", Port: admin.port, Path: "/"},
 	}
@@ -31,7 +31,7 @@ func TestVerifyHealthProbesFailsOnUnhealthyPath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
-	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Name: "api", Port: api.port, Path: "/health"}}, "smoke")
+	err := verifyHealthProbes(ctx, []health.Probe{{Name: "api", Port: api.port, Path: "/health"}}, "smoke")
 	if err == nil {
 		t.Fatal("expected a failing probe to error")
 	}
@@ -48,7 +48,7 @@ func TestVerifyHealthProbesFailsOnClosedPort(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
-	err := verifyHealthProbes(ctx, []storage.HealthProbe{{Port: closed}}, "smoke")
+	err := verifyHealthProbes(ctx, []health.Probe{{Port: closed}}, "smoke")
 	if err == nil {
 		t.Fatal("expected an unreachable probe to error")
 	}
@@ -58,9 +58,9 @@ func TestVerifyHealthProbesFailsOnClosedPort(t *testing.T) {
 }
 
 func TestProbeSummaryCapsLongLists(t *testing.T) {
-	probes := make([]storage.HealthProbe, 0, 6)
+	probes := make([]health.Probe, 0, 6)
 	for i := range 6 {
-		probes = append(probes, storage.HealthProbe{Name: fmt.Sprintf("svc%d", i), Port: 8100 + i})
+		probes = append(probes, health.Probe{Name: fmt.Sprintf("svc%d", i), Port: 8100 + i})
 	}
 	summary := probeSummary(probes)
 	if !strings.Contains(summary, "and 2 more") {
@@ -85,7 +85,7 @@ func TestProbeTarget(t *testing.T) {
 		{"/readyz", "http://127.0.0.1:8100/readyz"},
 	}
 	for _, tc := range cases {
-		if got := probeTarget(storage.HealthProbe{Port: 8100, Path: tc.path}); got != tc.want {
+		if got := probeTarget(health.Probe{Port: 8100, Path: tc.path}); got != tc.want {
 			t.Errorf("probeTarget(%q): got %q, want %q", tc.path, got, tc.want)
 		}
 	}

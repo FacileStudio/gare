@@ -5,22 +5,23 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FacileStudio/gare/internal/health"
 	"gopkg.in/yaml.v3"
 )
 
 // GareFile represents the configuration parsed from gare.yaml or gare.yml.
 type GareFile struct {
-	Type          string        `yaml:"type"`
-	ComposeFile   string        `yaml:"compose_file,omitempty"`
-	Port          int           `yaml:"port"`
-	ContainerPort int           `yaml:"container_port,omitempty"`
-	Containerfile string        `yaml:"containerfile"`
-	Context       string        `yaml:"context"`
-	StaticDir     string        `yaml:"static_dir"`
-	BuildCmd      string        `yaml:"build_cmd"`
-	Healthcheck   string        `yaml:"healthcheck"`
-	Healthchecks  []HealthProbe `yaml:"healthchecks,omitempty"`
-	Tags          []string      `yaml:"tags,omitempty"`
+	Type          string         `yaml:"type"`
+	ComposeFile   string         `yaml:"compose_file,omitempty"`
+	Port          int            `yaml:"port"`
+	ContainerPort int            `yaml:"container_port,omitempty"`
+	Containerfile string         `yaml:"containerfile"`
+	Context       string         `yaml:"context"`
+	StaticDir     string         `yaml:"static_dir"`
+	BuildCmd      string         `yaml:"build_cmd"`
+	Healthcheck   string         `yaml:"healthcheck"`
+	Healthchecks  []health.Probe `yaml:"healthchecks,omitempty"`
+	Tags          []string       `yaml:"tags,omitempty"`
 }
 
 // ResolveComposeFile returns the configured compose file name, trimmed of surrounding whitespace.

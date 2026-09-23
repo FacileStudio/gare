@@ -4,31 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-)
 
-// HealthProbe describes a single HTTP readiness probe for a workload.
-type HealthProbe struct {
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-	Port int    `yaml:"port" json:"port"`
-	Path string `yaml:"path,omitempty" json:"path,omitempty"`
-}
+	"github.com/FacileStudio/gare/internal/health"
+)
 
 // HealthSection holds the health configuration of an application.
 type HealthSection struct {
-	Path   string        `yaml:"path,omitempty" json:"path,omitempty"`
-	Probes []HealthProbe `yaml:"probes,omitempty" json:"probes,omitempty"`
+	Path   string         `yaml:"path,omitempty" json:"path,omitempty"`
+	Probes []health.Probe `yaml:"probes,omitempty" json:"probes,omitempty"`
 }
 
 type legacyHealthConfig struct {
 	Healthcheck string `json:"healthcheck,omitempty"`
-}
-
-// Label returns a human readable identifier for the probe.
-func (p HealthProbe) Label() string {
-	if p.Name != "" {
-		return p.Name
-	}
-	return fmt.Sprintf("port %d", p.Port)
 }
 
 // migrateHealth moves the legacy healthcheck key into the health section.
@@ -52,7 +39,7 @@ func (c *AppConfig) HealthPath() string {
 }
 
 // HealthProbes returns the configured probes, defaulting to the primary port and path.
-func (c *AppConfig) HealthProbes() []HealthProbe {
+func (c *AppConfig) HealthProbes() []health.Probe {
 	if c == nil {
 		return nil
 	}
@@ -62,11 +49,11 @@ func (c *AppConfig) HealthProbes() []HealthProbe {
 	if c.Port <= 0 {
 		return nil
 	}
-	return []HealthProbe{{Name: c.Name, Port: c.Port, Path: c.HealthPath()}}
+	return []health.Probe{{Name: c.Name, Port: c.Port, Path: c.HealthPath()}}
 }
 
 // SetHealth stores the primary health path and any explicit probes, clearing them when empty.
-func (c *AppConfig) SetHealth(path string, probes []HealthProbe) {
+func (c *AppConfig) SetHealth(path string, probes []health.Probe) {
 	if path == "" && len(probes) == 0 {
 		c.Health = nil
 		return
@@ -75,7 +62,7 @@ func (c *AppConfig) SetHealth(path string, probes []HealthProbe) {
 }
 
 // ValidateHealthProbes validates probe ports and paths.
-func ValidateHealthProbes(probes []HealthProbe) error {
+func ValidateHealthProbes(probes []health.Probe) error {
 	for _, probe := range probes {
 		if probe.Port < 1 || probe.Port > 65535 {
 			return fmt.Errorf("invalid health probe %s: port %d must be between 1 and 65535", probe.Label(), probe.Port)
