@@ -132,6 +132,45 @@ func TestPortPair(t *testing.T) {
 	}
 }
 
+func TestLoopbackOnly(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"loopback", "services:\n  api:\n    ports:\n      - \"127.0.0.1:4000:4000\"\n", true},
+		{"localhost", "services:\n  api:\n    ports:\n      - \"localhost:4000:4000\"\n", true},
+		{"ipv6-loopback", "services:\n  api:\n    ports:\n      - \"[::1]:4000:4000\"\n", true},
+		{"all-interfaces", "services:\n  api:\n    ports:\n      - \"4000:4000\"\n", false},
+		{"mixed", "services:\n  api:\n    ports:\n      - \"127.0.0.1:4000:4000\"\n      - \"8000:80\"\n", false},
+		{"long-syntax-loopback", "services:\n  api:\n    ports:\n" +
+			"      - target: 4000\n        published: 4000\n        host_ip: \"127.0.0.1\"\n", true},
+		{"unpublished", "services:\n  worker:\n    image: busybox\n", false},
+	}
+	for _, tc := range cases {
+		repoDir := t.TempDir()
+		writeComposeFile(t, repoDir, "compose.yml", tc.content)
+		got, err := LoopbackOnly(filepath.Join(repoDir, "compose.yml"))
+		if err != nil {
+			t.Fatalf("%s: LoopbackOnly failed: %v", tc.name, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestLoopbackOnlyInvalidFile(t *testing.T) {
+	repoDir := t.TempDir()
+	if _, err := LoopbackOnly(filepath.Join(repoDir, "missing.yml")); err == nil {
+		t.Error("expected error for a missing compose file")
+	}
+	writeComposeFile(t, repoDir, "broken.yml", "services:\n  web:\n    ports: [")
+	if _, err := LoopbackOnly(filepath.Join(repoDir, "broken.yml")); err == nil {
+		t.Error("expected error for invalid compose yaml")
+	}
+}
+
 func writeComposeFile(t *testing.T, repoDir, name string, content ...string) {
 	t.Helper()
 	body := "services:\n  web:\n    image: nginx\n"

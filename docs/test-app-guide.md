@@ -167,10 +167,15 @@ spec:
   containers:
   - name: test-app
     image: localhost/test-app:latest
+    imagePullPolicy: Never
     ports:
     - containerPort: 8000
       hostPort: 8000
 ```
+
+`imagePullPolicy: Never` is what keeps the locally built image local: `localhost/test-app:latest`
+only exists in Podman's storage, so an unset policy would let `podman kube play` look it up as
+`docker://localhost/test-app:latest` and fail wherever nothing answers as a registry on `localhost`.
 
 View the systemd unit gare writes:
 
@@ -310,6 +315,7 @@ spec:
   containers:
   - name: test-app
     image: localhost/test-app:latest
+    imagePullPolicy: Never
     env:
     - name: LOG_LEVEL
       value: "debug"

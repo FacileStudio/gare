@@ -22,6 +22,7 @@ spec:
   containers:
   - name: {{.Name}}
     image: localhost/{{.Name}}:latest
+    imagePullPolicy: Never
     ports:
     - containerPort: {{.ContainerPort}}
       hostPort: {{.HostPort}}

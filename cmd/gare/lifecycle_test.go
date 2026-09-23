@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,7 +13,7 @@ func TestLifecycleUnitNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "testcontainer")
-	cfg := &storage.AppConfig{Name: "testcontainer", AppType: "container"}
+	cfg := &storage.AppConfig{Name: "testcontainer", AppType: "compose"}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +28,27 @@ func TestLifecycleUnitNotFound(t *testing.T) {
 	stopCmd.SetArgs([]string{"testcontainer"})
 	if err := stopCmd.Execute(); err == nil {
 		t.Fatalf("expected error when unit is not found in systemd, got nil")
+	}
+}
+
+func TestStartContainerImageMissing(t *testing.T) {
+	if _, err := exec.LookPath("podman"); err != nil {
+		t.Skip("podman not found in PATH")
+	}
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	name := "gare-missing-image-test"
+	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", name)
+	cfg := &storage.AppConfig{Name: name, AppType: "container", Port: 8000}
+	if err := storage.SaveConfig(appDir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	startCmd := NewStartCmd()
+	startCmd.SetArgs([]string{name})
+	err := startCmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "gare deploy") {
+		t.Fatalf("expected an actionable missing-image error, got %v", err)
 	}
 }
 

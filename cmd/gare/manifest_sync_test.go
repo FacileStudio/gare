@@ -82,6 +82,32 @@ func TestSyncManifestMutate(t *testing.T) {
 	}
 }
 
+func TestSyncManifestPinsLocalImagePullPolicy(t *testing.T) {
+	tmpDir := t.TempDir()
+	appDir := filepath.Join(tmpDir, "app")
+	repoDir := filepath.Join(appDir, "repo")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := "apiVersion: v1\nkind: Pod\nmetadata:\n  name: vitrine\n" +
+		"spec:\n  containers:\n  - name: vitrine\n    image: localhost/vitrine:latest\n" +
+		"    ports:\n    - containerPort: 3012\n      hostPort: 8000\n"
+	if err := os.WriteFile(storage.GetManifestPath(appDir), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &storage.AppConfig{Name: "vitrine", Port: 8000, ContainerPort: 3012}
+	if err := syncManifest("vitrine", appDir, repoDir, cfg); err != nil {
+		t.Fatalf("syncManifest failed: %v", err)
+	}
+	data, err := os.ReadFile(storage.GetManifestPath(appDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "imagePullPolicy: Never") {
+		t.Errorf("expected the local image pull policy to be pinned, got: %s", string(data))
+	}
+}
+
 func TestResolveAppOptionsStaticInference(t *testing.T) {
 	tmpDir := t.TempDir()
 	opts := appCreateOptions{

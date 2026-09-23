@@ -194,10 +194,15 @@ spec:
   containers:
   - name: furet
     image: localhost/furet:latest
+    imagePullPolicy: Never
     ports:
     - containerPort: 8001
       hostPort: 8001
 ```
+
+`imagePullPolicy: Never` is required on every `localhost/` image gare builds: that image lives only
+in Podman's storage, so an unset policy has `podman kube play` look it up as
+`docker://localhost/furet:latest` and fail wherever nothing answers as a registry on `localhost`.
 
 If the application requires environment variables, add them to `repo/manifest.yaml` under `spec.containers[0].env`:
 
@@ -247,6 +252,7 @@ spec:
       mountPath: /var/lib/postgresql/data
   - name: api
     image: localhost/registre:latest
+    imagePullPolicy: Never
     env:
     - name: DATABASE_URL
       value: postgres://postgres:secretpassword@localhost:5432/registre?sslmode=disable

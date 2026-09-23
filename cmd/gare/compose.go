@@ -104,6 +104,28 @@ func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.App
 	verifyComposeContainersGone(ctx, cfg, "teardown")
 }
 
+// warnComposeReachability tells the operator why a compose workload is not reachable from outside
+// the host: its published port is bound to loopback and no domain routes to it, so only ingress can
+// serve it. A compose app that publishes on every interface is left alone because it is reachable
+// directly.
+func warnComposeReachability(repoDir string, cfg *storage.AppConfig) {
+	if !cfg.IsCompose() || len(cfg.Domains) > 0 {
+		return
+	}
+	composeFile, err := compose.LocateFile(repoDir, cfg.ComposeFile)
+	if err != nil {
+		return
+	}
+	loopback, err := compose.LoopbackOnly(filepath.Join(repoDir, composeFile))
+	if err != nil || !loopback {
+		return
+	}
+	printWarning(fmt.Sprintf(
+		"Compose app %s publishes port %d on loopback only and has no domain, so it is reachable "+
+			"only from this host; add one with `gare domain add %s <hostname>` to serve it externally",
+		cfg.Name, cfg.Port, cfg.Name))
+}
+
 func warnStrayComposeFile(repoDir string, isCompose bool) {
 	if isCompose {
 		return

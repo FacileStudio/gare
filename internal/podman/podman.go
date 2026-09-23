@@ -3,6 +3,7 @@ package podman
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,6 +56,21 @@ func Build(ctx context.Context, opts BuildOptions) error {
 	cmd.Stdout = opts.Stdout
 	cmd.Stderr = opts.Stderr
 	return cmd.Run()
+}
+
+// ImageExists reports whether an image is present in local storage. A missing image is reported as
+// a normal false result; any other failure is returned so a broken podman is not mistaken for one.
+func ImageExists(ctx context.Context, ref string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "podman", "image", "exists", ref)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		return true, nil
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, fmt.Errorf("failed to inspect image %s: %w: %s", ref, err, strings.TrimSpace(string(output)))
 }
 
 // PruneImages cleans up dangling container images via podman image prune.

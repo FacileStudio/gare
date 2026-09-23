@@ -57,7 +57,7 @@ func formatDeployTarget(cfg *storage.AppConfig) string {
 }
 
 func buildAppImage(ctx context.Context, name, repoDir string, cfg *storage.AppConfig) error {
-	imageName := fmt.Sprintf("localhost/%s:latest", name)
+	imageName := appImageRef(name)
 	printInfo(fmt.Sprintf("Building container image %s...", imageName))
 	buildOpts := podman.BuildOptions{
 		RepoDir:       repoDir,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/caddy"
+	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 	"github.com/spf13/cobra"
 )
@@ -59,10 +60,14 @@ func NewRestartCmd() *cobra.Command {
 }
 
 func runStartApp(ctx context.Context, name string) error {
-	_, cfg, err := loadAppConfig(name)
+	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
+	if err := ensureContainerImage(ctx, cfg); err != nil {
+		return err
+	}
+	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
 	if err := syncAppIngress(cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
 	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {
@@ -105,10 +110,14 @@ func runStopApp(ctx context.Context, name string) error {
 }
 
 func runRestartApp(ctx context.Context, name string) error {
-	_, cfg, err := loadAppConfig(name)
+	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
+	if err := ensureContainerImage(ctx, cfg); err != nil {
+		return err
+	}
+	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
 	if err := syncAppIngress(cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not sync ingress (%v)", err))
 	} else if reloadErr := caddy.Reload(ctx); reloadErr != nil {

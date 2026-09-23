@@ -11,6 +11,15 @@ import (
 )
 
 func syncManifest(name, appDir, repoDir string, cfg *storage.AppConfig) error {
+	if err := writeManifest(name, appDir, repoDir, cfg); err != nil {
+		return err
+	}
+	return manifest.EnsureLocalImagePullPolicy(storage.GetManifestPath(appDir))
+}
+
+// writeManifest resolves the manifest gare supervises, adopting a repository's own file when it
+// ships one and otherwise generating or updating gare's copy.
+func writeManifest(name, appDir, repoDir string, cfg *storage.AppConfig) error {
 	repoManifest := filepath.Join(repoDir, "manifest.yaml")
 	if _, err := os.Stat(repoManifest); err == nil {
 		return syncRepoManifest(appDir, repoDir)
@@ -44,6 +53,9 @@ func syncRepoManifest(appDir, repoDir string) error {
 		if err := manifest.SetEnv(appManifest, existingEnvs); err != nil {
 			return fmt.Errorf("failed to restore manifest environment: %w", err)
 		}
+	}
+	if err := manifest.EnsureLocalImagePullPolicy(appManifest); err != nil {
+		return fmt.Errorf("failed to pin the local image pull policy: %w", err)
 	}
 	printSuccess("Synced manifest.yaml from repository")
 	return nil

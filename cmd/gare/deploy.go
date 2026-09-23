@@ -46,7 +46,7 @@ func RunDeploy(ctx context.Context, name string) error {
 	if err := prepareWorkload(ctx, name, appDir, repoDir, cfg); err != nil {
 		return err
 	}
-	if err := activateApp(ctx, cfg); err != nil {
+	if err := activateApp(ctx, cfg, repoDir); err != nil {
 		return err
 	}
 	printSuccess(fmt.Sprintf("Successfully deployed %s app %s (%s) -> %s",
@@ -63,7 +63,8 @@ func fetchAppRevision(ctx context.Context, baseDir, appDir, repoDir string, cfg 
 }
 
 // activateApp syncs ingress, restarts the unit, and only reports success once the health probes pass.
-func activateApp(ctx context.Context, cfg *storage.AppConfig) error {
+func activateApp(ctx context.Context, cfg *storage.AppConfig, repoDir string) error {
+	warnComposeReachability(repoDir, cfg)
 	if err := syncAppIngress(cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not update the Caddy snippet (%v)", err))
 	} else if len(cfg.Domains) > 0 {
