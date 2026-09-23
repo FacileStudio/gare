@@ -48,6 +48,7 @@ func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile st
 	if err := systemd.WriteComposeUnit(unitData); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
+	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
 	retireChangedWorkload(ctx, name, previous, systemd.ComposeUnitDescription(name))
 	return retireLegacyQuadletWorkload(ctx, name)
 }

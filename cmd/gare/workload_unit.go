@@ -20,6 +20,7 @@ func writeContainerUnit(ctx context.Context, name, appDir string) error {
 	if err := systemd.WriteKubeUnit(name, storage.GetManifestPath(appDir)); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
+	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
 	retireChangedWorkload(ctx, name, previous, systemd.KubeUnitDescription(name))
 	return retireLegacyQuadletWorkload(ctx, name)
 }
@@ -40,6 +41,7 @@ func writeStaticUnit(ctx context.Context, name, appDir, rootDir string, port int
 	if err := systemd.WriteContainerUnit(data); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
+	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
 	retireChangedWorkload(ctx, name, previous, systemd.StaticUnitDescription(name))
 	return retireLegacyQuadletWorkload(ctx, name)
 }

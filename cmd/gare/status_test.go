@@ -53,6 +53,8 @@ func TestStatusCmdHuman(t *testing.T) {
 		Name:    "humanapp",
 		AppType: "static",
 		Domains: []string{"human.local"},
+		RepoURL: "https://github.com/example/humanapp",
+		Branch:  "main",
 	}
 	if err := storage.SaveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
@@ -70,4 +72,23 @@ func TestStatusCmdHuman(t *testing.T) {
 	if !strings.Contains(output, "humanapp") || !strings.Contains(output, "Workload") {
 		t.Errorf("expected human output to contain app name and Workload, got: %s", output)
 	}
+	assertNestedUnderASection(t, output, "Type:   static")
+	assertNestedUnderASection(t, output, "Branch: main")
+}
+
+// assertNestedUnderASection guards the lipgloss tree API's trap: tree.Child returns its receiver, so
+// a section built from that return value appends its children to the root and they render as
+// siblings of the section instead of nested under it.
+func assertNestedUnderASection(t *testing.T, output, child string) {
+	t.Helper()
+	for line := range strings.SplitSeq(output, "\n") {
+		if !strings.Contains(line, child) {
+			continue
+		}
+		if strings.HasPrefix(line, "\u251c\u2500\u2500") || strings.HasPrefix(line, "\u2514\u2500\u2500") {
+			t.Errorf("expected %q to be nested under its section, but it rendered at the root:\n%s", child, output)
+		}
+		return
+	}
+	t.Errorf("expected %q in the status output:\n%s", child, output)
 }
