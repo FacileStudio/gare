@@ -11,8 +11,8 @@ import (
 func checkComposeProvider(ctx context.Context) {
 	if err := podman.CheckComposeProvider(ctx); err != nil {
 		printWarning("podman compose provider is not available")
-		fmt.Printf("\nCompose workloads need an external provider. Install one with:\n" +
-			"  sudo apt install docker-compose-v2\n  # or\n  pipx install podman-compose\n\n")
+		fmt.Printf("\nCompose workloads need an external provider. Install the podman-compose package with:\n" +
+			"  sudo apt install podman-compose\n")
 	} else {
 		printSuccess("Found podman compose provider")
 	}

@@ -26,6 +26,8 @@ gare init
 
 Requires **Podman 5.0 or newer**, because the systemd units gare writes pass `--service-container` to `podman kube play`. Verifies that `podman`, `caddy`, and `git` are available, probes the installed podman for those flags, checks user lingering (`loginctl enable-linger`), validates pause container setup, and initializes storage and unit directories.
 
+`compose` workloads additionally need the `podman-compose` package (`sudo apt install podman-compose`) and `podman.socket`.
+
 ### 2. Create an application
 
 ```sh
@@ -113,7 +115,7 @@ gare domain add stack stack.example.com
 gare deploy stack
 ```
 
-`podman compose` requires an external provider (`docker-compose` or `podman-compose`) and the podman API socket. `gare init` reports both, and `gare deploy` fails with a clear error when the provider is missing. Additional behavior:
+`podman compose` requires the `podman-compose` external provider and the podman API socket. `gare init` reports both, and `gare deploy` fails with a clear error when the provider is missing. Additional behavior:
 
 - Compose stacks are supervised by the same kind of gare-written unit as every other workload type, so `gare` never translates a compose file into something else, losing whatever that translation does not cover.
 - `port` is required in `gare.yml` and must match a published host port in the compose file, so Caddy routes to the port the stack actually binds.
