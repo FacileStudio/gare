@@ -172,6 +172,7 @@ func TestWriteFileNeverExposesAPartialWrite(t *testing.T) {
 	}
 
 	done := make(chan struct{})
+	defer func() { <-done }()
 	go func() {
 		defer close(done)
 		for range 100 {
@@ -187,7 +188,6 @@ func TestWriteFileNeverExposesAPartialWrite(t *testing.T) {
 			t.Fatalf("rewrite failed: %v", err)
 		}
 	}
-	<-done
 }
 
 func assertNoTempFiles(t *testing.T, dir string) {

@@ -64,7 +64,7 @@ func assertArtifactTeardown(t *testing.T, tc artifactCase) {
 
 	removeArtifacts(context.Background(), "myapp", appDir, tc.workload, tc.cfg)
 
-	if got := podmanCalls(t, logPath); !slices.Equal(got, tc.wantPodman) {
+	if got := recordedCalls(t, logPath); !slices.Equal(got, tc.wantPodman) {
 		t.Errorf("podman invocations = %v, want %v", got, tc.wantPodman)
 	}
 	assertGone(t, caddy.GetSnippetPath(confDir, "myapp"))
@@ -86,7 +86,8 @@ func stubPodman(t *testing.T) string {
 	return logPath
 }
 
-func podmanCalls(t *testing.T, logPath string) []string {
+// recordedCalls returns the lines one of the path stubs logged, nil when it was never invoked.
+func recordedCalls(t *testing.T, logPath string) []string {
 	t.Helper()
 	data, err := os.ReadFile(logPath)
 	if os.IsNotExist(err) {
