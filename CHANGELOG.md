@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.13.1] - 2026-09-23
+
+### Fixed
+
+- Static workloads start again. The generated unit appended `run --config ...` to the Caddy image, which declares no `Entrypoint` — its `Cmd` carries the whole invocation — so the arguments replaced it and the runtime tried to exec a binary named `run`. Every static workload failed with status 127; the unit now names `/usr/bin/caddy` in full.
+- `~/.gare.yml` takes effect. The file was parsed and discarded, so `--verbose`, `--git-provider`, `--use-github-cli`, `--use-gitlab-cli` and `--credential-helper` were documented no-ops. A flag now overrides the file only when it is actually passed, and a malformed config file fails the command instead of being ignored.
+- A failed reload of a running Caddy is reported instead of being swallowed as "connection refused", which had a deploy report success while the server kept serving the previous configuration.
+- `gare status` nests each section under its own heading instead of appending every line to the root as a sibling.
+- `gare list` renders `CREATED` in the operator's timezone rather than the stored UTC value.
+- The reverse proxy snippet is written without a stray extra tab on both lines.
+- A unit that refuses to start reports its own journal first, instead of only systemd's "control process exited with error code".
+- `gare app create` reports a failed rollback of a partial clone rather than returning the clone error alone.
+
+### Changed
+
+- Duplication removed across the CLI and unit synthesis: one systemctl runner replaces six identical wrappers, one template render-and-write pair replaces three copies across the workload types, one application lookup replaces nine, and `gare destroy`'s six single-purpose steps collapse into two.
+- Storage's manifest, dotenv and compose concerns and the builder's git and podman concerns are their own packages, and one shared deploy tail replaces three near-identical pipelines.
+- `gare.yml` dropped its undocumented aliases and their wrapper resolvers.
+
+### Added
+
+- The compose unit is verified by `systemd-analyze --user verify`, as the container and static units already were.
+
+### Removed
+
+- Dead symbols, a duplicated JSON encoder, and five plan documents for already-shipped features.
+
 ## [0.13.0] - 2026-09-23
 
 ### Changed
