@@ -69,7 +69,7 @@ internal/
 
 - Do not use Cgo. Produce a single static binary.
 - Never add inline comments in Go code or comments in function bodies.
-- Package `cmd/gare` must remain `package main`.
+- Package `cmd/gare` must remain `package main`: the rule covers every `.go` file directly under `cmd/gare/`, which are the Cobra commands, and a subdirectory there is free to declare its own package, as `cmd/gare/config` does.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
 - Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git pull`).
 - Clean up resources completely on destroy: stop unit, disable it, remove the unit file, its enable link and any Quadlet source an older gare left behind, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy.
