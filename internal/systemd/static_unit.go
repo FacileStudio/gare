@@ -11,11 +11,11 @@ const (
 	staticConfigMount   = "/etc/caddy/Caddyfile"
 )
 
-// containerUnitTemplate renders a static site's unit. The command after the image spells the caddy
+// staticUnitTemplate renders a static site's unit. The command after the image spells the caddy
 // binary out in full because the official image declares no Entrypoint: its Cmd carries the whole
 // invocation, so appending arguments replaces it and the runtime then tries to exec the first
 // argument as a binary of its own.
-const containerUnitTemplate = `[Unit]
+const staticUnitTemplate = `[Unit]
 Description={{.Description}}
 After=podman-user-wait-network-online.service
 Wants=podman-user-wait-network-online.service
@@ -41,8 +41,8 @@ SyslogIdentifier=%N
 WantedBy=default.target
 `
 
-// ContainerUnitData holds template parameters for a static site's systemd unit.
-type ContainerUnitData struct {
+// StaticUnitData holds template parameters for a static site's systemd unit.
+type StaticUnitData struct {
 	Name          string
 	Description   string
 	Image         string
@@ -65,8 +65,8 @@ func StaticUnitDescription(name string) string {
 // StaticSiteUnit builds the unit data serving a static directory with the bundled Caddy image.
 // The Caddyfile is mounted rather than generated in-container, because caddy file-server cannot
 // express the SPA fallback a static site needs.
-func StaticSiteUnit(name string, port int, rootDir, envFile, configFile string) ContainerUnitData {
-	return ContainerUnitData{
+func StaticSiteUnit(name string, port int, rootDir, envFile, configFile string) StaticUnitData {
+	return StaticUnitData{
 		Name:          name,
 		Image:         defaultStaticImage,
 		Port:          port,
@@ -79,10 +79,10 @@ func StaticSiteUnit(name string, port int, rootDir, envFile, configFile string) 
 	}
 }
 
-// GenerateContainerUnit renders the systemd unit running a static site's container.
+// GenerateStaticUnit renders the systemd unit running a static site's container.
 // The unit names the server binary itself rather than leaning on the image, and teardown goes
 // through the cidfile so it removes the exact container the unit started.
-func GenerateContainerUnit(data ContainerUnitData) (string, error) {
+func GenerateStaticUnit(data StaticUnitData) (string, error) {
 	if err := validateUnitPath("static root", data.RootDir); err != nil {
 		return "", err
 	}
@@ -102,12 +102,12 @@ func GenerateContainerUnit(data ContainerUnitData) (string, error) {
 		data.PodmanPath = ResolvePodmanPath()
 	}
 	data.Description = StaticUnitDescription(data.Name)
-	return renderUnit("container-unit", containerUnitTemplate, data)
+	return renderUnit("static-unit", staticUnitTemplate, data)
 }
 
-// WriteContainerUnit generates and writes the systemd unit running an application's static site.
-func WriteContainerUnit(data ContainerUnitData) error {
-	content, err := GenerateContainerUnit(data)
+// WriteStaticUnit generates and writes the systemd unit running an application's static site.
+func WriteStaticUnit(data StaticUnitData) error {
+	content, err := GenerateStaticUnit(data)
 	if err != nil {
 		return err
 	}

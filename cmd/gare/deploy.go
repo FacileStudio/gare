@@ -31,15 +31,10 @@ func NewDeployCmd() *cobra.Command {
 // RunDeploy executes the deployment pipeline for a single application. Every workload type runs the
 // same tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up.
 func RunDeploy(ctx context.Context, name string) error {
-	if err := storage.ValidateAppName(name); err != nil {
-		return err
-	}
-
 	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
-	cfg, err := storage.LoadConfig(appDir)
+	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
-		return appConfigError(name, err)
+		return err
 	}
 
 	repoDir := storage.GetRepoDir(appDir)

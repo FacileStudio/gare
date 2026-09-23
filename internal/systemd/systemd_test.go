@@ -74,7 +74,7 @@ func TestGareUnitDescriptionsMatchTheTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	static, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit(name, 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
+	static, err := GenerateStaticUnit(withPodmanPath(StaticSiteUnit(name, 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
 	if err != nil {
 		t.Fatal(err)
 	}

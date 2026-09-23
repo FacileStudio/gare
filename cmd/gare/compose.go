@@ -30,9 +30,11 @@ func composeProjectName(name string) string {
 	return strings.ToLower(name)
 }
 
-// writeComposeUnit writes the synthesized unit for a compose stack, then retires the Quadlet sources
-// a previous workload type left behind so no stale source keeps generating a unit of the same name.
-// The unit is written first so a failure to write it never stops a workload that was running fine.
+// writeComposeUnit writes the synthesized unit for a compose stack and hands the stack over to it.
+// Its guard checks the unit file without probing the podman workload runtime the container and
+// static units need, because a compose unit runs through the podman compose provider rather than
+// kube play, and it retires the Quadlet sources a previous workload type left behind so no stale
+// source keeps generating a unit of the same name.
 func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile string) error {
 	previous, err := guardUnitFile(name)
 	if err != nil {
@@ -45,12 +47,8 @@ func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile st
 		ProjectName: composeProjectName(name),
 		EnvFile:     storage.GetAppEnvPath(appDir),
 	}
-	if err := systemd.WriteComposeUnit(unitData); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
-	}
-	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
-	retireChangedWorkload(ctx, name, previous, systemd.ComposeUnitDescription(name))
-	return retireLegacyQuadletWorkload(ctx, name)
+	return applyUnitWrite(ctx, name, systemd.ComposeUnitDescription(name), previous,
+		func() error { return systemd.WriteComposeUnit(unitData) })
 }
 
 func writeComposeArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {

@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestGenerateContainerUnit(t *testing.T) {
-	content, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit(
+func TestGenerateStaticUnit(t *testing.T) {
+	content, err := GenerateStaticUnit(withPodmanPath(StaticSiteUnit(
 		"my-site", 8100, "/srv/repo/dist", "/home/user/.local/share/gare/apps/my-site/env",
 		"/home/user/.local/share/gare/apps/my-site/Caddyfile")))
 	if err != nil {
@@ -39,8 +39,8 @@ func TestGenerateContainerUnit(t *testing.T) {
 	}
 }
 
-func TestGenerateContainerUnitRunsTheServerBinaryNotTheImageCmd(t *testing.T) {
-	content, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
+func TestGenerateStaticUnitRunsTheServerBinaryNotTheImageCmd(t *testing.T) {
+	content, err := GenerateStaticUnit(withPodmanPath(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,8 +52,8 @@ func TestGenerateContainerUnitRunsTheServerBinaryNotTheImageCmd(t *testing.T) {
 	}
 }
 
-func TestGenerateContainerUnitTearsDownThroughTheCidfile(t *testing.T) {
-	content, err := GenerateContainerUnit(withPodmanPath(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
+func TestGenerateStaticUnitTearsDownThroughTheCidfile(t *testing.T) {
+	content, err := GenerateStaticUnit(withPodmanPath(StaticSiteUnit("my-site", 8100, "/srv/dist", "/srv/env", "/srv/Caddyfile")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +68,9 @@ func TestGenerateContainerUnitTearsDownThroughTheCidfile(t *testing.T) {
 	}
 }
 
-func TestGenerateContainerUnitRejectsBadInput(t *testing.T) {
+func TestGenerateStaticUnitRejectsBadInput(t *testing.T) {
 	configFile := "/srv/Caddyfile"
-	cases := map[string]ContainerUnitData{
+	cases := map[string]StaticUnitData{
 		"relative root":      StaticSiteUnit("my-site", 8100, "dist", "/srv/env", configFile),
 		"root with space":    StaticSiteUnit("my-site", 8100, "/srv/my dist", "/srv/env", configFile),
 		"quoted root":        StaticSiteUnit("my-site", 8100, `/srv/"dist"`, "/srv/env", configFile),
@@ -80,15 +80,15 @@ func TestGenerateContainerUnitRejectsBadInput(t *testing.T) {
 		"out of range port":  StaticSiteUnit("my-site", 70000, "/srv/dist", "/srv/env", configFile),
 	}
 	for name, data := range cases {
-		if _, err := GenerateContainerUnit(data); err == nil {
+		if _, err := GenerateStaticUnit(data); err == nil {
 			t.Errorf("expected an error for %s", name)
 		}
 	}
 }
 
-func TestWriteContainerUnitRejectsInvalidInput(t *testing.T) {
+func TestWriteStaticUnitRejectsInvalidInput(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	if err := WriteContainerUnit(StaticSiteUnit("my-site", 8100, "dist", "/srv/env", "/srv/Caddyfile")); err == nil {
+	if err := WriteStaticUnit(StaticSiteUnit("my-site", 8100, "dist", "/srv/env", "/srv/Caddyfile")); err == nil {
 		t.Error("expected an error for a relative static root")
 	}
 	if _, err := os.Stat(GetUnitPath("my-site")); !os.IsNotExist(err) {
@@ -96,7 +96,7 @@ func TestWriteContainerUnitRejectsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestGeneratedContainerUnitIsAcceptedBySystemd(t *testing.T) {
+func TestGeneratedStaticUnitIsAcceptedBySystemd(t *testing.T) {
 	unitDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", unitDir)
 	rootDir := t.TempDir()
@@ -108,13 +108,13 @@ func TestGeneratedContainerUnitIsAcceptedBySystemd(t *testing.T) {
 		}
 	}
 
-	if err := WriteContainerUnit(StaticSiteUnit("my-site", 8100, rootDir, envFile, configFile)); err != nil {
+	if err := WriteStaticUnit(StaticSiteUnit("my-site", 8100, rootDir, envFile, configFile)); err != nil {
 		t.Fatal(err)
 	}
 	verifyUnitWithSystemd(t, GetUnitPath("my-site"))
 }
 
-func withPodmanPath(data ContainerUnitData) ContainerUnitData {
+func withPodmanPath(data StaticUnitData) StaticUnitData {
 	data.PodmanPath = "/usr/bin/podman"
 	return data
 }

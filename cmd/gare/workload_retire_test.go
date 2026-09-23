@@ -76,14 +76,7 @@ func TestWriteContainerUnitRetiresLegacyQuadletSources(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	appDir := t.TempDir()
-	for _, path := range systemd.LegacyQuadletSources("myapp") {
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte("[Kube]\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
+	seedLegacyQuadletSources(t, "myapp")
 
 	if err := writeContainerUnit(context.Background(), "myapp", appDir); err != nil {
 		t.Fatalf("writeContainerUnit failed: %v", err)
@@ -149,6 +142,80 @@ func TestReplacedWorkloadType(t *testing.T) {
 	for _, tc := range cases {
 		if got := replacedWorkloadType(tc.previous, tc.current); got != tc.want {
 			t.Errorf("replacedWorkloadType(%q, %q) = %v, want %v", tc.previous, tc.current, got, tc.want)
+		}
+	}
+}
+
+// TestEveryWorkloadWriterRetiresWhatItReplaces pins the handover every workload type runs after it
+// writes its unit, so a writer that keeps a copy of that sequence of its own is caught drifting
+// rather than silently leaving the workload it replaces running in front of its replacement.
+func TestEveryWorkloadWriterRetiresWhatItReplaces(t *testing.T) {
+	skipWithoutPodmanWorkloads(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	cases := map[string]struct {
+		previous    string
+		description string
+		write       func(ctx context.Context, name, appDir string) error
+	}{
+		"container": {
+			previous:    systemd.StaticUnitDescription("myapp"),
+			description: systemd.KubeUnitDescription("myapp"),
+			write: func(ctx context.Context, name, appDir string) error {
+				return writeContainerUnit(ctx, name, appDir)
+			},
+		},
+		"static": {
+			previous:    systemd.ComposeUnitDescription("myapp"),
+			description: systemd.StaticUnitDescription("myapp"),
+			write: func(ctx context.Context, name, appDir string) error {
+				return writeStaticUnit(ctx, name, appDir, filepath.Join(appDir, "dist"), 8100)
+			},
+		},
+		"compose": {
+			previous:    systemd.KubeUnitDescription("myapp"),
+			description: systemd.ComposeUnitDescription("myapp"),
+			write: func(ctx context.Context, name, appDir string) error {
+				return writeComposeUnit(ctx, name, appDir, filepath.Join(appDir, "repo"), "compose.yml")
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			appDir := t.TempDir()
+			unitPath := writeUnitFile(t, "myapp", "[Unit]\nDescription="+tc.previous+"\n")
+			seedLegacyQuadletSources(t, "myapp")
+
+			if err := tc.write(context.Background(), "myapp", appDir); err != nil {
+				t.Fatalf("writing the %s unit failed: %v", name, err)
+			}
+
+			data, err := os.ReadFile(unitPath)
+			if err != nil {
+				t.Fatalf("expected the %s unit to be rewritten in place: %v", name, err)
+			}
+			if !strings.Contains(string(data), "Description="+tc.description+"\n") {
+				t.Errorf("expected the %s unit to replace the workload it replaces:\n%s", name, string(data))
+			}
+			for _, path := range systemd.LegacyQuadletSources("myapp") {
+				assertGone(t, path)
+			}
+		})
+	}
+}
+
+// seedLegacyQuadletSources leaves the Quadlet sources a gare that predates unit synthesis wrote, so
+// a test can prove a workload write retires them.
+func seedLegacyQuadletSources(t *testing.T, name string) {
+	t.Helper()
+	for _, path := range systemd.LegacyQuadletSources(name) {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("[Kube]\n"), 0644); err != nil {
+			t.Fatal(err)
 		}
 	}
 }

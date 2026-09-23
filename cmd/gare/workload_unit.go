@@ -17,12 +17,8 @@ func writeContainerUnit(ctx context.Context, name, appDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := systemd.WriteKubeUnit(name, storage.GetManifestPath(appDir)); err != nil {
-		return fmt.Errorf("failed to write systemd unit: %w", err)
-	}
-	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
-	retireChangedWorkload(ctx, name, previous, systemd.KubeUnitDescription(name))
-	return retireLegacyQuadletWorkload(ctx, name)
+	return applyUnitWrite(ctx, name, systemd.KubeUnitDescription(name), previous,
+		func() error { return systemd.WriteKubeUnit(name, storage.GetManifestPath(appDir)) })
 }
 
 // writeStaticUnit writes the systemd unit running the application static directory.
@@ -38,11 +34,22 @@ func writeStaticUnit(ctx context.Context, name, appDir, rootDir string, port int
 	if err := caddy.WriteStaticServerConfig(data.ConfigFile, data.RootMount, data.ContainerPort); err != nil {
 		return fmt.Errorf("failed to write the static site Caddyfile: %w", err)
 	}
-	if err := systemd.WriteContainerUnit(data); err != nil {
+	return applyUnitWrite(ctx, name, systemd.StaticUnitDescription(name), previous,
+		func() error { return systemd.WriteStaticUnit(data) })
+}
+
+// applyUnitWrite writes one workload's unit and hands the workload over to it. Every workload type
+// runs this same sequence so it cannot drift between them: the write comes first, so a failure to
+// write leaves a workload that was already running fine untouched, and the workload being replaced
+// is stopped only afterwards, while systemd still serves the definition it loaded, so the outgoing
+// unit's own ExecStop tears its workload down rather than a teardown that names one it never
+// started.
+func applyUnitWrite(ctx context.Context, name, description, previous string, write func() error) error {
+	if err := write(); err != nil {
 		return fmt.Errorf("failed to write systemd unit: %w", err)
 	}
 	printVerbose(ctx, "Wrote systemd unit %s", systemd.GetUnitPath(name))
-	retireChangedWorkload(ctx, name, previous, systemd.StaticUnitDescription(name))
+	retireChangedWorkload(ctx, name, previous, description)
 	return retireLegacyQuadletWorkload(ctx, name)
 }
 
