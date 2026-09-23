@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.4] - 2026-09-23
+
+### Added
+
+- `gare deploy`, `start` and `restart` verify the ingress instead of trusting the snippet on disk. An application with domains is only reported active once Caddy has accepted the configuration and a listener answers on the ports those domains resolve to, and the failure names the app, its domains and the silent ports. An application reachable on its assigned port alone is left alone, because nothing then depends on ingress.
+
+### Fixed
+
+- A generated or adopted Pod manifest left `imagePullPolicy` unset, so `podman kube play` resolved the locally built `localhost/<name>:latest` as a registry reference and restart-looped on a failing lookup instead of running the image gare had just built. Every `localhost/` image is now pinned to `imagePullPolicy: Never`, and `gare start`/`restart` name `gare deploy` when the image is genuinely missing rather than letting podman emit a registry error.
+- A compose workload that publishes on loopback only and has no domain is reachable from the host alone; deploy and start now say so and point at `gare domain add <name> <hostname>`.
+- Image pruning after a deploy is best-effort and no longer reads as a failed deployment. `podman image prune -f` exits non-zero when a leftover buildah working container holds a dangling image, which says nothing about the workload, so its output is shown only with `--verbose`.
+
+### Changed
+
+- Compose workloads name `podman-compose` as the provider to install, in `gare init` and the README, instead of offering `docker-compose-v2`.
+
 ## [0.13.3] - 2026-09-23
 
 ### Added
