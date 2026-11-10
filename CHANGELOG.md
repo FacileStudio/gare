@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- gare is released under the [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
+
 ## [0.13.5] - 2026-09-23
 
 ### Added

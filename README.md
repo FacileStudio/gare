@@ -286,3 +286,7 @@ mise run lint         # run go vet ./...
 Tests that exercise the generated systemd units need Podman 5.0 or newer and skip without it. Set `GARE_REQUIRE_PODMAN=1` to turn that skip into a failure instead, which is what CI does.
 
 Code quality and architectural constraints are enforced by [filet](https://github.com/FacileStudio/filet).
+
+## License
+
+gare is released under the [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
