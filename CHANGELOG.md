@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.13.6] - 2026-11-11
+
+### Security
+
+- build: Go 1.26.11 (`go` directive, mise pin). It fixes GO-2026-6848 to GO-2026-6859 in the standard library and toolchain, which douane reported as unscored gaps and which failed the gate.
+- build(deps): `golang.org/x/text` v0.39.0 to v0.41.0 (GO-2026-6629).
+
 ### Added
 
 - gare is released under the [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
@@ -216,11 +223,9 @@
 - Re-enabled `gare logs` journal streaming for static workloads.
 - Restored uniform lifecycle state inspection (`status`, `list`, `start`, `stop`, `restart`) across both container and static workloads via live systemd property polling.
 
-
 ### Fixed
 
 - Suppressed connection refused errors during Caddy configuration reload when the Caddy daemon or Admin API is stopped.
-
 
 ### Added
 
@@ -269,7 +274,6 @@
 - Prevented `gare restart` crash on static sites attempting to reload missing `/etc/caddy/Caddyfile`.
 - Resolved no-op behavior in `gare start` and `gare stop` for static applications.
 - Suppressed `signal: interrupt` exit code 1 error when canceling `gare logs -f`.
-
 
 ### Added
 
