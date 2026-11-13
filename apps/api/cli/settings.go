@@ -4,30 +4,26 @@ import (
 	"context"
 
 	"github.com/FacileStudio/gare/apps/api/cli/config"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/FacileStudio/gare/apps/api/internal/git"
 	"github.com/spf13/cobra"
 )
 
-// settings holds the global configuration resolved for one invocation. It rides on the command
-// context rather than in a package variable, so the webhook daemon's deploy path resolves no
-// settings at all and keeps git's built-in defaults.
-type settings struct {
-	verbose bool
-	auth    git.Auth
-}
-
+// settingsKey keys the engine settings resolved for one invocation on the command context. They
+// ride on the context rather than in a package variable, so the webhook daemon's deploy path
+// resolves no settings at all and keeps git's built-in defaults.
 type settingsKey struct{}
 
 // withSettings returns a context carrying the resolved settings.
-func withSettings(ctx context.Context, resolved settings) context.Context {
+func withSettings(ctx context.Context, resolved engine.Settings) context.Context {
 	return context.WithValue(ctx, settingsKey{}, resolved)
 }
 
 // settingsFrom returns the settings a command attached to ctx, or the zero value when there are none.
-func settingsFrom(ctx context.Context) settings {
-	resolved, ok := ctx.Value(settingsKey{}).(settings)
+func settingsFrom(ctx context.Context) engine.Settings {
+	resolved, ok := ctx.Value(settingsKey{}).(engine.Settings)
 	if !ok {
-		return settings{}
+		return engine.Settings{}
 	}
 	return resolved
 }
@@ -58,21 +54,21 @@ func applyGlobalFlags(loader *config.Loader, cmd *cobra.Command, flags *rootFlag
 
 // loadSettings reads the config file and applies only the global flags the operator actually passed,
 // so a value in ~/.gare.yml survives unless the command line overrides it.
-func loadSettings(cmd *cobra.Command, flags *rootFlags) (settings, error) {
+func loadSettings(cmd *cobra.Command, flags *rootFlags) (engine.Settings, error) {
 	loader := config.NewLoader()
 	applyGlobalFlags(loader, cmd, flags)
 	cfg, err := loader.Load()
 	if err != nil {
-		return settings{}, err
+		return engine.Settings{}, err
 	}
-	resolved := settings{
-		verbose: cfg.Verbose,
-		auth: git.Auth{
+	resolved := engine.Settings{
+		Verbose: cfg.Verbose,
+		Auth: git.Auth{
 			Provider:         cfg.GitProvider,
 			UseGitHubCLI:     cfg.UseGitHubCLI,
 			UseGitLabCLI:     cfg.UseGitLabCLI,
 			CredentialHelper: cfg.CredentialHelper,
 		},
 	}
-	return resolved, resolved.auth.Validate()
+	return resolved, resolved.Auth.Validate()
 }

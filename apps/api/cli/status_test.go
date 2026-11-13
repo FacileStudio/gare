@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
@@ -36,7 +37,7 @@ func TestStatusCmdJSON(t *testing.T) {
 		t.Fatalf("status --json failed: %v", err)
 	}
 
-	var details AppStatusDetails
+	var details engine.AppStatus
 	if err := json.Unmarshal(buf.Bytes(), &details); err != nil {
 		t.Fatalf("invalid json: %v\noutput: %s", err, buf.String())
 	}

@@ -152,3 +152,25 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Delete with an empty name must refuse rather than remove the store")
 	}
 }
+
+func TestStaticConfigStorage(t *testing.T) {
+	tmpDir := t.TempDir()
+	appDir := filepath.Join(tmpDir, "static-app")
+	cfg := &AppConfig{
+		Name:      "static-app",
+		Domains:   []string{"static.test"},
+		AppType:   "static",
+		StaticDir: "public",
+		BuildCmd:  "npm run build",
+	}
+	if err := Open(filepath.Dir(appDir)).Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.AppType != "static" || loaded.StaticDir != "public" {
+		t.Errorf("expected static app with public staticDir, got: %+v", loaded)
+	}
+}

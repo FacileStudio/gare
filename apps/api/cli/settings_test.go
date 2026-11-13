@@ -36,11 +36,11 @@ func TestLoadSettingsReadsConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !resolved.verbose {
+	if !resolved.Verbose {
 		t.Error("verbose from the config file must reach the settings")
 	}
-	if resolved.auth.Provider != "gitlab" || !resolved.auth.UseGitHubCLI || resolved.auth.CredentialHelper != "!store" {
-		t.Errorf("config file values must reach git auth, got %+v", resolved.auth)
+	if resolved.Auth.Provider != "gitlab" || !resolved.Auth.UseGitHubCLI || resolved.Auth.CredentialHelper != "!store" {
+		t.Errorf("config file values must reach git auth, got %+v", resolved.Auth)
 	}
 }
 
@@ -52,10 +52,10 @@ func TestLoadSettingsFlagOverridesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.auth.Provider != "github" {
-		t.Errorf("--git-provider must override the file, got %q", resolved.auth.Provider)
+	if resolved.Auth.Provider != "github" {
+		t.Errorf("--git-provider must override the file, got %q", resolved.Auth.Provider)
 	}
-	if resolved.auth.UseGitHubCLI {
+	if resolved.Auth.UseGitHubCLI {
 		t.Error("--use-github-cli=false must override a true value in the file")
 	}
 }
@@ -76,7 +76,7 @@ func TestLoadSettingsWithoutConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a missing config file must not fail the command: %v", err)
 	}
-	if resolved.verbose || resolved.auth.Provider != "" {
+	if resolved.Verbose || resolved.Auth.Provider != "" {
 		t.Errorf("expected zero settings without a config file, got %+v", resolved)
 	}
 }

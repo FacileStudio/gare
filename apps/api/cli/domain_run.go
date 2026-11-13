@@ -15,70 +15,20 @@ type domainItem struct {
 	App      string `json:"app,omitempty"`
 }
 
+// runDomainAdd routes a hostname to an application through the engine.
 func runDomainAdd(ctx context.Context, appName, hostname string) error {
-	unlock, err := lockApp(ctx, appName)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	_, cfg, err := loadAppConfig(appName)
-	if err != nil {
-		return err
-	}
-	if err := checkDomainAvailable(storage.Default(), appName, hostname); err != nil {
-		return err
-	}
-	if err := cfg.AddDomain(hostname); err != nil {
-		return err
-	}
-	if err := storage.Default().Save(cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-	printSuccess(fmt.Sprintf("Added domain %q to app %q", storage.NormalizeDomain(hostname), appName))
-	return syncAndReloadIfActive(ctx, cfg)
+	return newEngine(ctx).AddDomain(ctx, appName, hostname)
 }
 
-func checkDomainAvailable(store *storage.Store, appName, hostname string) error {
-	if err := storage.ValidateDomain(hostname); err != nil {
-		return err
-	}
-	apps, err := store.List()
-	if err != nil {
-		return fmt.Errorf("failed to list apps: %w", err)
-	}
-	if owner := storage.AppByDomain(apps, hostname); owner != nil {
-		if owner.Name == appName {
-			return fmt.Errorf("app %q already owns domain %q", appName, storage.NormalizeDomain(hostname))
-		}
-		return fmt.Errorf("domain %q is already in use by app %q", storage.NormalizeDomain(hostname), owner.Name)
-	}
-	return nil
-}
-
+// runDomainRemove stops routing a hostname to an application through the engine.
 func runDomainRemove(ctx context.Context, appName, hostname string) error {
-	unlock, err := lockApp(ctx, appName)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	_, cfg, err := loadAppConfig(appName)
-	if err != nil {
-		return err
-	}
-	if err := cfg.RemoveDomain(hostname); err != nil {
-		return err
-	}
-	if err := storage.Default().Save(cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-	printSuccess(fmt.Sprintf("Removed domain %q from app %q", storage.NormalizeDomain(hostname), appName))
-	return syncAndReloadIfActive(ctx, cfg)
+	return newEngine(ctx).RemoveDomain(ctx, appName, hostname)
 }
 
-func runDomainList(w io.Writer, targetApp string, opts domainListOptions) error {
+func runDomainList(ctx context.Context, w io.Writer, targetApp string, opts domainListOptions) error {
 	var items []domainItem
 	if targetApp != "" {
-		_, cfg, err := loadAppConfig(targetApp)
+		cfg, err := newEngine(ctx).Config(targetApp)
 		if err != nil {
 			return err
 		}

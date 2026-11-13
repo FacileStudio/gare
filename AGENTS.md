@@ -46,7 +46,7 @@ Other suite apps ship as a distroless image deployed through Dokploy. gare does 
 apps/api/               the Go module github.com/FacileStudio/gare/apps/api
   main.go               the only package main: run() calls cli.Execute(version)
   version.go            the version literal GoReleaser overrides with -X main.version
-  cli/                  Cobra commands (package cli, entry point Execute)
+  cli/                  Cobra commands (package cli, entry point Execute): flags, prompts, rendering and the terminal sink
     config/             `~/.gare.yml` loading and the flag overrides that outrank it
   internal/
     appconfig/          Resolve: the one precedence rule for an app's settings (flag, gare.yml, stored, default)
@@ -55,6 +55,7 @@ apps/api/               the Go module github.com/FacileStudio/gare/apps/api
     caddy/              caddy configuration snippets and reloads
     compose/            compose file discovery, published ports, derived probes
     dotenv/             dotenv parsing and writing
+    engine/             the app lifecycle: create, deploy, start, stop, restart, destroy, status, env, domain and tag edits
     git/                git clone, fetch-and-reset sync, commit lookup and credential plumbing
     health/             the readiness probe type and HTTP polling
     manifest/           Pod manifest generation and env/port rewriting
@@ -63,6 +64,8 @@ apps/api/               the Go module github.com/FacileStudio/gare/apps/api
     server/             webhook HTTP daemon and HMAC verification
     storage/            app state, workload types, tags, domains, health, ports
     systemd/            unit file synthesis and systemctl operations
+    testkit/            test-only helpers: recording podman stub, unit file fixtures
+    workload/           one adapter per workload type (container, static, compose), selected by workload.For
     xdg/                XDG base directory resolution for the current user
 scripts/check.sh        the quality gate (POSIX sh)
 mise.toml               root tasks; apps/api/mise.toml holds the module's own
@@ -71,6 +74,8 @@ mise.toml               root tasks; apps/api/mise.toml holds the module's own
 ## Workload types
 
 `gare.yml` selects the workload type and gare never guesses: `container` (Kubernetes Pod manifest via `kube play`), `static` (bundled Caddy container serving a directory), and `compose` (a repo-owned compose file executed by `podman compose`).
+
+- `workload.For` turns the type into the adapter (`internal/workload/container.go`, `static.go`, `compose.go`) that settles, prepares, tears down and stores the env of that type. The engine never asks which type it holds; type-specific behaviour goes into the adapters, so a fourth type is one new file.
 
 - Every setting follows one precedence, at create and at every deploy alike, decided by `appconfig.Resolve` only: a flag the operator passed, then `gare.yml`, then the value stored in `config.json`, then the default. Never merge `gare.yml` into a configuration anywhere else, or create and deploy drift apart again.
 - Compose workloads require an explicit `port` that the compose file actually publishes, because the host port belongs to the compose file and gare only routes to it.
@@ -87,7 +92,7 @@ mise.toml               root tasks; apps/api/mise.toml holds the module's own
 - Never add inline comments in Go code or comments in function bodies.
 - Only `apps/api/main.go` (with `apps/api/version.go`) is `package main`. The Cobra commands live in `apps/api/cli` as `package cli`, so a future daemon or test can import them, and `main` only maps `cli.Execute` to an exit status.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
-- Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git fetch`).
+- Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git fetch`). The engine never prints: it hands subprocesses the writers its `Sink` returns from `Output`, and reports every progress line through `Sink.Event`, so the CLI's terminal sink, the webhook daemon and the API all run the same code.
 - Clean up resources completely on destroy: stop unit, disable it, remove the unit file, its enable link and any Quadlet source an older gare left behind, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy. Compose named volumes go only with `--volumes`, and a destroy runs only with `--yes` or the app name typed back on a terminal, because it cannot be undone.
 - Fail fast when podman cannot run the generated units: probe `podman kube play` for `--service-container` before touching anything else, so a podman older than 5.0 cannot leave a workload stopped or half-retired.
 - Every `localhost/<name>` image a generated or adopted Pod manifest runs carries `imagePullPolicy: Never`. The image exists only in Podman's local storage, since gare builds it, so an unset policy leaves `podman kube play` to resolve it as `docker://localhost/<name>` and fail wherever nothing answers as a registry on `localhost` — a restart loop whose journal looks like a deployment bug.
@@ -103,5 +108,5 @@ mise.toml               root tasks; apps/api/mise.toml holds the module's own
 - Resolve user paths through the XDG base directories: `$XDG_CONFIG_HOME` (defaulting to `~/.config`) locates the systemd user units and `$XDG_DATA_HOME` (defaulting to `~/.local/share`) locates application storage, so gare agrees with systemd and the rest of the desktop on a host that sets them.
 - Every documented global flag must change behaviour. The `~/.gare.yml` loader feeds verbosity and git authentication, and only a flag the operator actually passed may override the file, so a setting in the file survives unless the command line contradicts it.
 - Paths written into a unit must be absolute and free of whitespace: systemd splits `ExecStart` on whitespace without honouring quotes, so a space silently becomes an extra argument and the unit starts the wrong command.
-- Every command that changes an app (create, deploy, destroy, and env, domain and tag edits) holds the app's lock for its whole run: `storage.Store.Lock`, an `flock` on `<base>/.locks/<app-name>.lock`. The lock file lives outside the app directory so destroy keeps holding it while it deletes that directory, and it is never removed, because unlinking a lock file someone waits on lets a third process lock a fresh file of the same name. Load `config.json` only after taking the lock, or the command saves over what the previous holder wrote.
+- Every engine operation that changes an app (create, deploy, destroy, and env, domain and tag edits) holds the app's lock for its whole run: `storage.Store.Lock`, an `flock` on `<base>/.locks/<app-name>.lock`. The lock file lives outside the app directory so destroy keeps holding it while it deletes that directory, and it is never removed, because unlinking a lock file someone waits on lets a third process lock a fresh file of the same name. Load `config.json` only after taking the lock, or the command saves over what the previous holder wrote.
 - Port discovery begins at port 8000 and increments upwards, avoiding both recorded app ports and active system listeners.

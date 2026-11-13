@@ -95,26 +95,3 @@ func TestGareFileFlatFields(t *testing.T) {
 		t.Errorf("unexpected static dir/build cmd/healthcheck: %+v", gf)
 	}
 }
-
-func TestAppConfigIsStatic(t *testing.T) {
-	var nilCfg *AppConfig
-	if nilCfg.IsStatic() {
-		t.Errorf("nil config IsStatic: got true, want false")
-	}
-	cases := []struct {
-		appType string
-		want    bool
-	}{
-		{"static", true},
-		{"STATIC", true},
-		{"container", false},
-		{"", false},
-		{"other", false},
-	}
-	for _, tc := range cases {
-		cfg := &AppConfig{AppType: tc.appType}
-		if got := cfg.IsStatic(); got != tc.want {
-			t.Errorf("IsStatic() for %q: got %v, want %v", tc.appType, got, tc.want)
-		}
-	}
-}

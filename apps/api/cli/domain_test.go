@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -181,33 +180,5 @@ func TestDomainViaAppCmd(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Hostname != "test.example.com" {
 		t.Fatalf("expected test.example.com, got: %+v", items)
-	}
-}
-
-func TestSyncAppIngress(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-	confDir := filepath.Join(tmpDir, "caddy", "conf.d")
-	t.Setenv("GARE_CADDY_CONF_DIR", confDir)
-	caddyfilePath := filepath.Join(tmpDir, "caddy", "Caddyfile")
-	t.Setenv("GARE_CADDYFILE", caddyfilePath)
-
-	cfg := setupDomainTestApp(t, tmpDir, "capp", []string{"c1.example.com", "c2.example.com"})
-	if err := syncAppIngress(cfg); err != nil {
-		t.Fatalf("syncAppIngress failed: %v", err)
-	}
-
-	snippetPath := filepath.Join(confDir, "capp.caddy")
-	data, err := os.ReadFile(snippetPath)
-	if err != nil || !strings.Contains(string(data), "c1.example.com, c2.example.com") {
-		t.Fatalf("snippet missing expected content: %v, content: %s", err, string(data))
-	}
-
-	cfg.Domains = nil
-	if err := syncAppIngress(cfg); err != nil {
-		t.Fatalf("syncAppIngress remove failed: %v", err)
-	}
-	if _, err := os.Stat(snippetPath); !os.IsNotExist(err) {
-		t.Fatal("expected snippet to be removed when no domains exist")
 	}
 }

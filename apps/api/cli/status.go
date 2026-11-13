@@ -5,32 +5,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/FacileStudio/gare/apps/api/internal/health"
-	"github.com/FacileStudio/gare/apps/api/internal/storage"
-	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
 type statusOptions struct {
 	jsonOutput bool
-}
-
-// AppStatusDetails holds detailed status for a single application.
-type AppStatusDetails struct {
-	Name          string                     `json:"name"`
-	AppType       string                     `json:"app_type"`
-	Status        string                     `json:"status"`
-	Domains       []string                   `json:"domains,omitempty"`
-	Port          int                        `json:"port,omitempty"`
-	ContainerPort int                        `json:"container_port,omitempty"`
-	RepoURL       string                     `json:"repo_url"`
-	Branch        string                     `json:"branch"`
-	Commit        string                     `json:"commit"`
-	CreatedAt     string                     `json:"created_at"`
-	Healthcheck   string                     `json:"healthcheck,omitempty"`
-	Probes        []health.Probe             `json:"probes,omitempty"`
-	Tags          []string                   `json:"tags,omitempty"`
-	Service       *systemd.ServiceProperties `json:"service,omitempty"`
 }
 
 // NewStatusCmd builds the status command.
@@ -50,40 +29,14 @@ func NewStatusCmd() *cobra.Command {
 	return cmd
 }
 
+// runStatus renders the engine's status of one application, as JSON or as a tree.
 func runStatus(ctx context.Context, w io.Writer, name string, opts statusOptions) error {
-	appDir, cfg, err := loadAppConfig(name)
+	details, err := newEngine(ctx).Status(ctx, name)
 	if err != nil {
 		return err
 	}
-
-	details := collectAppStatus(ctx, appDir, cfg)
 	if opts.jsonOutput {
 		return writeJSON(w, details)
 	}
 	return outputStatusHuman(w, details)
-}
-
-func collectAppStatus(ctx context.Context, appDir string, cfg *storage.AppConfig) *AppStatusDetails {
-	repoDir := storage.GetRepoDir(appDir)
-	details := &AppStatusDetails{
-		Name:          cfg.Name,
-		AppType:       cfg.AppType,
-		Status:        "inactive",
-		Domains:       cfg.Domains,
-		Port:          cfg.Port,
-		ContainerPort: cfg.ContainerPort,
-		RepoURL:       cfg.RepoURL,
-		Branch:        cfg.Branch,
-		Commit:        deployedCommit(ctx, repoDir),
-		CreatedAt:     cfg.CreatedAt,
-		Healthcheck:   cfg.HealthPath(),
-		Probes:        cfg.HealthProbes(),
-		Tags:          cfg.Tags,
-	}
-	props, _ := systemd.GetServiceProperties(ctx, cfg.Name)
-	details.Service = props
-	if props != nil && props.ActiveState != "" {
-		details.Status = props.ActiveState
-	}
-	return details
 }

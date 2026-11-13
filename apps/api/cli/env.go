@@ -63,7 +63,7 @@ func newEnvListCmd() *cobra.Command {
 		Short: "List environment variables for an application",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runEnvList(cmd.OutOrStdout(), args[0], opts)
+			return runEnvList(cmd.Context(), cmd.OutOrStdout(), args[0], opts)
 		},
 	}
 	cmd.Flags().BoolVar(&opts.jsonOutput, "json", false, "Output JSON object")
@@ -89,61 +89,28 @@ func newEnvLoadCmd() *cobra.Command {
 	return cmd
 }
 
+// runEnvSet parses KEY=VALUE assignments and sets them through the engine.
 func runEnvSet(ctx context.Context, name string, assignments []string) error {
 	vars, err := dotenv.ParseAssignments(assignments)
 	if err != nil {
 		return err
 	}
-	unlock, err := lockApp(ctx, name)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	appDir, store, err := resolveEnvStore(name)
-	if err != nil {
-		return err
-	}
-	if err := store.write(appDir, vars); err != nil {
-		return envStoreError("set", store, err)
-	}
-	printSuccess(fmt.Sprintf("Updated %d environment variable(s) in %s", len(vars), store.label))
-	return reloadIfActive(ctx, name)
+	result, err := newEngine(ctx).SetEnv(ctx, name, vars)
+	return reportEnvChange(name, result, err)
 }
 
+// runEnvUnset removes the named keys through the engine.
 func runEnvUnset(ctx context.Context, name string, keys []string) error {
-	unlock, err := lockApp(ctx, name)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	appDir, store, err := resolveEnvStore(name)
-	if err != nil {
-		return err
-	}
-	if err := store.remove(appDir, keys); err != nil {
-		return envStoreError("unset", store, err)
-	}
-	printSuccess(fmt.Sprintf("Removed %d environment variable(s) from %s", len(keys), store.label))
-	return reloadIfActive(ctx, name)
+	result, err := newEngine(ctx).UnsetEnv(ctx, name, keys)
+	return reportEnvChange(name, result, err)
 }
 
+// runEnvLoad reads an env file and sets its variables through the engine.
 func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 	vars, err := dotenv.LoadFile(opts.envFile)
 	if err != nil {
 		return fmt.Errorf("failed to read env file: %w", err)
 	}
-	unlock, err := lockApp(ctx, name)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	appDir, store, err := resolveEnvStore(name)
-	if err != nil {
-		return err
-	}
-	if err := store.write(appDir, vars); err != nil {
-		return envStoreError("load", store, err)
-	}
-	printSuccess(fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), opts.envFile))
-	return reloadIfActive(ctx, name)
+	result, err := newEngine(ctx).LoadEnv(ctx, name, vars, opts.envFile)
+	return reportEnvChange(name, result, err)
 }
