@@ -14,6 +14,7 @@ import (
 
 type artifactCase struct {
 	workload   storage.WorkloadType
+	volumes    bool
 	cfg        *storage.AppConfig
 	wantPodman []string
 }
@@ -37,8 +38,17 @@ func artifactCases() map[string]artifactCase {
 			cfg:        &storage.AppConfig{Name: "myapp", AppType: "container"},
 			wantPodman: []string{"rmi -f localhost/myapp:latest"},
 		},
-		"compose": {
+		"compose keeps volumes by default": {
 			workload: storage.WorkloadCompose,
+			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeFile: "compose.yml"},
+			wantPodman: []string{
+				"compose -f compose.yml -p myapp down",
+				"ps -a --filter label=com.docker.compose.project=myapp --format {{.ID}}",
+			},
+		},
+		"compose with --volumes": {
+			workload: storage.WorkloadCompose,
+			volumes:  true,
 			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeFile: "compose.yml"},
 			wantPodman: []string{
 				"compose -f compose.yml -p myapp down -v",
@@ -62,7 +72,8 @@ func assertArtifactTeardown(t *testing.T, tc artifactCase) {
 	seedSnippet(t, confDir, "myapp")
 	seedComposeRepo(t, appDir, tc.workload)
 
-	removeArtifacts(context.Background(), "myapp", appDir, tc.workload, tc.cfg)
+	plan := destroyPlan{name: "myapp", appDir: appDir, workload: tc.workload, cfg: tc.cfg, volumes: tc.volumes}
+	removeArtifacts(context.Background(), plan)
 
 	if got := recordedCalls(t, logPath); !slices.Equal(got, tc.wantPodman) {
 		t.Errorf("podman invocations = %v, want %v", got, tc.wantPodman)

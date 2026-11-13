@@ -437,7 +437,7 @@ Now configure GitHub or GitLab to point to `https://gare-hook.example.com/webhoo
 To remove the test application completely, run:
 
 ```sh
-gare destroy test-app
+gare destroy test-app --yes
 ```
 
 `gare destroy` cleans up every resource:
