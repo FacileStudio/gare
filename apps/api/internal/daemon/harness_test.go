@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FacileStudio/gare/apps/api/internal/apikit/apitest"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
 	"github.com/FacileStudio/gare/apps/api/modules/auth"
 	"github.com/FacileStudio/porte"
@@ -31,21 +33,22 @@ const hookSecret = "hook-secret"
 // listener and a browser-like client that keeps cookies and stops at every
 // redirect so a test can read each Location.
 type harness struct {
-	t        *testing.T
-	idp      *fakeIdP
-	base     string
-	cfg      Config
-	db       *sql.DB
-	handler  atomic.Pointer[http.Handler]
-	client   *http.Client
-	deployed chan string
+	t       *testing.T
+	idp     *fakeIdP
+	base    string
+	cfg     Config
+	db      *sql.DB
+	handler atomic.Pointer[http.Handler]
+	client  *http.Client
 }
 
-// newHarness starts the provider, the listener and a daemon allowing emails.
+// newHarness starts the provider, the listener and a daemon allowing emails,
+// over an app store of its own whose engine runs against stubbed systemd,
+// podman and Caddy.
 func newHarness(t *testing.T, clientDir string, emails ...string) *harness {
 	t.Helper()
 	dsn := scratchURL(t)
-	h := &harness{t: t, idp: newFakeIdP(t), deployed: make(chan string, 4)}
+	h := &harness{t: t, idp: newFakeIdP(t)}
 	listener := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		(*h.handler.Load()).ServeHTTP(w, r)
 	}))
@@ -57,7 +60,7 @@ func newHarness(t *testing.T, clientDir string, emails ...string) *harness {
 			RedirectURL: h.base + "/api/auth/oidc/callback", SuccessURL: h.base + "/", SSOOnly: true,
 		},
 		StatePath: t.TempDir() + "/deletions.json",
-	}}
+	}, Store: apitest.New(t).Deps.Store, allowLocalRepos: true}
 	jar, _ := cookiejar.New(nil)
 	h.client = &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -73,16 +76,13 @@ func (h *harness) restart(emails ...string) {
 	h.t.Helper()
 	cfg := h.cfg
 	cfg.Auth.AdminEmails = emails
-	intake := server.New(server.Config{Secret: hookSecret, DeployHandler: func(_ context.Context, app string) error {
-		h.deployed <- app
-		return nil
-	}})
+	intake := server.New(server.Config{Secret: hookSecret})
 	d, err := New(context.Background(), cfg, intake, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		h.t.Fatalf("daemon: %v", err)
 	}
 	h.t.Cleanup(func() {
-		if err := d.Close(); err != nil {
+		if err := errors.Join(intake.Shutdown(context.Background()), d.Close()); err != nil {
 			h.t.Errorf("close daemon: %v", err)
 		}
 	})

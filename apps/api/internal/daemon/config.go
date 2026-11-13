@@ -9,6 +9,8 @@ import (
 	"net"
 	"path/filepath"
 
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/xdg"
 	"github.com/FacileStudio/gare/apps/api/modules/auth"
 	"github.com/FacileStudio/porte"
@@ -28,12 +30,18 @@ const ListenEnv = "GARE_LISTEN"
 // app reads, so one deployment panel spells them the same way everywhere.
 // ClientDir defaults under XDG_DATA_HOME rather than to a relative path,
 // because a systemd user unit starts in $HOME and a relative default would
-// silently find no client there.
+// silently find no client there. Store is where the apps live, the user's
+// default store when nil, and Settings is what the engine runs every API and
+// webhook operation with. allowLocalRepos lets a create clone a local path,
+// which only tests turn on.
 type Config struct {
-	Listen      string
-	DatabaseURL string
-	ClientDir   string
-	Auth        auth.Config
+	Listen          string
+	DatabaseURL     string
+	ClientDir       string
+	Auth            auth.Config
+	Store           *storage.Store
+	Settings        engine.Settings
+	allowLocalRepos bool
 }
 
 // Load reads the environment. It fails only on a value that is set but

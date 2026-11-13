@@ -11,10 +11,13 @@ import (
 
 	"github.com/FacileStudio/gare/apps/api/internal/server"
 	"github.com/FacileStudio/gare/apps/api/migrations"
+	"github.com/FacileStudio/gare/apps/api/modules/apps"
 	"github.com/FacileStudio/gare/apps/api/modules/auth"
+	"github.com/FacileStudio/gare/apps/api/modules/deploys"
+	"github.com/FacileStudio/gare/apps/api/modules/domains"
+	"github.com/FacileStudio/gare/apps/api/modules/env"
 	"github.com/FacileStudio/tronc/apiref"
 	"github.com/FacileStudio/tronc/spa"
-	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -56,7 +59,7 @@ func assemble(ctx context.Context, cfg Config, db *sql.DB, intake *server.Server
 		return nil, nil, err
 	}
 	router, err := intake.Router(server.Routes{
-		API:       func(api chi.Router) error { return auth.RegisterRoutes(api, service) },
+		API:       mountAPI(service, apiDeps(cfg, intake, logger)),
 		Docs:      Reference(),
 		ClientDir: cfg.ClientDir,
 		Logger:    logger,
@@ -67,8 +70,14 @@ func assemble(ctx context.Context, cfg Config, db *sql.DB, intake *server.Server
 // Reference is the API reference the daemon serves at /docs.
 func Reference() apiref.Config {
 	return apiref.Config{
-		Title:    "Gare",
-		Registry: apiref.Registry{Modules: []apiref.Module{auth.Documentation()}},
+		Title: "Gare",
+		Registry: apiref.Registry{Modules: []apiref.Module{
+			auth.Documentation(),
+			apps.Documentation(),
+			deploys.Documentation(),
+			env.Documentation(),
+			domains.Documentation(),
+		}},
 	}
 }
 

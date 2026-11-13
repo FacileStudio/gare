@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/tronc/apiref"
 	"github.com/go-chi/chi/v5"
 )
@@ -114,9 +116,13 @@ func TestLeavingTheListEndsTheSession(t *testing.T) {
 }
 
 // TestWebhookIntakeIsUnchanged proves the root routes still reach the webhook
-// handler: health, a refused signature, and an accepted trigger.
+// handler: health, a refused signature, and an accepted trigger, which the
+// daemon's engine records as a webhook deploy of the app.
 func TestWebhookIntakeIsUnchanged(t *testing.T) {
 	h := newHarness(t, "", "ops@example.test")
+	if err := h.cfg.Store.Save(&storage.AppConfig{Name: "demo", AppType: "static", Branch: "main"}); err != nil {
+		t.Fatal(err)
+	}
 	response := h.do(http.MethodGet, h.base+"/health", nil)
 	if body, _ := io.ReadAll(response.Body); response.StatusCode != http.StatusOK || string(body) != "OK" {
 		t.Fatalf("GET /health = %d %q", response.StatusCode, body)
@@ -129,8 +135,9 @@ func TestWebhookIntakeIsUnchanged(t *testing.T) {
 	if response := h.do(http.MethodPost, h.base+"/webhook/demo", good); response.StatusCode != http.StatusAccepted {
 		t.Fatalf("signed webhook = %d, want 202", response.StatusCode)
 	}
-	if app := <-h.deployed; app != "demo" {
-		t.Fatalf("deployed %q, want demo", app)
+	list, err := deploys.Open(h.cfg.Store.AppDir("demo"), "demo").List()
+	if err != nil || len(list) != 1 || list[0].Trigger != deploys.TriggerWebhook {
+		t.Fatalf("history = %+v, %v; want one webhook deploy", list, err)
 	}
 }
 
