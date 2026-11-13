@@ -46,7 +46,7 @@ func syncRepoManifest(appDir, repoDir string) error {
 	}
 	appManifest := storage.GetManifestPath(appDir)
 	existingEnvs, _ := manifest.GetEnv(appManifest)
-	if err := atomicfile.WriteFile(appManifest, data, 0644); err != nil {
+	if err := atomicfile.WriteFile(appManifest, data, 0600); err != nil {
 		return fmt.Errorf("failed to sync manifest: %w", err)
 	}
 	if len(existingEnvs) > 0 {

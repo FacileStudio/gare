@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/xdg"
@@ -48,27 +46,20 @@ func GetConfigPath(appDir string) string {
 	return filepath.Join(appDir, "config.json")
 }
 
-// SaveConfig writes an AppConfig to config.json atomically.
+// SaveConfig writes an AppConfig to the app directory's config.json atomically, readable by its
+// owner alone.
 func SaveConfig(appDir string, cfg *AppConfig) error {
-	configPath := appDir
-	if !strings.HasSuffix(appDir, ".json") {
-		configPath = filepath.Join(appDir, "config.json")
-	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	return atomicfile.WriteFile(configPath, data, 0644)
+	return atomicfile.WriteFile(GetConfigPath(appDir), data, 0600)
 }
 
-// LoadConfig reads an AppConfig from config.json.
+// LoadConfig reads an AppConfig from the app directory's config.json.
 func LoadConfig(appDir string) (*AppConfig, error) {
-	configPath := appDir
-	if !strings.HasSuffix(appDir, ".json") {
-		configPath = filepath.Join(appDir, "config.json")
-	}
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(GetConfigPath(appDir))
 	if err != nil {
 		return nil, err
 	}
@@ -79,35 +70,6 @@ func LoadConfig(appDir string) (*AppConfig, error) {
 	migrateDomain(&cfg, data)
 	migrateHealth(&cfg, data)
 	return &cfg, nil
-}
-
-// ListApps returns all configured applications sorted by name.
-func ListApps(baseDir string) ([]*AppConfig, error) {
-	if baseDir == "" {
-		baseDir = DefaultBaseDir()
-	}
-	entries, err := os.ReadDir(baseDir)
-	if os.IsNotExist(err) {
-		return []*AppConfig{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var apps []*AppConfig
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		cfg, err := LoadConfig(filepath.Join(baseDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		apps = append(apps, cfg)
-	}
-	sort.Slice(apps, func(i, j int) bool {
-		return apps[i].Name < apps[j].Name
-	})
-	return apps, nil
 }
 
 // DeleteAppStorage removes the application directory and all its contents.

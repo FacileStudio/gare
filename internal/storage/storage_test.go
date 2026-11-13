@@ -47,12 +47,10 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
 	assertConfigEqual(t, loaded, cfg)
-
-	loadedDirect, err := LoadConfig(filepath.Join(appDir, "config.json"))
-	if err != nil {
-		t.Fatalf("LoadConfig directly failed: %v", err)
+	info, err := os.Stat(GetConfigPath(appDir))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Errorf("config.json mode: %v (err %v), want 0600", info.Mode().Perm(), err)
 	}
-	assertConfigEqual(t, loadedDirect, cfg)
 	testInvalidConfigs(t, tmpDir)
 }
 
@@ -81,11 +79,14 @@ func testInvalidConfigs(t *testing.T, tmpDir string) {
 	if _, err := LoadConfig(filepath.Join(tmpDir, "nonexistent")); err == nil {
 		t.Error("expected error loading non-existent config, got nil")
 	}
-	badPath := filepath.Join(tmpDir, "bad.json")
-	if err := os.WriteFile(badPath, []byte("not valid json"), 0644); err != nil {
+	badDir := filepath.Join(tmpDir, "bad")
+	if err := os.MkdirAll(badDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadConfig(badPath); err == nil {
+	if err := os.WriteFile(GetConfigPath(badDir), []byte("not valid json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadConfig(badDir); err == nil {
 		t.Error("expected unmarshal error for invalid json, got nil")
 	}
 }

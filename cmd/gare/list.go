@@ -59,6 +59,7 @@ func runList(ctx context.Context, w io.Writer, opts listOptions) error {
 		return fmt.Errorf("failed to list apps: %w", err)
 	}
 
+	warnUnreadableApps(baseDir)
 	if opts.tag != "" {
 		apps = storage.FilterAppsByTag(apps, opts.tag)
 	}
@@ -143,4 +144,14 @@ func renderCreatedAt(created string) string {
 		return created
 	}
 	return parsed.Local().Format("2006-01-02 15:04")
+}
+
+// warnUnreadableApps names every app whose configuration exists but cannot be read, because the
+// table would otherwise drop it without a word and leave the operator thinking it was gone.
+func warnUnreadableApps(baseDir string) {
+	broken, err := storage.UnreadableApps(baseDir)
+	if err != nil || len(broken) == 0 {
+		return
+	}
+	printWarning(fmt.Sprintf("Skipped %d app(s) with an unreadable config.json: %s", len(broken), strings.Join(broken, ", ")))
 }
