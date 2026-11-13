@@ -354,6 +354,19 @@ With the API on, the daemon:
 
 Register `https://<host>/api/auth/backchannel-logout` as the provider's back-channel logout URI. The daemon also polls the provider for erased people, deletes their account and sessions, and refuses them a new one; it remembers them in `$XDG_DATA_HOME/gare/registre-deletions.json`.
 
+## Alerts
+
+gare tells [Antenne](https://antenne.facile.studio) when a deploy fails or rolls back. A successful deploy sends nothing.
+
+| Variable | Purpose |
+|---|---|
+| `ANTENNE_URL` | Antenne's base URL. `ANTENNE_INSTANCE` is read as a synonym. |
+| `ANTENNE_SECRET` | The secret of Antenne's `generic` webhook provider. |
+
+Alerts are on only when both are set, for the CLI and the daemon alike. gare posts to `<ANTENNE_URL>/webhook/generic`, signed `sha256=` in `x-generic-signature-256`, so create a `generic` provider in Antenne with that secret and route it to a target. Each alert carries the app, the deploy id, the commit, the trigger, the host name and the error, with `severity` `error` for a failed deploy and `warning` for a rolled-back one.
+
+The error is capped at 2000 characters, and every line that assigns a variable ending in `SECRET`, `TOKEN`, `PASSWORD` or `KEY` is dropped first. A failed alert is a warning and never fails the deploy: the post gives up after 5 seconds and is not retried. A CLI deploy waits for it, since the process exits right after; a deploy the daemon runs sends it in the background.
+
 ## Development
 
 The Go module lives in `apps/api`; `apps/api/main.go` is the entry point and the commands are in `apps/api/cli`. `gare` uses [mise](https://mise.sh) for task management.

@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/FacileStudio/gare/apps/api/internal/git"
+	"github.com/FacileStudio/gare/apps/api/internal/notify"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/workload"
 )
@@ -46,11 +47,13 @@ type Engine struct {
 	store    *storage.Store
 	sink     Sink
 	settings Settings
+	alerts   *notify.Notifier
 }
 
-// New returns an engine acting on the apps in store, reporting to sink.
+// New returns an engine acting on the apps in store, reporting to sink. It reads the Antenne alert
+// settings from the environment once, here, and sends no alert when they are unset.
 func New(store *storage.Store, sink Sink, settings Settings) *Engine {
-	return &Engine{store: store, sink: sink, settings: settings}
+	return &Engine{store: store, sink: sink, settings: settings, alerts: notify.FromEnv()}
 }
 
 // reporter is the sink narrowed to one app, in the shape a workload adapter reports through.

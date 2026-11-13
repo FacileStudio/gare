@@ -61,6 +61,7 @@ apps/api/               the Go module github.com/FacileStudio/gare/apps/api
     health/             the readiness probe type and HTTP polling
     ingress/            caddy snippets, the root Caddyfile, transactional reloads and the ingress probe
     manifest/           Pod manifest generation and env/port rewriting
+    notify/             deploy failure and rollback alerts to Antenne's generic webhook
     podman/             podman build, image, Containerfile and compose CLI invocation
     repopath/           keeps configured paths (static_dir, context, containerfile, compose_file) inside the repo
     server/             webhook HTTP daemon and HMAC verification
@@ -113,4 +114,5 @@ mise.toml               root tasks; apps/api/mise.toml holds the module's own
 - Every documented global flag must change behaviour. The `~/.gare.yml` loader feeds verbosity and git authentication, and only a flag the operator actually passed may override the file, so a setting in the file survives unless the command line contradicts it.
 - Paths written into a unit must be absolute and free of whitespace: systemd splits `ExecStart` on whitespace without honouring quotes, so a space silently becomes an extra argument and the unit starts the wrong command.
 - Every engine operation that changes an app (create, deploy, destroy, and env, domain and tag edits) holds the app's lock for its whole run: `storage.Store.Lock`, an `flock` on `<base>/.locks/<app-name>.lock`. The lock file lives outside the app directory so destroy keeps holding it while it deletes that directory, and it is never removed, because unlinking a lock file someone waits on lets a third process lock a fresh file of the same name. Load `config.json` only after taking the lock, or the command saves over what the previous holder wrote.
+- Deploy alerts go to Antenne's `/webhook/generic`, never through the antenne-client pool: pool events never reach Antenne's delivery targets, so an alert sent there reaches nobody. `internal/notify` sends one per failed or rolled-back deploy from `finishRecord`, waits for it only on a CLI deploy (the process exits right after) and never retries, so an Antenne that is down costs a deploy at most 5 seconds and never its result.
 - Port discovery begins at port 8000 and increments upwards, avoiding both recorded app ports and active system listeners.
