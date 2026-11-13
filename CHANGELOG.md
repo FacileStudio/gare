@@ -4,6 +4,10 @@
 
 ### Added
 
+- `gare server` serves the API under `/api` and the web UI from `CLIENT_DIR` once `OIDC_ISSUER` is set, listening on `GARE_LISTEN` (default `127.0.0.1:9120`). It migrates `DATABASE_URL` at start and exits non-zero when the migrations fail.
+- Operators sign in through the suite's identity provider with porte, single sign-on only. Only addresses in `GARE_ADMIN_EMAILS` get in; an empty list lets nobody in, a refused sign-in lands on `/login?error=` with no session, and removing an address ends its sessions.
+- `GET /api/me` answers the signed-in operator as `{email, name, picture}`.
+- Back-channel logout and the provider's erasure notices are honoured; an erased identity is refused a new account.
 - `deploy/compose.yml` runs the daemon's Postgres (`postgres:16-alpine`) on `127.0.0.1:5439`; `mise run db-up` and `mise run db-down` start and stop it for development.
 - The `migrations` package holds the daemon's schema: porte v0.19.0's account, identity and session tables, applied forward-only through tronc/migrate.
 - `GARE_MAX_PARALLEL_DEPLOYS` caps concurrent webhook deploys across apps (default 2); an invalid value stops the daemon at start.
@@ -29,6 +33,7 @@
 
 ### Changed
 
+- Without `OIDC_ISSUER`, `gare server` logs that the API and web UI are disabled and serves webhooks only, as before, without a database. An explicit `--port` overrides `GARE_LISTEN` when the API is on.
 - A setting changed in `gare.yml` now takes effect at the next deploy for every key. Before, a stored `build_cmd`, `containerfile`, `context`, `static_dir` or `healthcheck` path silently won over `gare.yml`, while `type`, `port` and `tags` did not. Every setting now follows one order: a flag passed to `gare app create`, then `gare.yml`, then the stored value, then the default. A key removed from `gare.yml` keeps its last value.
 - An invalid tag in `gare.yml` now fails the deploy instead of printing a warning, and `gare app create --type` rejects a workload type other than `container`, `static` or `compose`.
 - `gare server` deploys only on GitHub `push` and GitLab `Push Hook` events whose ref is the app's branch; other events, including GitHub's `ping`, answer `200 ignored: <event>`, a push to another branch answers `200 ignored: <ref>`, and an unknown app answers `404`. A signed request with no event header still deploys, for manual triggers.
