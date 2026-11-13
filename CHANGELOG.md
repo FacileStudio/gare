@@ -33,6 +33,8 @@
 
 ### Changed
 
+- The app lifecycle moved out of the CLI into `internal/engine`, and the per-type behaviour into one adapter per workload type in `internal/workload`. The engine prints nothing: it reports progress through a sink and returns typed results, so the webhook daemon and the API run the same code as the CLI. Commands print the same lines as before.
+- `gare start`, `restart` and the `env` commands refuse an app whose `config.json` names an unknown workload type, instead of treating it as a container.
 - Without `OIDC_ISSUER`, `gare server` logs that the API and web UI are disabled and serves webhooks only, as before, without a database. An explicit `--port` overrides `GARE_LISTEN` when the API is on.
 - A setting changed in `gare.yml` now takes effect at the next deploy for every key. Before, a stored `build_cmd`, `containerfile`, `context`, `static_dir` or `healthcheck` path silently won over `gare.yml`, while `type`, `port` and `tags` did not. Every setting now follows one order: a flag passed to `gare app create`, then `gare.yml`, then the stored value, then the default. A key removed from `gare.yml` keeps its last value.
 - An invalid tag in `gare.yml` now fails the deploy instead of printing a warning, and `gare app create --type` rejects a workload type other than `container`, `static` or `compose`.
