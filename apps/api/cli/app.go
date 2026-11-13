@@ -105,6 +105,11 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	}
 	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Minute)
 	defer cancel()
+	unlock, err := waitForAppLock(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
 	store := storage.Default()
 	appDir := store.AppDir(name)

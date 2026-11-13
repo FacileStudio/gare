@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -19,7 +20,12 @@ type appTagItem struct {
 	Tag string `json:"tag"`
 }
 
-func runTagAdd(appName string, tags []string) error {
+func runTagAdd(ctx context.Context, appName string, tags []string) error {
+	unlock, err := lockApp(ctx, appName)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
@@ -34,7 +40,12 @@ func runTagAdd(appName string, tags []string) error {
 	return nil
 }
 
-func runTagRemove(appName string, tags []string) error {
+func runTagRemove(ctx context.Context, appName string, tags []string) error {
+	unlock, err := lockApp(ctx, appName)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err

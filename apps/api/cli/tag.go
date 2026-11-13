@@ -27,7 +27,7 @@ func newTagAddCmd() *cobra.Command {
 		Short: "Add one or more tags to an application",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTagAdd(args[0], args[1:])
+			return runTagAdd(cmd.Context(), args[0], args[1:])
 		},
 	}
 }
@@ -39,7 +39,7 @@ func newTagRemoveCmd() *cobra.Command {
 		Short:   "Remove one or more tags from an application",
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTagRemove(args[0], args[1:])
+			return runTagRemove(cmd.Context(), args[0], args[1:])
 		},
 	}
 }

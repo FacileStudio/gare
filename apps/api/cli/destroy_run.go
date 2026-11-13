@@ -37,6 +37,11 @@ func runDestroy(ctx context.Context, name string, opts destroyOptions) error {
 	if err := confirmDestroy(name, opts.yes, os.Stdin, os.Stdout, stdinIsTerminal()); err != nil {
 		return err
 	}
+	unlock, err := waitForAppLock(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	store := storage.Default()
 	appDir := store.AppDir(name)
 	cfg, workload, err := resolveDestroyWorkload(store, name)
