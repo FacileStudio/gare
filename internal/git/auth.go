@@ -23,12 +23,15 @@ func (a Auth) Validate() error {
 	return fmt.Errorf("unknown git provider %q: want github or gitlab", a.Provider)
 }
 
+// credential describes how to authenticate against one forge. tokenEnv names the environment
+// variable holding its token rather than the token itself, so the token reaches git's credential
+// helper through the child's environment and never through argv, which every user can read.
 type credential struct {
-	host   string
-	cli    string
-	forced bool
-	token  string
-	user   string
+	host     string
+	cli      string
+	forced   bool
+	tokenEnv string
+	user     string
 }
 
 func (a Auth) args() []string {
@@ -48,8 +51,10 @@ func (a Auth) args() []string {
 
 func (a Auth) credentials() []credential {
 	return []credential{
-		{host: "github.com", cli: "gh", forced: a.UseGitHubCLI, token: githubToken(), user: "x-access-token"},
-		{host: "gitlab.com", cli: "glab", forced: a.UseGitLabCLI, token: gitlabToken(), user: "oauth2"},
+		{host: "github.com", cli: "gh", forced: a.UseGitHubCLI, tokenEnv: tokenEnv("GITHUB_TOKEN", "GH_TOKEN"),
+			user: "x-access-token"},
+		{host: "gitlab.com", cli: "glab", forced: a.UseGitLabCLI, tokenEnv: tokenEnv("GITLAB_TOKEN", "GL_TOKEN"),
+			user: "oauth2"},
 	}
 }
 
@@ -72,8 +77,8 @@ func (a Auth) helperFor(cred credential) string {
 	if cred.forced || hasBinary(cred.cli) {
 		return "!" + cred.cli + " auth git-credential"
 	}
-	if cred.token != "" {
-		return fmt.Sprintf("!f() { echo username=%s; echo password=%s; }; f", cred.user, cred.token)
+	if cred.tokenEnv != "" {
+		return fmt.Sprintf(`!f() { echo username=%s; echo "password=$%s"; }; f`, cred.user, cred.tokenEnv)
 	}
 	return ""
 }

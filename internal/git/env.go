@@ -17,16 +17,13 @@ func gitEnviron() []string {
 	return filtered
 }
 
-func githubToken() string {
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		return tok
+// tokenEnv returns the first of the named environment variables that holds a token, or empty when
+// none does.
+func tokenEnv(names ...string) string {
+	for _, name := range names {
+		if os.Getenv(name) != "" {
+			return name
+		}
 	}
-	return os.Getenv("GH_TOKEN")
-}
-
-func gitlabToken() string {
-	if tok := os.Getenv("GITLAB_TOKEN"); tok != "" {
-		return tok
-	}
-	return os.Getenv("GL_TOKEN")
+	return ""
 }
