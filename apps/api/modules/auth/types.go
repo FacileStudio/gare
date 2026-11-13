@@ -23,9 +23,11 @@ type Me struct {
 // is the allowlist, already split; an empty list lets nobody in. StatePath is
 // the file that remembers which identities the provider erased, kept on disk
 // beside the rest of gare's state so Postgres holds porte's tables only.
+// TokenKey is PORTE_TOKEN_KEY, empty when the provider's tokens are not sealed.
 type Config struct {
 	Porte       porte.Config
 	AdminEmails []string
 	StatePath   string
+	TokenKey    string
 	Logger      *slog.Logger
 }

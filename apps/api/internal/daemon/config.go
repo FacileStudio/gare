@@ -44,6 +44,7 @@ func Load() (Config, error) {
 			Porte:       loadPorte(ssoOnly),
 			AdminEmails: auth.ParseEmails(troncenv.String("GARE_ADMIN_EMAILS", "")),
 			StatePath:   filepath.Join(xdg.DataHome(), "gare", "registre-deletions.json"),
+			TokenKey:    troncenv.String(auth.TokenKeyEnv, ""),
 		},
 	}, nil
 }
