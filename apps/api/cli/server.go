@@ -2,21 +2,29 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/spf13/cobra"
 )
 
 // webhookSecretEnv names the environment variable that carries the webhook secret. The secret is
 // never a command-line flag, because argv is readable by every user on the host.
 const webhookSecretEnv = "GARE_WEBHOOK_SECRET"
+
+// maxParallelEnv names the environment variable that caps concurrent webhook deploys across apps,
+// so an operator can size it to what the host can build at once.
+const maxParallelEnv = "GARE_MAX_PARALLEL_DEPLOYS"
 
 type serverOptions struct {
 	port       string
@@ -61,21 +69,63 @@ func resolveWebhookSecret(secretFile string) (string, error) {
 	return "", fmt.Errorf("no webhook secret: set %s or pass --secret-file", webhookSecretEnv)
 }
 
-func runWebhookDaemon(opts serverOptions) error {
+// resolveMaxParallel reads the deploy concurrency cap from the environment. An unset variable
+// keeps the server's default; a value that is not a positive integer stops the daemon, because
+// silently falling back would hide the operator's typo behind a different limit.
+func resolveMaxParallel() (int, error) {
+	raw := strings.TrimSpace(os.Getenv(maxParallelEnv))
+	if raw == "" {
+		return server.DefaultMaxParallel, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return 0, fmt.Errorf("%s must be a positive integer, got %q", maxParallelEnv, raw)
+	}
+	return n, nil
+}
+
+// storedBranch reports the branch an app deploys from its stored config, so the webhook server
+// can skip pushes to other branches. A missing config means gare does not manage the app.
+func storedBranch(app string) (string, error) {
+	cfg, err := storage.LoadConfig(storage.GetAppDir(storage.DefaultBaseDir(), app))
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", server.ErrUnknownApp
+	}
+	if err != nil {
+		return "", err
+	}
+	return cfg.Branch, nil
+}
+
+// newWebhookServer assembles the webhook server from the operator's settings, failing before
+// anything listens when the secret or the concurrency cap is missing or malformed.
+func newWebhookServer(opts serverOptions) (*server.Server, error) {
 	secret, err := resolveWebhookSecret(opts.secretFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	srv := server.New(server.Config{
-		Secret: secret,
+	maxParallel, err := resolveMaxParallel()
+	if err != nil {
+		return nil, err
+	}
+	return server.New(server.Config{
+		Secret:      secret,
+		BranchFor:   storedBranch,
+		MaxParallel: maxParallel,
 		DeployHandler: func(ctx context.Context, appName string) error {
 			if err := appname.Validate(appName); err != nil {
 				return err
 			}
 			return RunDeploy(ctx, appName)
 		},
-	})
+	}), nil
+}
+
+func runWebhookDaemon(opts serverOptions) error {
+	srv, err := newWebhookServer(opts)
+	if err != nil {
+		return err
+	}
 
 	stopCh := make(chan os.Signal, 1)
 	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM)

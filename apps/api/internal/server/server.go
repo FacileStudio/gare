@@ -12,29 +12,33 @@ import (
 // DefaultPort is the default port the server listens on.
 const DefaultPort = "8080"
 
-// Config contains configuration options for Server.
+// Config contains configuration options for Server. BranchFor reports the branch an app deploys,
+// or ErrUnknownApp; when nil, every push matches. MaxParallel caps deploys across apps and
+// defaults to DefaultMaxParallel.
 type Config struct {
 	Secret        string
 	DeployHandler func(ctx context.Context, appName string) error
+	BranchFor     func(app string) (string, error)
+	MaxParallel   int
 }
 
 // Server handles incoming HTTP webhooks and dispatches deployments.
 type Server struct {
-	secret        string
-	deployHandler func(ctx context.Context, appName string) error
+	secret    string
+	branchFor func(app string) (string, error)
+	queue     *deployQueue
 
 	httpServer *http.Server
 	listener   net.Listener
-	locks      sync.Map
 	mu         sync.Mutex
-	wg         sync.WaitGroup
 }
 
 // New creates a new Server with the given configuration.
 func New(cfg Config) *Server {
 	return &Server{
-		secret:        cfg.Secret,
-		deployHandler: cfg.DeployHandler,
+		secret:    cfg.Secret,
+		branchFor: cfg.BranchFor,
+		queue:     newDeployQueue(cfg.DeployHandler, cfg.MaxParallel),
 	}
 }
 
@@ -74,20 +78,21 @@ func (s *Server) Start(addr string) error {
 	return err
 }
 
-// Shutdown gracefully stops the HTTP server.
+// Shutdown gracefully stops the HTTP server, then waits for running deploys while dropping the
+// pending ones, so a restart never cuts a build in half nor starts one on its way out.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.mu.Lock()
 	srv := s.httpServer
 	s.mu.Unlock()
-	if srv == nil {
-		return nil
+	if srv != nil {
+		if err := srv.Shutdown(ctx); err != nil {
+			return err
+		}
 	}
-	if err := srv.Shutdown(ctx); err != nil {
-		return err
-	}
+	s.queue.close()
 	done := make(chan struct{})
 	go func() {
-		s.wg.Wait()
+		s.queue.wg.Wait()
 		close(done)
 	}()
 	select {

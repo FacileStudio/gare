@@ -68,11 +68,11 @@ func postHMACWebhook(t *testing.T, targetURL string, payload []byte, sig string)
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil || resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("status %d reading body failed: %v", resp.StatusCode, err)
 	}
-	if string(body) != "Deploy queued for my-service" {
-		t.Errorf("got body %q, want %q", string(body), "Deploy queued for my-service")
+	if string(body) != "queued" {
+		t.Errorf("got body %q, want %q", string(body), "queued")
 	}
 }
 
@@ -146,7 +146,7 @@ func TestGitLabTokenHeader(t *testing.T) {
 	}
 	req.Header.Set("X-Gitlab-Token", secret)
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil || resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("request failed or status not ok: %v", err)
 	}
 	defer resp.Body.Close()
@@ -185,9 +185,9 @@ func TestPathParsingAndFallback(t *testing.T) {
 	defer ts.Close()
 
 	wg.Add(3)
-	postPathCase(t, ts.URL+"/webhook/service-alpha", nil, http.StatusOK)
-	postPathCase(t, ts.URL+"/webhook/service-beta", []byte(`{"app":"should-ignore"}`), http.StatusOK)
-	postPathCase(t, ts.URL+"/webhook", []byte(`{"app":"service-gamma"}`), http.StatusOK)
+	postPathCase(t, ts.URL+"/webhook/service-alpha", nil, http.StatusAccepted)
+	postPathCase(t, ts.URL+"/webhook/service-beta", []byte(`{"app":"should-ignore"}`), http.StatusAccepted)
+	postPathCase(t, ts.URL+"/webhook", []byte(`{"app":"service-gamma"}`), http.StatusAccepted)
 	postPathCase(t, ts.URL+"/webhook", []byte(`{"event":"deploy"}`), http.StatusBadRequest)
 	wg.Wait()
 

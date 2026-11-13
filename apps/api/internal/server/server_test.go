@@ -97,7 +97,6 @@ func TestPerAppConcurrencyLock(t *testing.T) {
 	var wg sync.WaitGroup
 
 	s := newSignedServer(func(ctx context.Context, appName string) error {
-		defer wg.Done()
 		if appName == "app1" {
 			recordConcurrency(&currentApp1, &maxApp1, &app1Runs)
 		}
@@ -110,15 +109,19 @@ func TestPerAppConcurrencyLock(t *testing.T) {
 	total := 6
 	wg.Add(total)
 	for range total {
-		go sendTestWebhook(t, ts.URL+"/webhook/app1")
+		go func() {
+			defer wg.Done()
+			sendTestWebhook(t, ts.URL+"/webhook/app1")
+		}()
 	}
 	wg.Wait()
+	waitQueueIdle(t, s)
 
 	if max := maxApp1.Load(); max != 1 {
 		t.Errorf("expected max concurrency 1 for app1, got %d", max)
 	}
-	if runs := app1Runs.Load(); runs != int32(total) {
-		t.Errorf("expected %d runs, got %d", total, runs)
+	if runs := app1Runs.Load(); runs < 1 || runs > 2 {
+		t.Errorf("expected 1 or 2 coalesced runs, got %d", runs)
 	}
 }
 
@@ -142,7 +145,7 @@ func sendTestWebhook(t *testing.T, targetURL string) {
 		return
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("got status %d, want %d", resp.StatusCode, http.StatusOK)
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("got status %d, want %d", resp.StatusCode, http.StatusAccepted)
 	}
 }

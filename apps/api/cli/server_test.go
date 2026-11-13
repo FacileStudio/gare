@@ -33,3 +33,20 @@ func TestResolveWebhookSecret(t *testing.T) {
 		t.Fatal("expected an error for an empty secret file")
 	}
 }
+
+func TestResolveMaxParallel(t *testing.T) {
+	t.Setenv(maxParallelEnv, "")
+	if got, err := resolveMaxParallel(); err != nil || got != 2 {
+		t.Fatalf("unset: got %d, err %v", got, err)
+	}
+	t.Setenv(maxParallelEnv, "4")
+	if got, err := resolveMaxParallel(); err != nil || got != 4 {
+		t.Fatalf("set: got %d, err %v", got, err)
+	}
+	for _, bad := range []string{"0", "-1", "two"} {
+		t.Setenv(maxParallelEnv, bad)
+		if _, err := resolveMaxParallel(); err == nil {
+			t.Fatalf("expected an error for %q", bad)
+		}
+	}
+}

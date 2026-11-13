@@ -1,15 +1,10 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
 )
@@ -49,24 +44,38 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.dispatchDeploy(appName)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Deploy queued for %s", appName)
+	s.answerDelivery(w, r, appName, body)
 }
 
-func (s *Server) dispatchDeploy(appName string) {
-	lock := s.getAppLock(appName)
-	s.wg.Go(func() {
-		lock.Lock()
-		defer lock.Unlock()
-		if s.deployHandler != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-			defer cancel()
-			if err := s.deployHandler(ctx, appName); err != nil {
-				fmt.Fprintf(os.Stderr, "deploy error for %s: %v\n", appName, err)
-			}
-		}
-	})
+// answerDelivery decides what a verified delivery for appName does: ignore an event that is not a
+// push, refuse an unknown app, skip a push to another branch, or queue a deploy and say how.
+func (s *Server) answerDelivery(w http.ResponseWriter, r *http.Request, appName string, body []byte) {
+	d, err := readDelivery(r, body)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	if d.ignore != "" {
+		writeAnswer(w, http.StatusOK, "ignored: "+d.ignore)
+		return
+	}
+	if status, answer := s.matchBranch(appName, d); status != 0 {
+		writeAnswer(w, status, answer)
+		return
+	}
+	answer, ok := s.queue.enqueue(appName)
+	if !ok {
+		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeAnswer(w, http.StatusAccepted, answer)
+}
+
+// writeAnswer sends a plain-text answer, which is what a forge shows in its delivery log.
+func writeAnswer(w http.ResponseWriter, status int, answer string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	io.WriteString(w, answer)
 }
 
 func (s *Server) extractAppName(r *http.Request, body []byte) string {
@@ -89,9 +98,4 @@ func (s *Server) extractAppName(r *http.Request, body []byte) string {
 		return ""
 	}
 	return app
-}
-
-func (s *Server) getAppLock(appName string) *sync.Mutex {
-	val, _ := s.locks.LoadOrStore(appName, &sync.Mutex{})
-	return val.(*sync.Mutex)
 }
