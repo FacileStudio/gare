@@ -23,7 +23,7 @@ limits:
   interfaceMethods: 4
 
 architecture:
-  requiredDirs: [apps/api]
+  requiredDirs: [apps/api, apps/client]
 
 style:
   banInlineComments: true

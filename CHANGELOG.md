@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- A web client in `apps/client`: sign in with Facile, list apps with a tag filter, deploy with a live log, browse deploy history and roll back container apps, follow runtime logs, edit the environment (masked values, reveal one, merge a pasted `.env` block), manage domains, create apps and destroy them with the name typed back. The daemon API it talks to is not built yet.
+
 ### Security
 
 - `gare server` refuses to start without a webhook secret, and the server refuses every webhook when it has none. The secret is read from `--secret-file` or `GARE_WEBHOOK_SECRET`; the `--secret` flag is removed, because argv is readable by every user on the host.
@@ -21,6 +25,9 @@
 
 ### Changed
 
+- **Breaking:** the Go module moved to `apps/api` and its path is now `github.com/FacileStudio/gare/apps/api`, so `go install github.com/FacileStudio/gare/cmd/gare@latest` no longer works. Install with `facile install gare` or the release archive.
+- The CLI commands live in `apps/api/cli`, and `apps/api/main.go` is the only `package main`. The version a plain `go build` reports now comes from `apps/api/version.go`.
+- `sh scripts/check.sh` is the full quality gate: gofmt, vet, tests, the client check, then `filet check .`. It also takes `--go-only` and `--format`.
 - **Breaking:** `gare destroy` asks for the app name to be typed back, or needs `--yes`; without a terminal and without `--yes` it refuses.
 - **Breaking:** `gare destroy` keeps a compose stack's named volumes unless `--volumes` is passed. It ran `podman compose down -v` unconditionally, so a typo deleted a database.
 - **Breaking:** `gare server --secret` is gone. Use `GARE_WEBHOOK_SECRET` or `--secret-file`.
