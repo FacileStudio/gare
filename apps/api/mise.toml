@@ -1,0 +1,41 @@
+[tools]
+go = "1.26.11"
+
+[env]
+GO_BIN = { value = "{{tools.go.path}}/bin/go", tools = true }
+
+[tasks.deps]
+description = "Download Go module dependencies"
+sources = ["go.mod", "go.sum"]
+run = '"$GO_BIN" mod download'
+
+[tasks.build]
+description = "Build the gare binary at the repository's bin/gare"
+depends = [":deps"]
+run = ["mkdir -p ../../bin", '"$GO_BIN" build -o ../../bin/gare .']
+
+[tasks.test]
+description = "Run Go tests"
+depends = [":deps"]
+run = '"$GO_BIN" test ./...'
+
+[tasks.lint]
+description = "Run go vet"
+run = '"$GO_BIN" vet ./...'
+
+[tasks.check]
+description = "Check formatting, vet and test without modifying files"
+run = "sh ../../scripts/check.sh --go-only"
+
+[tasks.format]
+description = "Format the sources in place"
+run = "sh ../../scripts/check.sh --format"
+
+[tasks.dev]
+description = "Run gare from source"
+depends = [":deps"]
+run = '"$GO_BIN" run .'
+
+[tasks.tidy]
+description = "Sync go.mod and go.sum"
+run = '"$GO_BIN" mod tidy'

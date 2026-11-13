@@ -16,6 +16,18 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 - **GitOps webhooks**: Built-in HTTP daemon verifying GitHub HMAC-SHA256 and GitLab tokens.
 - **Passwordless operations**: Auto-detects user session buses (`XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`) and Git credentials.
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash
+```
+
+The script installs the suite installer, which then runs `facile install gare`. With `facile` already on the machine, run `facile install gare` directly. Each [release](https://github.com/FacileStudio/gare/releases) also carries a `gare_<version>_<os>_<arch>.tar.gz` archive with the binary.
+
+`go install github.com/FacileStudio/gare/cmd/gare@latest` no longer works: the Go module moved to `github.com/FacileStudio/gare/apps/api`. Use one of the methods above, or build from source.
+
+gare runs on the host as the user that owns its systemd units, not in a container. See `AGENTS.md` for why.
+
 ## Quickstart
 
 ### 1. Initialize host prerequisites
@@ -282,14 +294,23 @@ Supported authentication:
 
 ## Development
 
-`gare` uses [mise](https://mise.sh) for task management.
+The Go module lives in `apps/api`; `apps/api/main.go` is the entry point and the commands are in `apps/api/cli`. `gare` uses [mise](https://mise.sh) for task management.
 
 ```sh
 mise run build        # build bin/gare
 mise run test         # run test suite
 mise run all          # build and test
 mise run lint         # run go vet ./...
+mise run check        # the full gate: gofmt, vet, tests, filet
 ```
+
+Without mise, build from source with Go:
+
+```sh
+cd apps/api && go build -o ../../bin/gare .
+```
+
+The gate is also runnable directly with `sh scripts/check.sh` (`--go-only` for the Go half, `--format` to rewrite the sources).
 
 Tests that exercise the generated systemd units need Podman 5.0 or newer and skip without it. Set `GARE_REQUIRE_PODMAN=1` to turn that skip into a failure instead, which is what CI does.
 

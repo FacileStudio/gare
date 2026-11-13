@@ -1,4 +1,4 @@
-kind: cli
+kind: app
 
 ignore:
   - .git
@@ -23,7 +23,7 @@ limits:
   interfaceMethods: 4
 
 architecture:
-  requiredDirs: [cmd, internal]
+  requiredDirs: [apps/api]
 
 style:
   banInlineComments: true
