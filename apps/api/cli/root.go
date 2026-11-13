@@ -103,6 +103,7 @@ func registerShortcutCommands(root *cobra.Command) {
 	shortcuts := []*cobra.Command{
 		NewDeployCmd(),
 		NewDeploysCmd(),
+		NewRollbackCmd(),
 		NewListCmd(),
 		NewStatusCmd(),
 		NewLogsCmd(),

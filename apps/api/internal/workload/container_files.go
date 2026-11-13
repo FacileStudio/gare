@@ -13,8 +13,9 @@ import (
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 )
 
-// buildImage builds the application image from the configured Containerfile and context.
-func buildImage(ctx context.Context, app App) error {
+// buildImage builds the application image from the configured Containerfile and context as
+// :latest, then keeps it under the tag of the commit it was built from.
+func buildImage(ctx context.Context, app App, commit string) error {
 	cfg := app.Config
 	imageName := ImageRef(cfg.Name)
 	app.Report.Step(fmt.Sprintf("Building container image %s...", imageName))
@@ -29,7 +30,7 @@ func buildImage(ctx context.Context, app App) error {
 	if err := podman.Build(ctx, buildOpts); err != nil {
 		return fmt.Errorf("container build failed: %w", err)
 	}
-	return nil
+	return tagBuild(ctx, app, commit)
 }
 
 // writeContainerUnit writes the systemd unit supervising the application pod manifest.
@@ -58,12 +59,16 @@ func resolveManifest(app App) error {
 	return manifest.Generate(cfg.Name, containerPort, cfg.Port, storage.GetManifestPath(app.Dir))
 }
 
-// syncManifest resolves the manifest a deploy plays and pins its local images to never be pulled.
-func syncManifest(app App) error {
+// syncManifest resolves the manifest a deploy plays, pins its local images to never be pulled and
+// points it at the build of commit.
+func syncManifest(app App, commit string) error {
 	if err := writeManifest(app); err != nil {
 		return err
 	}
-	return manifest.EnsureLocalImagePullPolicy(storage.GetManifestPath(app.Dir))
+	if err := manifest.EnsureLocalImagePullPolicy(storage.GetManifestPath(app.Dir)); err != nil {
+		return err
+	}
+	return pinImage(app, commit)
 }
 
 // writeManifest resolves the manifest gare supervises, adopting a repository's own file when it

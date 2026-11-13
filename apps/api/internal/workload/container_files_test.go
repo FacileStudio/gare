@@ -22,7 +22,7 @@ func TestSyncManifestFromRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &storage.AppConfig{Name: "custom", Port: 8080, ContainerPort: 3000}
-	if err := syncManifest(testApp(t, cfg, appDir)); err != nil {
+	if err := syncManifest(testApp(t, cfg, appDir), ""); err != nil {
 		t.Fatalf("syncManifest failed: %v", err)
 	}
 	appManifest := storage.GetManifestPath(appDir)
@@ -43,7 +43,7 @@ func TestSyncManifestGenerate(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &storage.AppConfig{Name: "autogen", Port: 8000, ContainerPort: 8080}
-	if err := syncManifest(testApp(t, cfg, appDir)); err != nil {
+	if err := syncManifest(testApp(t, cfg, appDir), ""); err != nil {
 		t.Fatalf("initial syncManifest generation failed: %v", err)
 	}
 	appManifest := storage.GetManifestPath(appDir)
@@ -64,12 +64,12 @@ func TestSyncManifestMutate(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &storage.AppConfig{Name: "autogen", Port: 8000, ContainerPort: 8080}
-	if err := syncManifest(testApp(t, cfg, appDir)); err != nil {
+	if err := syncManifest(testApp(t, cfg, appDir), ""); err != nil {
 		t.Fatal(err)
 	}
 	cfg.Port = 9000
 	cfg.ContainerPort = 4000
-	if err := syncManifest(testApp(t, cfg, appDir)); err != nil {
+	if err := syncManifest(testApp(t, cfg, appDir), ""); err != nil {
 		t.Fatalf("mutation syncManifest failed: %v", err)
 	}
 	appManifest := storage.GetManifestPath(appDir)
@@ -96,7 +96,7 @@ func TestSyncManifestPinsLocalImagePullPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &storage.AppConfig{Name: "vitrine", Port: 8000, ContainerPort: 3012}
-	if err := syncManifest(testApp(t, cfg, appDir)); err != nil {
+	if err := syncManifest(testApp(t, cfg, appDir), ""); err != nil {
 		t.Fatalf("syncManifest failed: %v", err)
 	}
 	data, err := os.ReadFile(storage.GetManifestPath(appDir))

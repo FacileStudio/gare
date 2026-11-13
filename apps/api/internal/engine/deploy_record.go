@@ -92,7 +92,11 @@ func (e *Engine) finishRecord(name string, rec *deploys.Recorder, cause error) {
 	if cause != nil {
 		rec.Line("✗ " + cause.Error())
 	}
-	if err := rec.Finish(cause); err != nil {
+	finish := func() error { return rec.Finish(cause) }
+	if rolled, ok := asRolledBack(cause); ok {
+		finish = func() error { return rec.FinishRolledBack(rolled.Cause, rolled.To) }
+	}
+	if err := finish(); err != nil {
 		e.report(name).Warn(fmt.Sprintf("Could not record deploy %s (%v)", rec.Record().ID, err))
 	}
 }

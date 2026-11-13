@@ -38,8 +38,8 @@ func (container) Settle(app App, stage Stage) error {
 }
 
 // Prepare writes the pod manifest and the unit that plays it. A deploy first runs the build
-// command, builds the image and syncs the manifest from the repository; a create adopts the
-// repository's manifest or generates one.
+// command, builds the image, tags it after its commit and syncs the manifest from the repository,
+// pointed at that tag; a create adopts the repository's manifest or generates one.
 func (container) Prepare(ctx context.Context, app App, stage Stage) error {
 	if stage == Create {
 		if err := resolveManifest(app); err != nil {
@@ -50,21 +50,20 @@ func (container) Prepare(ctx context.Context, app App, stage Stage) error {
 	if err := runBuildCommand(ctx, app); err != nil {
 		return err
 	}
-	if err := buildImage(ctx, app); err != nil {
+	commit := revision(ctx, app)
+	if err := buildImage(ctx, app, commit); err != nil {
 		return err
 	}
-	if err := syncManifest(app); err != nil {
+	if err := syncManifest(app, commit); err != nil {
 		return err
 	}
 	return writeContainerUnit(ctx, app)
 }
 
-// Teardown removes the local image a container workload was built from, so a destroy does not leave
-// a versionless image behind for the next build to reuse silently.
+// Teardown removes the local images a container workload was built into, so a destroy does not
+// leave a versionless image behind for the next build to reuse silently.
 func (container) Teardown(ctx context.Context, app App, _ bool) {
-	imageName := ImageRef(app.Config.Name)
-	app.Report.Step(fmt.Sprintf("Removing container image %s...", imageName))
-	bestEffort(app, "removing container image", func() error { return podman.RemoveImage(ctx, imageName) })
+	removeImages(ctx, app)
 }
 
 // Env returns the pod manifest, which is where a container workload reads its variables.

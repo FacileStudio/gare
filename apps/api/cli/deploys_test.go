@@ -31,6 +31,26 @@ func seedDeploy(t *testing.T, name string) string {
 	return r.Record().ID
 }
 
+func TestRollbackRefusesAStaticApp(t *testing.T) {
+	seedDeploy(t, "site")
+	store := storage.Default()
+	cfg, err := store.Load("site")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.AppType, cfg.StaticDir = "static", "dist"
+	if err := store.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	cmd := NewRollbackCmd()
+	cmd.SetArgs([]string{"site"})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "only supports container workloads") {
+		t.Errorf("gare rollback on a static app must refuse clearly, got %v", err)
+	}
+}
+
 func TestDeploysListsAndPrintsALog(t *testing.T) {
 	id := seedDeploy(t, "app")
 	var list bytes.Buffer
