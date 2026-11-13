@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FacileStudio/gare/apps/api/internal/appconfig"
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
 	"github.com/FacileStudio/gare/apps/api/internal/git"
-	"github.com/FacileStudio/gare/apps/api/internal/health"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/spf13/cobra"
@@ -28,7 +28,6 @@ type appCreateOptions struct {
 	staticDir     string
 	buildCmd      string
 	healthcheck   string
-	healthProbes  []health.Probe
 	tags          []string
 }
 
@@ -104,8 +103,6 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	if err := validateCreateInputs(name, opts); err != nil {
 		return err
 	}
-	opts.appType = strings.ToLower(opts.appType)
-
 	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Minute)
 	defer cancel()
 
@@ -133,16 +130,15 @@ func deriveAppName(repoURL string) string {
 }
 
 func setupAppWorkload(ctx context.Context, store *storage.Store, name, appDir string, opts appCreateOptions) error {
-	resolvedOpts, err := resolveAppOptions(appDir, opts)
+	cfg, err := resolveAppOptions(appDir, opts)
 	if err != nil {
 		return err
 	}
-	port, err := store.AvailablePort(resolvedOpts.port)
-	if err != nil {
+	cfg.Name, cfg.RepoURL, cfg.Branch = name, opts.repo, opts.branch
+	if cfg.Port, err = store.AvailablePort(cfg.Port); err != nil {
 		return fmt.Errorf("failed to discover port: %w", err)
 	}
-	resolvedOpts.port = port
-	if err := writeWorkloadArtifacts(ctx, name, appDir, resolvedOpts); err != nil {
+	if err := writeWorkloadArtifacts(ctx, store, cfg); err != nil {
 		return err
 	}
 	if err := systemd.DaemonReload(ctx); err != nil {
@@ -189,19 +185,17 @@ func cloneAppRepo(ctx context.Context, appDir string, opts appCreateOptions) err
 	return git.Clone(ctx, cloneOpts)
 }
 
-func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, error) {
+// resolveAppOptions decides a new app's configuration from the flags and the cloned repository's
+// gare.yml, with the precedence appconfig.Resolve applies on every deploy.
+func resolveAppOptions(appDir string, opts appCreateOptions) (*storage.AppConfig, error) {
 	repoDir := storage.GetRepoDir(appDir)
 	gf, err := storage.LoadGareFile(repoDir)
 	if err != nil {
-		return opts, fmt.Errorf("failed to load gare configuration: %w", err)
+		return nil, fmt.Errorf("failed to load gare configuration: %w", err)
 	}
-	if err := gf.ValidatePaths(); err != nil {
-		return opts, fmt.Errorf("gare.yml: %w", err)
-	}
-
-	resolved, err := mergeGareFileDefaults(opts, gf)
+	cfg, err := appconfig.Resolve(opts.flags(), gf, nil)
 	if err != nil {
-		return opts, err
+		return nil, err
 	}
-	return normalizeCreateOptions(repoDir, resolved)
+	return cfg, normalizeCreateConfig(repoDir, cfg)
 }

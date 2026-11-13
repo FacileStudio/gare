@@ -13,8 +13,8 @@ import (
 
 func TestWriteComposeArtifacts(t *testing.T) {
 	_, appDir, repoDir := setupComposeApp(t, "8590:80")
-	opts := appCreateOptions{repo: "https://example.com/repo.git", appType: "compose", port: 8590}
-	if err := writeComposeArtifacts(context.Background(), "myapp", appDir, opts); err != nil {
+	cfg := &storage.AppConfig{Name: "myapp", RepoURL: "https://example.com/repo.git", AppType: "compose", Port: 8590}
+	if err := writeComposeArtifacts(context.Background(), storage.Default(), cfg); err != nil {
 		t.Fatalf("writeComposeArtifacts failed: %v", err)
 	}
 
@@ -23,7 +23,7 @@ func TestWriteComposeArtifacts(t *testing.T) {
 }
 
 func TestWriteComposeArtifactsRetiresLegacyQuadletSources(t *testing.T) {
-	_, appDir, _ := setupComposeApp(t, "8590:80")
+	setupComposeApp(t, "8590:80")
 	for _, path := range systemd.LegacyQuadletSources("myapp") {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			t.Fatal(err)
@@ -32,8 +32,8 @@ func TestWriteComposeArtifactsRetiresLegacyQuadletSources(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	opts := appCreateOptions{repo: "https://example.com/repo.git", appType: "compose", port: 8590}
-	if err := writeComposeArtifacts(context.Background(), "myapp", appDir, opts); err != nil {
+	cfg := &storage.AppConfig{Name: "myapp", RepoURL: "https://example.com/repo.git", AppType: "compose", Port: 8590}
+	if err := writeComposeArtifacts(context.Background(), storage.Default(), cfg); err != nil {
 		t.Fatalf("writeComposeArtifacts failed: %v", err)
 	}
 
@@ -48,9 +48,9 @@ func TestWriteComposeArtifactsRetiresLegacyQuadletSources(t *testing.T) {
 }
 
 func TestWriteComposeArtifactsRejectsUnpublishedPort(t *testing.T) {
-	_, appDir, _ := setupComposeApp(t, "8590:80")
-	opts := appCreateOptions{repo: "https://example.com/repo.git", appType: "compose", port: 8600}
-	if err := writeComposeArtifacts(context.Background(), "myapp", appDir, opts); err == nil {
+	setupComposeApp(t, "8590:80")
+	cfg := &storage.AppConfig{Name: "myapp", RepoURL: "https://example.com/repo.git", AppType: "compose", Port: 8600}
+	if err := writeComposeArtifacts(context.Background(), storage.Default(), cfg); err == nil {
 		t.Error("expected a port mismatch error")
 	}
 }

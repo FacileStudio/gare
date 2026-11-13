@@ -93,7 +93,7 @@ func prepareWorkload(ctx context.Context, name, appDir, repoDir string, cfg *sto
 }
 
 func syncDeployConfig(store *storage.Store, repoDir string, cfg *storage.AppConfig) error {
-	if err := syncGareFileConfig(store, repoDir, cfg); err != nil {
+	if err := resolveDeployConfig(store, repoDir, cfg); err != nil {
 		return err
 	}
 	warnStrayComposeFile(repoDir, cfg.IsCompose())

@@ -49,6 +49,7 @@ apps/api/               the Go module github.com/FacileStudio/gare/apps/api
   cli/                  Cobra commands (package cli, entry point Execute)
     config/             `~/.gare.yml` loading and the flag overrides that outrank it
   internal/
+    appconfig/          Resolve: the one precedence rule for an app's settings (flag, gare.yml, stored, default)
     appname/            application name validation shared by the CLI and the webhook server
     atomicfile/         crash-safe atomic file writes
     caddy/              caddy configuration snippets and reloads
@@ -71,6 +72,7 @@ mise.toml               root tasks; apps/api/mise.toml holds the module's own
 
 `gare.yml` selects the workload type and gare never guesses: `container` (Kubernetes Pod manifest via `kube play`), `static` (bundled Caddy container serving a directory), and `compose` (a repo-owned compose file executed by `podman compose`).
 
+- Every setting follows one precedence, at create and at every deploy alike, decided by `appconfig.Resolve` only: a flag the operator passed, then `gare.yml`, then the value stored in `config.json`, then the default. Never merge `gare.yml` into a configuration anywhere else, or create and deploy drift apart again.
 - Compose workloads require an explicit `port` that the compose file actually publishes, because the host port belongs to the compose file and gare only routes to it.
 - Compose units are `Type=oneshot` with `RemainAfterExit=yes`: `up -d` runs detached, `Requires=podman.socket` pulls in the API socket the external provider talks to, and stop/restart run `compose down`. Never attach the unit to a watching provider process: a `Type=exec` unit whose `ExecStop`/`ExecStopPost` tears the stack down marks itself failed and stalls for the stop timeout.
 - Each compose unit passes `-p <app-name>` so every app owns its own project; without it, every app's checkout is named `repo` and `down` targets the wrong stack.
