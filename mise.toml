@@ -42,6 +42,16 @@ description = "Run the application"
 depends = ["//apps/api:dev"]
 run = "true"
 
+[tasks.db-up]
+description = "Start the daemon's development Postgres on 127.0.0.1:5439"
+env = { POSTGRES_PASSWORD = "{{ get_env(name='POSTGRES_PASSWORD', default='gare-dev') }}" }
+run = "podman compose -p gare-system -f deploy/compose.yml up -d"
+
+[tasks.db-down]
+description = "Stop the daemon's development Postgres, keeping its volume"
+env = { POSTGRES_PASSWORD = "{{ get_env(name='POSTGRES_PASSWORD', default='gare-dev') }}" }
+run = "podman compose -p gare-system -f deploy/compose.yml down"
+
 [tasks.help]
 description = "List available tasks"
 run = "mise tasks --all"
