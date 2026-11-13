@@ -1,0 +1,220 @@
+package workload
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
+	"github.com/FacileStudio/gare/apps/api/internal/systemd"
+	"github.com/FacileStudio/gare/apps/api/internal/testkit"
+)
+
+func TestWriteContainerUnitRejectsForeignUnitFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	const foreign = "[Service]\nDescription=Hand written by the operator\nExecStart=/usr/local/bin/myapp\n"
+	unitPath := testkit.WriteUnitFile(t, "myapp", foreign)
+
+	err := writeContainerUnit(context.Background(), testApp(t, &storage.AppConfig{Name: "myapp"}, appDir))
+	if err == nil {
+		t.Fatal("expected an error when a unit file gare does not own already uses the name")
+	}
+	if !strings.Contains(err.Error(), unitPath) {
+		t.Errorf("error should name the unit file gare refused to overwrite, got %v", err)
+	}
+	assertUnitContent(t, unitPath, foreign)
+}
+
+func TestWriteStaticUnitRejectsForeignUnitFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	const foreign = "[Service]\nExecStart=/usr/bin/caddy file-server\n"
+	unitPath := testkit.WriteUnitFile(t, "blog", foreign)
+
+	err := writeStaticUnit(context.Background(), testApp(t, &storage.AppConfig{Name: "blog", Port: 8100}, appDir), filepath.Join(appDir, "dist"))
+	if err == nil {
+		t.Fatal("expected an error when a unit file gare does not own already uses the name")
+	}
+	if !strings.Contains(err.Error(), unitPath) {
+		t.Errorf("error should name the unit file gare refused to overwrite, got %v", err)
+	}
+	assertUnitContent(t, unitPath, foreign)
+}
+
+func TestWriteContainerUnitReplacesGareOwnedUnitFile(t *testing.T) {
+	skipWithoutPodmanWorkloads(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	compose := "[Unit]\nDescription=" + systemd.ComposeUnitDescription("myapp") + "\n\n[Service]\nExecStart=/usr/bin/podman compose up -d\n"
+	testkit.WriteUnitFile(t, "myapp", compose)
+
+	previous, err := guardUnitFile("myapp")
+	if err != nil {
+		t.Fatalf("a unit gare wrote must be replaceable: %v", err)
+	}
+	if !replacedWorkloadType(previous, systemd.KubeUnitDescription("myapp")) {
+		t.Fatal("a workload type change must retire the workload it replaces, or the outgoing stack stays up")
+	}
+	if err := writeContainerUnit(context.Background(), testApp(t, &storage.AppConfig{Name: "myapp"}, appDir)); err != nil {
+		t.Fatalf("a workload type change must not cost the application, got: %v", err)
+	}
+	data, err := os.ReadFile(systemd.GetUnitPath("myapp"))
+	if err != nil {
+		t.Fatalf("expected the unit to be rewritten: %v", err)
+	}
+	if !strings.Contains(string(data), "Description="+systemd.KubeUnitDescription("myapp")+"\n") {
+		t.Errorf("expected the compose unit to be replaced in place:\n%s", string(data))
+	}
+}
+
+func TestWriteContainerUnitRetiresLegacyQuadletSources(t *testing.T) {
+	skipWithoutPodmanWorkloads(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	appDir := t.TempDir()
+	seedLegacyQuadletSources(t, "myapp")
+
+	if err := writeContainerUnit(context.Background(), testApp(t, &storage.AppConfig{Name: "myapp"}, appDir)); err != nil {
+		t.Fatalf("writeContainerUnit failed: %v", err)
+	}
+	for _, path := range systemd.LegacyQuadletSources("myapp") {
+		testkit.AssertGone(t, path)
+	}
+}
+
+func TestGuardUnitFileIdentifiesTheOccupyingWorkload(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cases := map[string]string{
+		"container": "[Unit]\nDescription=" + systemd.KubeUnitDescription("myapp") + "\n",
+		"static":    "[Unit]\nDescription=" + systemd.StaticUnitDescription("myapp") + "\n",
+		"compose":   "[Unit]\nDescription=" + systemd.ComposeUnitDescription("myapp") + "\n",
+	}
+	for name, content := range cases {
+		testkit.WriteUnitFile(t, "myapp", content)
+		got, err := guardUnitFile("myapp")
+		if err != nil {
+			t.Fatalf("expected the %s unit to be recognised, got %v", name, err)
+		}
+		if !strings.Contains(content, "Description="+got) {
+			t.Errorf("guardUnitFile reported %q, which is not the %s unit's description", got, name)
+		}
+	}
+}
+
+func TestGuardUnitFileRejectsAnotherAppsUnit(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	testkit.WriteUnitFile(t, "myapp", "[Unit]\nDescription="+systemd.KubeUnitDescription("otherapp")+"\n")
+
+	if _, err := guardUnitFile("myapp"); err == nil {
+		t.Error("expected a unit describing another application to be refused")
+	}
+}
+
+func TestGuardUnitFileReportsAFreeName(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	previous, err := guardUnitFile("undeployed")
+	if err != nil || previous != "" {
+		t.Errorf("expected a free unit name to report no previous workload, got %q err=%v", previous, err)
+	}
+}
+
+func TestReplacedWorkloadType(t *testing.T) {
+	compose := systemd.ComposeUnitDescription("myapp")
+	kube := systemd.KubeUnitDescription("myapp")
+	cases := []struct {
+		previous string
+		current  string
+		want     bool
+	}{
+		{previous: compose, current: kube, want: true},
+		{previous: kube, current: kube, want: false},
+		{previous: compose, current: compose, want: false},
+		{previous: "", current: kube, want: false},
+	}
+	for _, tc := range cases {
+		if got := replacedWorkloadType(tc.previous, tc.current); got != tc.want {
+			t.Errorf("replacedWorkloadType(%q, %q) = %v, want %v", tc.previous, tc.current, got, tc.want)
+		}
+	}
+}
+
+// workloadWriterCase describes one workload type's unit writer and the workload it replaces.
+type workloadWriterCase struct {
+	previous    string
+	description string
+	write       func(ctx context.Context, app App) error
+}
+
+// TestEveryWorkloadWriterRetiresWhatItReplaces pins the handover every workload type runs after it
+// writes its unit, so a writer that keeps a copy of that sequence of its own is caught drifting
+// rather than silently leaving the workload it replaces running in front of its replacement.
+func TestEveryWorkloadWriterRetiresWhatItReplaces(t *testing.T) {
+	skipWithoutPodmanWorkloads(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	for name, tc := range workloadWriterCases() {
+		t.Run(name, func(t *testing.T) {
+			assertWorkloadHandover(t, name, tc)
+		})
+	}
+}
+
+// workloadWriterCases returns each workload type's writer paired with a unit from another type, so
+// the handover is exercised across a workload type change rather than a same-type redeploy.
+func workloadWriterCases() map[string]workloadWriterCase {
+	return map[string]workloadWriterCase{
+		"container": {
+			previous:    systemd.StaticUnitDescription("myapp"),
+			description: systemd.KubeUnitDescription("myapp"),
+			write:       writeContainerUnit,
+		},
+		"static": {
+			previous:    systemd.ComposeUnitDescription("myapp"),
+			description: systemd.StaticUnitDescription("myapp"),
+			write: func(ctx context.Context, app App) error {
+				return writeStaticUnit(ctx, app, filepath.Join(app.Dir, "dist"))
+			},
+		},
+		"compose": {
+			previous:    systemd.KubeUnitDescription("myapp"),
+			description: systemd.ComposeUnitDescription("myapp"),
+			write: func(ctx context.Context, app App) error {
+				return writeComposeUnit(ctx, app, "compose.yml")
+			},
+		},
+	}
+}
+
+// assertWorkloadHandover drives one writer through a workload type change, then checks it replaced
+// the outgoing unit in place and retired the Quadlet sources a previous gare left behind.
+func assertWorkloadHandover(t *testing.T, name string, tc workloadWriterCase) {
+	t.Helper()
+	appDir := t.TempDir()
+	unitPath := testkit.WriteUnitFile(t, "myapp", "[Unit]\nDescription="+tc.previous+"\n")
+	seedLegacyQuadletSources(t, "myapp")
+
+	if err := tc.write(context.Background(), testApp(t, &storage.AppConfig{Name: "myapp", Port: 8100}, appDir)); err != nil {
+		t.Fatalf("writing the %s unit failed: %v", name, err)
+	}
+	data, err := os.ReadFile(unitPath)
+	if err != nil {
+		t.Fatalf("expected the %s unit to be rewritten in place: %v", name, err)
+	}
+	if !strings.Contains(string(data), "Description="+tc.description+"\n") {
+		t.Errorf("expected the %s unit to replace the workload it replaces:\n%s", name, string(data))
+	}
+	for _, path := range systemd.LegacyQuadletSources("myapp") {
+		testkit.AssertGone(t, path)
+	}
+}
