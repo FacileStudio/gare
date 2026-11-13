@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logoIcon } from '$lib/brand';
 	import type { Snippet } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -72,7 +73,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-fc-page">
 	<div class="hidden h-full shrink-0 p-3 md:block">
-		<SideBar icon={icons.server} title="Gare" bind:collapsed {pages} {user} {userMenu} class="h-full" />
+		<SideBar icon={logoIcon} title="Gare" bind:collapsed {pages} {user} {userMenu} class="h-full" />
 	</div>
 
 	<main bind:this={scroller} class="min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0">

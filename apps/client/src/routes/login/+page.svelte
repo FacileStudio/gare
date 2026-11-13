@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { logoIcon } from '$lib/brand';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Alert, AuthScreen, Icon, icons } from '@facile/muse';
+	import { Alert, AuthScreen, Icon } from '@facile/muse';
 	import { session } from '$lib/session';
 
 	const failed = $derived(page.url.searchParams.has('error'));
@@ -28,7 +29,7 @@
 
 <AuthScreen appName="Gare" href="/api/auth/oidc" signUpHref={null}>
 	{#snippet logo()}
-		<Icon icon={icons.server} size={40} class="text-fc-fg" />
+		<Icon icon={logoIcon} size={40} class="text-fc-fg" />
 	{/snippet}
 	{#snippet tagline()}
 		Deploy and run your apps on this server.
