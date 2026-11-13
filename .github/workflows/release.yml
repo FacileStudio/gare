@@ -18,7 +18,8 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
 
       - uses: goreleaser/goreleaser-action@v7
         with:

@@ -5,19 +5,22 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 ## Commands
 
 ```sh
-mise run build        # build bin/gare
+mise run build        # build bin/gare from apps/api
 mise run test         # run unit and package tests
 mise run all          # build and test
 mise run dev          # run local application
 mise run lint         # run go vet ./...
+mise run check        # the full gate: sh scripts/check.sh
 mise run help         # display available tasks
 ```
+
+The gate is `sh scripts/check.sh`: gofmt, `go vet` and `go test` in `apps/api`, the client check once `apps/client/package.json` exists, then `filet check .`. `--go-only` skips the client and filet; `--format` rewrites the Go sources. It is POSIX sh, because `/bin/sh` on the deployment host is dash.
 
 Tests that need a working podman are skipped on a machine that cannot run the generated units, and fail instead under `GARE_REQUIRE_PODMAN=1`, which CI sets. CI runs on the `ubuntu-26.04` image for its podman 5.7: the 24.04 image was rolled back to podman 4.9, which cannot run these units at all.
 
 ## Releasing
 
-The version lives in two places and both move in the same `chore: release vX` commit: the git tag, which GoReleaser injects with `-X main.version={{.Version}}`, and the fallback literal in `cmd/gare/main.go`, which is what a plain `go build` reports. Bump only the tag and the repository declares the previous version to everyone who builds it from source.
+The version lives in two places and both move in the same `chore: release vX` commit: the git tag, which GoReleaser injects with `-X main.version={{.Version}}`, and the fallback literal in `apps/api/version.go`, which is what a plain `go build` reports. Bump only the tag and the repository declares the previous version to everyone who builds it from source.
 
 ## Architecture
 
@@ -33,26 +36,35 @@ The version lives in two places and both move in the same `chore: release vX` co
 - Storage: predictable filesystem paths under `$XDG_DATA_HOME/gare/apps/<app-name>/`, defaulting to `~/.local/share/gare/apps/<app-name>/`.
 - Server: lightweight webhook receiver verifying HMAC-SHA256 signatures.
 
+## Why gare ships as a host binary
+
+Other suite apps ship as a distroless image deployed through Dokploy. gare does not, and has no root `Dockerfile`. It writes systemd user units, runs `systemctl --user`, drives the host's rootless podman and reloads the host Caddy, so it must run as the unprivileged user that owns those units, on the host itself. A container would need the user's systemd bus, podman socket and home directory mounted in, which is the host with extra steps. The release archive carries the `gare` binary, and `facile install gare` installs it.
+
 ## Directory layout
 
 ```
-cmd/gare/             CLI entrypoint and Cobra commands (package main)
-  config/             `~/.gare.yml` loading and the flag overrides that outrank it
-internal/
-  appname/            application name validation shared by the CLI and the webhook server
-  atomicfile/         crash-safe atomic file writes
-  caddy/              caddy configuration snippets and reloads
-  compose/            compose file discovery, published ports, derived probes
-  dotenv/             dotenv parsing and writing
-  git/                git clone, fetch-and-reset sync, commit lookup and credential plumbing
-  health/             the readiness probe type and HTTP polling
-  manifest/           Pod manifest generation and env/port rewriting
-  podman/             podman build, image, Containerfile and compose CLI invocation
-  repopath/           keeps configured paths (static_dir, context, containerfile, compose_file) inside the repo
-  server/             webhook HTTP daemon and HMAC verification
-  storage/            app state, workload types, tags, domains, health, ports
-  systemd/            unit file synthesis and systemctl operations
-  xdg/                XDG base directory resolution for the current user
+apps/api/               the Go module github.com/FacileStudio/gare/apps/api
+  main.go               the only package main: run() calls cli.Execute(version)
+  version.go            the version literal GoReleaser overrides with -X main.version
+  cli/                  Cobra commands (package cli, entry point Execute)
+    config/             `~/.gare.yml` loading and the flag overrides that outrank it
+  internal/
+    appname/            application name validation shared by the CLI and the webhook server
+    atomicfile/         crash-safe atomic file writes
+    caddy/              caddy configuration snippets and reloads
+    compose/            compose file discovery, published ports, derived probes
+    dotenv/             dotenv parsing and writing
+    git/                git clone, fetch-and-reset sync, commit lookup and credential plumbing
+    health/             the readiness probe type and HTTP polling
+    manifest/           Pod manifest generation and env/port rewriting
+    podman/             podman build, image, Containerfile and compose CLI invocation
+    repopath/           keeps configured paths (static_dir, context, containerfile, compose_file) inside the repo
+    server/             webhook HTTP daemon and HMAC verification
+    storage/            app state, workload types, tags, domains, health, ports
+    systemd/            unit file synthesis and systemctl operations
+    xdg/                XDG base directory resolution for the current user
+scripts/check.sh        the quality gate (POSIX sh)
+mise.toml               root tasks; apps/api/mise.toml holds the module's own
 ```
 
 ## Workload types
@@ -71,7 +83,7 @@ internal/
 
 - Do not use Cgo. Produce a single static binary.
 - Never add inline comments in Go code or comments in function bodies.
-- Package `cmd/gare` must remain `package main`: the rule covers every `.go` file directly under `cmd/gare/`, which are the Cobra commands, and a subdirectory there is free to declare its own package, as `cmd/gare/config` does.
+- Only `apps/api/main.go` (with `apps/api/version.go`) is `package main`. The Cobra commands live in `apps/api/cli` as `package cli`, so a future daemon or test can import them, and `main` only maps `cli.Execute` to an exit status.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
 - Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git fetch`).
 - Clean up resources completely on destroy: stop unit, disable it, remove the unit file, its enable link and any Quadlet source an older gare left behind, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy. Compose named volumes go only with `--volumes`, and a destroy runs only with `--yes` or the app name typed back on a terminal, because it cannot be undone.

@@ -1,0 +1,47 @@
+monorepo_root = true
+
+[settings]
+experimental = true
+
+[monorepo]
+config_roots = ["apps/api"]
+
+[tools]
+go = "1.26.11"
+
+[tasks.build]
+description = "Compile the gare binary at bin/gare"
+depends = ["//apps/api:build"]
+run = "true"
+
+[tasks.test]
+description = "Run all tests"
+depends = ["//apps/api:test"]
+run = "true"
+
+[tasks.all]
+description = "Build and run tests"
+depends = ["build", "test"]
+run = "true"
+
+[tasks.lint]
+description = "Run code analysis"
+depends = ["//apps/api:lint"]
+run = "true"
+
+[tasks.check]
+description = "Run the full quality gate: gofmt, vet, tests, the client when present, then filet"
+run = "sh ./scripts/check.sh"
+
+[tasks.format]
+description = "Format the Go sources in place"
+run = "sh ./scripts/check.sh --format"
+
+[tasks.dev]
+description = "Run the application"
+depends = ["//apps/api:dev"]
+run = "true"
+
+[tasks.help]
+description = "List available tasks"
+run = "mise tasks --all"
