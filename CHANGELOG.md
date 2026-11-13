@@ -34,6 +34,8 @@
 
 ### Fixed
 
+- Static sites receive env values exactly as written: podman's `--env-file` kept the quotes of quoted values and cut multi-line ones, so the unit now loads the env file through systemd and hands podman only the variable names.
+- Removing a variable with `gare env unset` now removes it from a container app's pod at the next restart, and values such as `true` or `8080` reach the pod as strings.
 - `gare server` now gives every webhook-triggered deploy the settings from `~/.gare.yml` (or `--config`) and the global flags: git provider, GitHub/GitLab CLI helpers, credential helper and verbose output. Pushed deploys used to ignore them.
 - A snippet Caddy refuses is rolled back: gare restores the previous snippet (or removes a new one), reloads Caddy again and reports Caddy's message, instead of leaving a file on disk that made every later reload by any app fail. Removing a snippet on stop and destroy follows the same rule.
 - Domain uniqueness compares the host without its port, case-insensitively, so `example.com:443` can no longer be added beside `example.com` on another app or the same one. The same host is accepted twice only on two different explicit ports other than 80 and 443.
@@ -47,6 +49,8 @@
 
 ### Changed
 
+- Every app keeps its environment in one file, `apps/<name>/env` (mode 0600), whatever its workload type. Container apps get it written into the pod manifest at every deploy and env change, on top of the variables the repository's own `manifest.yaml` declares; the env file wins a name clash. Changing an app's workload type keeps its environment.
+- The first gare command that locks a container app deployed by an older gare moves the variables from its `manifest.yaml` into the env file once, and says so.
 - Container images are tagged `localhost/<name>:<commit>` as well as `:latest`, and the pod manifest runs the commit tag; the last 5 commit tags are kept. `gare destroy` removes every tag of the app's image.
 - **Breaking:** `gare server` in webhook-only mode listens on `127.0.0.1:<port>` instead of every interface. Set `GARE_LISTEN=0.0.0.0:<port>` to keep receiving webhooks without a reverse proxy.
 - The daemon refuses to start with `OIDC_ISSUER` set and `GARE_ADMIN_EMAILS` empty, instead of refusing every sign-in silently.
