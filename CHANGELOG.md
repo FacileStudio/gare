@@ -4,6 +4,7 @@
 
 ### Added
 
+- Release archives carry the built web client under `client/` next to the `gare` binary. `facile install gare` installs only the binary; the README gives the command that unpacks the client into `$XDG_DATA_HOME/gare/client`, the default `CLIENT_DIR`.
 - Every deploy is recorded under `apps/<name>/deploys/<id>/` with its status, trigger, commit and full log; the last 50 per app are kept. `gare deploys <app> [--json]` lists them and `gare deploys <app> <id> --log` prints a log, following it while the deploy runs.
 - Container deploys roll back by themselves: when the health check fails after the restart, gare runs the image of the last successful deploy again and records the failed deploy as `rolled-back`. `gare rollback <app> [<deploy id>]` does the same on demand. Static and compose apps cannot be rolled back.
 - Compose apps can name the `service` to route to and its `container_port` in `gare.yml`; gare publishes it on a gare-assigned loopback port through `apps/<name>/compose.gare.yml`, so a compose file that only `expose`s its port (as the Facile suite files do) runs unmodified.
@@ -31,6 +32,7 @@
 
 ### Fixed
 
+- `gare server` now gives every webhook-triggered deploy the settings from `~/.gare.yml` (or `--config`) and the global flags: git provider, GitHub/GitLab CLI helpers, credential helper and verbose output. Pushed deploys used to ignore them.
 - A snippet Caddy refuses is rolled back: gare restores the previous snippet (or removes a new one), reloads Caddy again and reports Caddy's message, instead of leaving a file on disk that made every later reload by any app fail. Removing a snippet on stop and destroy follows the same rule.
 - Domain uniqueness compares the host without its port, case-insensitively, so `example.com:443` can no longer be added beside `example.com` on another app or the same one. The same host is accepted twice only on two different explicit ports other than 80 and 443.
 - Two gare commands can no longer change the same app at once. Create, deploy (including webhook deploys), destroy, and `env`, `domain` and `tag` edits hold a per-app lock for their whole run, so a CLI deploy and a webhook deploy no longer interleave, and an env or tag edit made during a deploy is no longer overwritten. A command that has to wait says so.
