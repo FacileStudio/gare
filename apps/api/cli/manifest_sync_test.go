@@ -118,7 +118,7 @@ func TestResolveAppOptionsStaticInference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.appType != "static" {
-		t.Errorf("expected inferred static appType, got %q", resolved.appType)
+	if resolved.AppType != "static" {
+		t.Errorf("expected inferred static appType, got %q", resolved.AppType)
 	}
 }

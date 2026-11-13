@@ -3,55 +3,55 @@ package cli
 import (
 	"context"
 
+	"github.com/FacileStudio/gare/apps/api/internal/appconfig"
 	"github.com/FacileStudio/gare/apps/api/internal/podman"
 	"github.com/FacileStudio/gare/apps/api/internal/repopath"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
 // writeWorkloadArtifacts writes the workload artifacts for the resolved type.
-func writeWorkloadArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
-	switch opts.appType {
-	case string(storage.WorkloadStatic):
-		return writeStaticArtifacts(ctx, name, appDir, opts)
-	case string(storage.WorkloadCompose):
-		return writeComposeArtifacts(ctx, name, appDir, opts)
+func writeWorkloadArtifacts(ctx context.Context, store *storage.Store, cfg *storage.AppConfig) error {
+	switch {
+	case cfg.IsStatic():
+		return writeStaticArtifacts(ctx, store, cfg)
+	case cfg.IsCompose():
+		return writeComposeArtifacts(ctx, store, cfg)
 	default:
-		return writeAppArtifacts(ctx, name, appDir, opts)
+		return writeAppArtifacts(ctx, store, cfg)
 	}
 }
 
-// normalizeAppType infers the workload type when it is not set explicitly.
-func normalizeAppType(opts appCreateOptions) string {
-	if opts.appType != "" {
-		return opts.appType
+// flags returns the create flags in the shape appconfig.Resolve ranks above gare.yml.
+func (o appCreateOptions) flags() appconfig.Flags {
+	return appconfig.Flags{
+		Type:          o.appType,
+		ComposeFile:   o.composeFile,
+		Containerfile: o.containerfile,
+		Context:       o.contextDir,
+		StaticDir:     o.staticDir,
+		BuildCmd:      o.buildCmd,
+		Healthcheck:   o.healthcheck,
+		Port:          o.port,
+		ContainerPort: o.containerPort,
+		Tags:          o.tags,
 	}
-	if opts.staticDir != "" {
-		return "static"
-	}
-	return "container"
 }
 
-// normalizeCreateOptions applies workload-specific defaults and validates them.
-func normalizeCreateOptions(repoDir string, opts appCreateOptions) (appCreateOptions, error) {
-	opts.appType = normalizeAppType(opts)
-	if opts.appType == "compose" {
-		composeFile, err := resolveComposeWorkload(repoDir, opts.composeFile, opts.port)
+// normalizeCreateConfig settles what only the cloned repository can tell: the compose file a compose
+// workload runs, and the port a container workload's Containerfile exposes.
+func normalizeCreateConfig(repoDir string, cfg *storage.AppConfig) error {
+	if cfg.IsCompose() {
+		composeFile, err := resolveComposeWorkload(repoDir, cfg.ComposeFile, cfg.Port)
 		if err != nil {
-			return opts, err
+			return err
 		}
-		opts.composeFile = composeFile
+		cfg.ComposeFile = composeFile
 	}
-	if err := storage.ValidateHealthProbes(opts.healthProbes); err != nil {
-		return opts, err
+	warnStrayComposeFile(repoDir, cfg.IsCompose())
+	if cfg.UsesPodManifest() && cfg.ContainerPort == 0 {
+		cfg.ContainerPort = podman.DetectExposedPort(repoDir, cfg.Containerfile)
 	}
-	warnStrayComposeFile(repoDir, opts.appType == "compose")
-	if opts.appType == "static" && opts.staticDir == "" {
-		opts.staticDir = "."
-	}
-	if opts.appType == "container" {
-		opts.containerPort = detectContainerPort(repoDir, opts)
-	}
-	return opts, nil
+	return nil
 }
 
 // validateCreatePaths rejects a --static, --context or --containerfile flag that would reach
@@ -62,12 +62,4 @@ func validateCreatePaths(opts appCreateOptions) error {
 		"--context":       opts.contextDir,
 		"--containerfile": opts.containerfile,
 	})
-}
-
-// detectContainerPort returns the configured container port or detects it from the containerfile.
-func detectContainerPort(repoDir string, opts appCreateOptions) int {
-	if opts.containerPort != 0 {
-		return opts.containerPort
-	}
-	return podman.DetectExposedPort(repoDir, opts.containerfile)
 }

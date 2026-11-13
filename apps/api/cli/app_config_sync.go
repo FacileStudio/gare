@@ -4,55 +4,38 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/FacileStudio/gare/apps/api/internal/appconfig"
 	"github.com/FacileStudio/gare/apps/api/internal/compose"
 	"github.com/FacileStudio/gare/apps/api/internal/health"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
-func syncGareFilePorts(store *storage.Store, cfg *storage.AppConfig, gf *storage.GareFile) error {
-	reqPort := gf.Port
-	if reqPort > 0 && reqPort != cfg.Port {
-		if _, err := store.AvailablePort(reqPort); err != nil {
-			return fmt.Errorf("port %d in gare.yml is not available — choose another port: %w", reqPort, err)
+// resolveDeployConfig re-reads gare.yml after a sync and settles cfg by the precedence
+// appconfig.Resolve applies, so a value changed in gare.yml takes effect at this deploy. A port
+// gare.yml moves to must be free, and a compose workload whose gare.yml declares no probes gets the
+// ones its compose file implies, derived afresh every deploy.
+func resolveDeployConfig(store *storage.Store, repoDir string, cfg *storage.AppConfig) error {
+	gf, err := storage.LoadGareFile(repoDir)
+	if err != nil {
+		return err
+	}
+	resolved, err := appconfig.Resolve(appconfig.Flags{}, gf, cfg)
+	if err != nil {
+		return err
+	}
+	if resolved.Port > 0 && resolved.Port != cfg.Port {
+		if _, err := store.AvailablePort(resolved.Port); err != nil {
+			return fmt.Errorf("port %d in gare.yml is not available — choose another port: %w", resolved.Port, err)
 		}
-		cfg.Port = reqPort
 	}
-	if reqCPort := gf.ContainerPort; reqCPort > 0 {
-		cfg.ContainerPort = reqCPort
+	if resolved.IsCompose() && (gf == nil || len(gf.Healthchecks) == 0) {
+		resolved.SetHealth(resolved.HealthPath(), deriveComposeProbes(repoDir, resolved))
 	}
+	*cfg = *resolved
 	return nil
 }
 
-func applyGareWorkloadConfig(cfg *storage.AppConfig, gf *storage.GareFile) {
-	applyGareWorkloadType(cfg, gf)
-	if cfg.ComposeFile == "" {
-		cfg.ComposeFile = gf.ResolveComposeFile()
-	}
-	if cfg.IsStatic() {
-		applyGareStaticConfig(cfg, gf)
-		return
-	}
-	if cfg.UsesPodManifest() {
-		applyGareContainerConfig(cfg, gf)
-	}
-}
-
-func applyGareHealthConfig(repoDir string, cfg *storage.AppConfig, gf *storage.GareFile) {
-	path := cfg.HealthPath()
-	if path == "" {
-		path = gf.Healthcheck
-	}
-	probes := gf.Healthchecks
-	if len(probes) == 0 {
-		probes = deriveComposeProbes(repoDir, cfg)
-	}
-	cfg.SetHealth(path, probes)
-}
-
 func deriveComposeProbes(repoDir string, cfg *storage.AppConfig) []health.Probe {
-	if !cfg.IsCompose() {
-		return nil
-	}
 	composeFile, err := compose.LocateFile(repoDir, cfg.ComposeFile)
 	if err != nil {
 		return nil
@@ -63,28 +46,4 @@ func deriveComposeProbes(repoDir string, cfg *storage.AppConfig) []health.Probe 
 	}
 	printInfo(fmt.Sprintf("Derived %d health probe(s) from %s: %s", len(probes), composeFile, probeSummary(probes)))
 	return probes
-}
-
-func applyGareWorkloadType(cfg *storage.AppConfig, gf *storage.GareFile) {
-	workload, err := gf.ResolveWorkload()
-	if err == nil && gf.Type != "" {
-		cfg.AppType = string(workload)
-	}
-}
-
-func applyGareStaticConfig(cfg *storage.AppConfig, gf *storage.GareFile) {
-	dir := gf.StaticDir
-	if dir != "" && (cfg.StaticDir == "" || cfg.StaticDir == ".") {
-		cfg.StaticDir = dir
-	}
-}
-
-func applyGareContainerConfig(cfg *storage.AppConfig, gf *storage.GareFile) {
-	if cfg.Containerfile == "" {
-		cfg.Containerfile = gf.Containerfile
-	}
-	contextDir := gf.Context
-	if contextDir != "" && (cfg.ContextDir == "" || cfg.ContextDir == ".") {
-		cfg.ContextDir = contextDir
-	}
 }

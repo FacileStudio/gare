@@ -25,20 +25,20 @@ func TestResolveAppOptionsWithFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.appType != "static" {
-		t.Errorf("expected static appType, got %s", resolved.appType)
+	if resolved.AppType != "static" {
+		t.Errorf("expected static appType, got %s", resolved.AppType)
 	}
-	if resolved.staticDir != "dist" {
-		t.Errorf("expected staticDir dist, got %s", resolved.staticDir)
+	if resolved.StaticDir != "dist" {
+		t.Errorf("expected staticDir dist, got %s", resolved.StaticDir)
 	}
-	if resolved.containerfile != "apps/api/Dockerfile" {
-		t.Errorf("expected containerfile apps/api/Dockerfile, got %s", resolved.containerfile)
+	if resolved.Containerfile != "apps/api/Dockerfile" {
+		t.Errorf("expected containerfile apps/api/Dockerfile, got %s", resolved.Containerfile)
 	}
-	if resolved.contextDir != "apps/api" {
-		t.Errorf("expected contextDir apps/api, got %s", resolved.contextDir)
+	if resolved.ContextDir != "apps/api" {
+		t.Errorf("expected contextDir apps/api, got %s", resolved.ContextDir)
 	}
-	if resolved.buildCmd != "bun run build" {
-		t.Errorf("expected buildCmd bun run build, got %s", resolved.buildCmd)
+	if resolved.BuildCmd != "bun run build" {
+		t.Errorf("expected buildCmd bun run build, got %s", resolved.BuildCmd)
 	}
 }
 
@@ -59,11 +59,11 @@ func TestResolveAppOptionsWithGareFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.appType != "static" || resolved.staticDir != "build" {
+	if resolved.AppType != "static" || resolved.StaticDir != "build" {
 		t.Errorf("unexpected static opts: %+v", resolved)
 	}
-	if resolved.port != 8080 {
-		t.Errorf("expected port 8080, got %d", resolved.port)
+	if resolved.Port != 8080 {
+		t.Errorf("expected port 8080, got %d", resolved.Port)
 	}
 }
 
@@ -86,11 +86,11 @@ func TestResolveAppOptionsPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.containerfile != "Custom.Dockerfile" {
-		t.Errorf("expected flag override Custom.Dockerfile, got %s", resolved.containerfile)
+	if resolved.Containerfile != "Custom.Dockerfile" {
+		t.Errorf("expected flag override Custom.Dockerfile, got %s", resolved.Containerfile)
 	}
-	if resolved.buildCmd != "make prod" {
-		t.Errorf("expected flag override make prod, got %s", resolved.buildCmd)
+	if resolved.BuildCmd != "make prod" {
+		t.Errorf("expected flag override make prod, got %s", resolved.BuildCmd)
 	}
 }
 
@@ -184,8 +184,8 @@ func TestResolveAppOptionsContainerPortFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.containerPort != 4000 {
-		t.Errorf("expected containerPort 4000, got %d", resolved.containerPort)
+	if resolved.ContainerPort != 4000 {
+		t.Errorf("expected containerPort 4000, got %d", resolved.ContainerPort)
 	}
 }
 
@@ -204,8 +204,8 @@ func TestResolveAppOptionsContainerPortExpose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolved.containerPort != 8080 {
-		t.Errorf("expected detected containerPort 8080 from Dockerfile, got %d", resolved.containerPort)
+	if resolved.ContainerPort != 8080 {
+		t.Errorf("expected detected containerPort 8080 from Dockerfile, got %d", resolved.ContainerPort)
 	}
 }
 
@@ -232,7 +232,7 @@ func TestRepoPathsOutsideTheRepositoryAreRejected(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, createErr := resolveAppOptions(appDir, appCreateOptions{repo: "https://example.com/repo.git"})
-		deployErr := syncGareFileConfig(storage.Open(t.TempDir()), repoDir, &storage.AppConfig{Name: "app"})
+		deployErr := resolveDeployConfig(storage.Open(t.TempDir()), repoDir, &storage.AppConfig{Name: "app"})
 		for _, err := range []error{createErr, deployErr} {
 			if err == nil || !strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "../x") {
 				t.Errorf("gare.yml %s: ../x: expected a rejection naming key and value, got %v", key, err)

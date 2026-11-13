@@ -51,18 +51,18 @@ func writeComposeUnit(ctx context.Context, name, appDir, repoDir, composeFile st
 		func() error { return systemd.WriteComposeUnit(unitData) })
 }
 
-func writeComposeArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
+func writeComposeArtifacts(ctx context.Context, store *storage.Store, cfg *storage.AppConfig) error {
+	appDir := store.AppDir(cfg.Name)
 	repoDir := storage.GetRepoDir(appDir)
-	composeFile, err := resolveComposeWorkload(repoDir, opts.composeFile, opts.port)
+	composeFile, err := resolveComposeWorkload(repoDir, cfg.ComposeFile, cfg.Port)
 	if err != nil {
 		return err
 	}
-	opts.appType = string(storage.WorkloadCompose)
-	opts.composeFile = composeFile
-	if err := writeComposeUnit(ctx, name, appDir, repoDir, composeFile); err != nil {
+	cfg.ComposeFile = composeFile
+	if err := writeComposeUnit(ctx, cfg.Name, appDir, repoDir, composeFile); err != nil {
 		return err
 	}
-	return saveAppMetadata(name, appDir, opts)
+	return saveAppMetadata(store, cfg)
 }
 
 // prepareComposeDeploy resolves the compose file, checks the provider and the routed port, runs the
