@@ -379,6 +379,8 @@ To trigger deployments automatically on `git push`, start the built-in webhook r
 GARE_WEBHOOK_SECRET=super-secret-token gare server --port 9000
 ```
 
+It listens on `127.0.0.1:9000`: `--port` changes only the port. Set `GARE_LISTEN` to bind another address; it wins over `--port`.
+
 The server exposes two endpoints:
 
 - `POST /webhook/<app-name>`: Authenticated webhook endpoint. Accepts GitHub `X-Hub-Signature-256` HMAC signatures or GitLab `X-Gitlab-Token` headers.
@@ -401,7 +403,8 @@ Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec
-ExecStart=%h/.local/bin/gare server --port 9000 --secret-file %h/.config/gare/webhook-secret
+Environment=GARE_LISTEN=127.0.0.1:9000
+ExecStart=%h/.local/bin/gare server --secret-file %h/.config/gare/webhook-secret
 Restart=always
 RestartSec=5s
 
@@ -420,7 +423,7 @@ Add an ingress snippet in `/etc/caddy/conf.d/gare-server.caddy`:
 
 ```caddyfile
 gare-hook.example.com {
-	reverse_proxy localhost:9000
+	reverse_proxy 127.0.0.1:9000
 }
 ```
 

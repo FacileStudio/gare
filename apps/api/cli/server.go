@@ -43,7 +43,9 @@ func NewServerCmd() *cobra.Command {
 		Long: "Run the webhook HTTP daemon. It refuses to start without a webhook secret, read from\n" +
 			"--secret-file or from the " + webhookSecretEnv + " environment variable.\n\n" +
 			"With OIDC_ISSUER set it also serves the API and the web UI on GARE_LISTEN, signing\n" +
-			"operators in through the suite's identity provider; --port then overrides GARE_LISTEN.",
+			"operators in through the suite's identity provider.\n\n" +
+			"Both modes listen on 127.0.0.1. --port changes only the port; GARE_LISTEN sets the whole\n" +
+			"address and wins over --port.",
 		RunE: func(c *cobra.Command, args []string) error {
 			opts.portSet = c.Flags().Changed("port")
 			return runServer(opts)
@@ -143,7 +145,7 @@ func runServer(opts serverOptions) error {
 		return err
 	}
 	if opts.portSet {
-		cfg.Listen = ":" + opts.port
+		cfg.Listen = daemon.ListenFromEnv(opts.port)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -161,7 +163,7 @@ func runWebhookDaemon(opts serverOptions) error {
 	defer signal.Stop(stopCh)
 
 	serverErr := make(chan error, 1)
-	addr := fmt.Sprintf(":%s", opts.port)
+	addr := daemon.ListenFromEnv(opts.port)
 	printInfo(fmt.Sprintf("Starting webhook daemon on %s...", addr))
 	go func() {
 		serverErr <- srv.Start(addr)
