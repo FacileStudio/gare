@@ -6,11 +6,15 @@
 
 - `gare server` refuses to start without a webhook secret, and the server refuses every webhook when it has none. The secret is read from `--secret-file` or `GARE_WEBHOOK_SECRET`; the `--secret` flag is removed, because argv is readable by every user on the host.
 - The app env file, `config.json` and `manifest.yaml` are written `0600`.
+- Git tokens from `GITHUB_TOKEN`, `GH_TOKEN`, `GITLAB_TOKEN` or `GL_TOKEN` no longer appear in git's argv; the credential helper reads them from the environment.
+- `static_dir`, `context` and `containerfile` must stay inside the repository, from `gare.yml` and from `--static`, `--context` and `--containerfile`: an absolute path, a `..` element or whitespace fails the command with the key and value named. Before, `static_dir: ../../otherapp` made the static container serve another app's directory, including its env file.
+- A `static_dir` that is a symlink to somewhere outside the repository is refused when the unit is written, at create and on every deploy.
 
 ### Fixed
 
 - The app env file is round-trip safe. A value with a space, `#`, quotes or a newline survived the first write but was rewritten on the next `gare env set` or `unset` of any other key; `ab #cd` became `ab`. Values are now quoted the way systemd's `EnvironmentFile` reads them, and the parser decodes double quotes the systemd way, so `gare env list` shows what the service receives.
 - A key starting with `export` (for example `exporter`) is no longer cut to its remainder.
+- An app with no declared health check no longer fails every deploy when it answers 404 at `/`: the implicit probe on its port now passes on any HTTP answer. Declared probes (`healthcheck`, `healthchecks`, compose-derived) still require 2xx or 3xx.
 - Port discovery refuses when an app's `config.json` exists but cannot be read, instead of handing that app's port to a new one; `gare list` names such apps.
 
 ### Changed
