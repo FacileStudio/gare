@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // ErrUnreadableApps reports app directories whose configuration could not be read.
 var ErrUnreadableApps = errors.New("unreadable app configuration")
 
-// ListApps returns every readable application sorted by name. It skips an app directory whose
+// List returns every readable application sorted by name. It skips an app directory whose
 // configuration cannot be read, so one broken app does not hide the others; callers that must not
-// overlook an app use ListAppsStrict.
-func ListApps(baseDir string) ([]*AppConfig, error) {
-	apps, _, err := scanApps(baseDir)
+// overlook an app use ListStrict.
+func (s *Store) List() ([]*AppConfig, error) {
+	apps, _, err := s.scan()
 	return apps, err
 }
 
-// ListAppsStrict returns every application, or an error wrapping ErrUnreadableApps that names each
+// ListStrict returns every application, or an error wrapping ErrUnreadableApps that names each
 // app directory whose configuration could not be read.
-func ListAppsStrict(baseDir string) ([]*AppConfig, error) {
-	apps, broken, err := scanApps(baseDir)
+func (s *Store) ListStrict() ([]*AppConfig, error) {
+	apps, broken, err := s.scan()
 	if err != nil {
 		return nil, err
 	}
@@ -33,18 +33,17 @@ func ListAppsStrict(baseDir string) ([]*AppConfig, error) {
 	return apps, nil
 }
 
-// UnreadableApps names the app directories under baseDir whose configuration exists but cannot be
-// read or parsed. A directory with no configuration yet is not an app and is not reported.
-func UnreadableApps(baseDir string) ([]string, error) {
-	_, broken, err := scanApps(baseDir)
+// Unreadable names the app directories whose configuration exists but cannot be read or parsed. A
+// directory with no configuration yet is not an app and is not reported.
+func (s *Store) Unreadable() ([]string, error) {
+	_, broken, err := s.scan()
 	return broken, err
 }
 
-func scanApps(baseDir string) ([]*AppConfig, []string, error) {
-	if baseDir == "" {
-		baseDir = DefaultBaseDir()
-	}
-	entries, err := os.ReadDir(baseDir)
+// scan reads every app directory once and sorts its findings into readable apps and broken ones.
+// Hidden entries are skipped: no app name starts with a dot, and the lock directory does.
+func (s *Store) scan() ([]*AppConfig, []string, error) {
+	entries, err := os.ReadDir(s.baseDir)
 	if os.IsNotExist(err) {
 		return []*AppConfig{}, nil, nil
 	}
@@ -54,10 +53,10 @@ func scanApps(baseDir string) ([]*AppConfig, []string, error) {
 	apps := []*AppConfig{}
 	var broken []string
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
-		cfg, err := LoadConfig(filepath.Join(baseDir, entry.Name()))
+		cfg, err := loadConfig(s.AppDir(entry.Name()))
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 		case err != nil:

@@ -53,13 +53,13 @@ func NewListCmd() *cobra.Command {
 }
 
 func runList(ctx context.Context, w io.Writer, opts listOptions) error {
-	baseDir := storage.DefaultBaseDir()
-	apps, err := storage.ListApps(baseDir)
+	store := storage.Default()
+	apps, err := store.List()
 	if err != nil {
 		return fmt.Errorf("failed to list apps: %w", err)
 	}
 
-	warnUnreadableApps(baseDir)
+	warnUnreadableApps(store)
 	if opts.tag != "" {
 		apps = storage.FilterAppsByTag(apps, opts.tag)
 	}
@@ -68,17 +68,17 @@ func runList(ctx context.Context, w io.Writer, opts listOptions) error {
 		return outputQuiet(w, apps)
 	}
 
-	items := collectAppItems(ctx, baseDir, apps)
+	items := collectAppItems(ctx, store, apps)
 	if opts.jsonOutput {
 		return writeJSON(w, items)
 	}
 	return outputTable(w, items)
 }
 
-func collectAppItems(ctx context.Context, baseDir string, apps []*storage.AppConfig) []appListItem {
+func collectAppItems(ctx context.Context, store *storage.Store, apps []*storage.AppConfig) []appListItem {
 	items := make([]appListItem, 0, len(apps))
 	for _, app := range apps {
-		appDir := storage.GetAppDir(baseDir, app.Name)
+		appDir := store.AppDir(app.Name)
 		repoDir := storage.GetRepoDir(appDir)
 		commit, _ := git.GetCommitHash(ctx, repoDir)
 		status := "inactive"
@@ -148,8 +148,8 @@ func renderCreatedAt(created string) string {
 
 // warnUnreadableApps names every app whose configuration exists but cannot be read, because the
 // table would otherwise drop it without a word and leave the operator thinking it was gone.
-func warnUnreadableApps(baseDir string) {
-	broken, err := storage.UnreadableApps(baseDir)
+func warnUnreadableApps(store *storage.Store) {
+	broken, err := store.Unreadable()
 	if err != nil || len(broken) == 0 {
 		return
 	}

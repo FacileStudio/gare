@@ -20,14 +20,14 @@ type appTagItem struct {
 }
 
 func runTagAdd(appName string, tags []string) error {
-	appDir, cfg, err := loadAppConfig(appName)
+	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
 	}
 	if err := cfg.AddTags(tags...); err != nil {
 		return err
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Default().Save(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(cfg.Tags, ", ")))
@@ -35,7 +35,7 @@ func runTagAdd(appName string, tags []string) error {
 }
 
 func runTagRemove(appName string, tags []string) error {
-	appDir, cfg, err := loadAppConfig(appName)
+	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func runTagRemove(appName string, tags []string) error {
 		printWarning(fmt.Sprintf("None of the specified tags were found on app %q", appName))
 		return nil
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Default().Save(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(cfg.Tags, ", ")))
@@ -51,7 +51,6 @@ func runTagRemove(appName string, tags []string) error {
 }
 
 func runTagList(w io.Writer, targetApp string, opts tagListOptions) error {
-	baseDir := storage.DefaultBaseDir()
 	if targetApp != "" {
 		_, cfg, err := loadAppConfig(targetApp)
 		if err != nil {
@@ -59,7 +58,7 @@ func runTagList(w io.Writer, targetApp string, opts tagListOptions) error {
 		}
 		return outputAppTags(w, targetApp, cfg.Tags, opts.jsonOutput)
 	}
-	apps, err := storage.ListApps(baseDir)
+	apps, err := storage.Default().List()
 	if err != nil {
 		return fmt.Errorf("failed to list apps: %w", err)
 	}

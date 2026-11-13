@@ -60,7 +60,8 @@ func setupComposeApp(t *testing.T, portMapping string) (string, string, string) 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	appDir := filepath.Join(home, "app")
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	appDir := storage.Default().AppDir("myapp")
 	repoDir := storage.GetRepoDir(appDir)
 	if err := os.MkdirAll(repoDir, 0755); err != nil {
 		t.Fatal(err)
@@ -86,7 +87,7 @@ func assertComposeUnit(t *testing.T, repoDir string) {
 
 func assertComposeConfig(t *testing.T, appDir string) {
 	t.Helper()
-	cfg, err := storage.LoadConfig(appDir)
+	cfg, err := storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}

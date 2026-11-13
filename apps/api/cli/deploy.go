@@ -30,14 +30,14 @@ func NewDeployCmd() *cobra.Command {
 // RunDeploy executes the deployment pipeline for a single application. Every workload type runs the
 // same tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up.
 func RunDeploy(ctx context.Context, name string) error {
-	baseDir := storage.DefaultBaseDir()
+	store := storage.Default()
 	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {
 		return err
 	}
 
 	repoDir := storage.GetRepoDir(appDir)
-	if err := fetchAppRevision(ctx, baseDir, appDir, repoDir, cfg); err != nil {
+	if err := fetchAppRevision(ctx, store, repoDir, cfg); err != nil {
 		return err
 	}
 	printVerbose(ctx, "Resolved %s app %s: repo %s, port %d, container port %d, unit %s",
@@ -53,14 +53,14 @@ func RunDeploy(ctx context.Context, name string) error {
 	return nil
 }
 
-func fetchAppRevision(ctx context.Context, baseDir, appDir, repoDir string, cfg *storage.AppConfig) error {
+func fetchAppRevision(ctx context.Context, store *storage.Store, repoDir string, cfg *storage.AppConfig) error {
 	printInfo(fmt.Sprintf("Syncing %s with its git remote...", cfg.Name))
 	opts := git.SyncOptions{RepoDir: repoDir, Branch: cfg.Branch, Auth: settingsFrom(ctx).auth,
 		Stdout: os.Stdout, Stderr: os.Stderr}
 	if err := git.Sync(ctx, opts); err != nil {
 		return fmt.Errorf("git sync failed: %w", err)
 	}
-	return syncDeployConfig(baseDir, repoDir, appDir, cfg)
+	return syncDeployConfig(store, repoDir, cfg)
 }
 
 // activateApp syncs ingress, restarts the unit, and only reports success once the ingress serves the
@@ -92,13 +92,13 @@ func prepareWorkload(ctx context.Context, name, appDir, repoDir string, cfg *sto
 	return prepareContainerDeploy(ctx, name, appDir, repoDir, cfg)
 }
 
-func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) error {
-	if err := syncGareFileConfig(baseDir, repoDir, cfg); err != nil {
+func syncDeployConfig(store *storage.Store, repoDir string, cfg *storage.AppConfig) error {
+	if err := syncGareFileConfig(store, repoDir, cfg); err != nil {
 		return err
 	}
 	warnStrayComposeFile(repoDir, cfg.IsCompose())
 	if cfg.UsesPodManifest() && cfg.Port == 0 {
-		port, err := storage.DiscoverAvailablePort(baseDir, 0)
+		port, err := store.AvailablePort(0)
 		if err != nil {
 			return fmt.Errorf("failed to discover free port: %w", err)
 		}
@@ -109,7 +109,7 @@ func syncDeployConfig(baseDir, repoDir, appDir string, cfg *storage.AppConfig) e
 			cfg.ContainerPort = exposed
 		}
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := store.Save(cfg); err != nil {
 		printWarning(fmt.Sprintf("Could not persist updated config (%v)", err))
 	}
 	return nil

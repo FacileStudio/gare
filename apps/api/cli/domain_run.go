@@ -16,28 +16,28 @@ type domainItem struct {
 }
 
 func runDomainAdd(ctx context.Context, appName, hostname string) error {
-	appDir, cfg, err := loadAppConfig(appName)
+	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
 	}
-	if err := checkDomainAvailable(storage.DefaultBaseDir(), appName, hostname); err != nil {
+	if err := checkDomainAvailable(storage.Default(), appName, hostname); err != nil {
 		return err
 	}
 	if err := cfg.AddDomain(hostname); err != nil {
 		return err
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Default().Save(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("Added domain %q to app %q", storage.NormalizeDomain(hostname), appName))
 	return syncAndReloadIfActive(ctx, cfg)
 }
 
-func checkDomainAvailable(baseDir, appName, hostname string) error {
+func checkDomainAvailable(store *storage.Store, appName, hostname string) error {
 	if err := storage.ValidateDomain(hostname); err != nil {
 		return err
 	}
-	apps, err := storage.ListApps(baseDir)
+	apps, err := store.List()
 	if err != nil {
 		return fmt.Errorf("failed to list apps: %w", err)
 	}
@@ -51,14 +51,14 @@ func checkDomainAvailable(baseDir, appName, hostname string) error {
 }
 
 func runDomainRemove(ctx context.Context, appName, hostname string) error {
-	appDir, cfg, err := loadAppConfig(appName)
+	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
 	}
 	if err := cfg.RemoveDomain(hostname); err != nil {
 		return err
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Default().Save(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("Removed domain %q from app %q", storage.NormalizeDomain(hostname), appName))
@@ -66,7 +66,6 @@ func runDomainRemove(ctx context.Context, appName, hostname string) error {
 }
 
 func runDomainList(w io.Writer, targetApp string, opts domainListOptions) error {
-	baseDir := storage.DefaultBaseDir()
 	var items []domainItem
 	if targetApp != "" {
 		_, cfg, err := loadAppConfig(targetApp)
@@ -75,7 +74,7 @@ func runDomainList(w io.Writer, targetApp string, opts domainListOptions) error 
 		}
 		items = collectAppDomains(cfg)
 	} else {
-		apps, err := storage.ListApps(baseDir)
+		apps, err := storage.Default().List()
 		if err != nil {
 			return fmt.Errorf("failed to list apps: %w", err)
 		}

@@ -13,11 +13,11 @@ func TestAppPaths(t *testing.T) {
 	if baseDir == "" || !strings.HasSuffix(baseDir, filepath.Join(".local", "share", "gare", "apps")) {
 		t.Fatalf("unexpected baseDir %q", baseDir)
 	}
-	if got := GetAppDir("/base/dir", "testapp"); got != "/base/dir/testapp" {
-		t.Errorf("GetAppDir: got %q", got)
+	if got := Open("/base/dir").AppDir("testapp"); got != "/base/dir/testapp" {
+		t.Errorf("AppDir: got %q", got)
 	}
-	if got := GetAppDir("", "testapp"); got != filepath.Join(baseDir, "testapp") {
-		t.Errorf("GetAppDir default: got %q", got)
+	if got := Default().AppDir("testapp"); got != filepath.Join(baseDir, "testapp") {
+		t.Errorf("Default AppDir: got %q", got)
 	}
 	appDir := "/base/testapp"
 	if got := GetRepoDir(appDir); got != filepath.Join(appDir, "repo") {
@@ -39,10 +39,10 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		Domains: []string{"myapp.example.com"}, Port: 8080, Branch: "main", CreatedAt: "2026-09-15T00:00:00Z",
 		AppType: "static", Containerfile: "Dockerfile", ContextDir: ".", StaticDir: "dist", BuildCmd: "make",
 	}
-	if err := SaveConfig(appDir, cfg); err != nil {
+	if err := saveConfig(appDir, cfg); err != nil {
 		t.Fatalf("SaveConfig failed: %v", err)
 	}
-	loaded, err := LoadConfig(appDir)
+	loaded, err := loadConfig(appDir)
 	if err != nil {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
@@ -76,7 +76,7 @@ func domainsEqual(a, b []string) bool {
 }
 
 func testInvalidConfigs(t *testing.T, tmpDir string) {
-	if _, err := LoadConfig(filepath.Join(tmpDir, "nonexistent")); err == nil {
+	if _, err := loadConfig(filepath.Join(tmpDir, "nonexistent")); err == nil {
 		t.Error("expected error loading non-existent config, got nil")
 	}
 	badDir := filepath.Join(tmpDir, "bad")
@@ -86,24 +86,24 @@ func testInvalidConfigs(t *testing.T, tmpDir string) {
 	if err := os.WriteFile(GetConfigPath(badDir), []byte("not valid json"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadConfig(badDir); err == nil {
+	if _, err := loadConfig(badDir); err == nil {
 		t.Error("expected unmarshal error for invalid json, got nil")
 	}
 }
 
 func TestListApps(t *testing.T) {
 	tmpDir := t.TempDir()
-	apps, err := ListApps(tmpDir)
+	apps, err := Open(tmpDir).List()
 	if err != nil || len(apps) != 0 {
 		t.Fatalf("expected 0 apps on empty dir, got %d (err: %v)", len(apps), err)
 	}
-	apps, err = ListApps(filepath.Join(tmpDir, "nonexistent"))
+	apps, err = Open(filepath.Join(tmpDir, "nonexistent")).List()
 	if err != nil || len(apps) != 0 {
 		t.Fatalf("expected 0 apps on nonexistent dir, got %d (err: %v)", len(apps), err)
 	}
 
 	setupListAppsFixtures(t, tmpDir)
-	apps, err = ListApps(tmpDir)
+	apps, err = Open(tmpDir).List()
 	if err != nil || len(apps) != 3 {
 		t.Fatalf("expected 3 apps, got %d (err: %v)", len(apps), err)
 	}
@@ -116,7 +116,7 @@ func TestListApps(t *testing.T) {
 func setupListAppsFixtures(t *testing.T, tmpDir string) {
 	for _, name := range []string{"beta", "alpha", "gamma"} {
 		appDir := filepath.Join(tmpDir, name)
-		if err := SaveConfig(appDir, &AppConfig{Name: name, Port: 8000}); err != nil {
+		if err := saveConfig(appDir, &AppConfig{Name: name, Port: 8000}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -128,7 +128,7 @@ func setupListAppsFixtures(t *testing.T, tmpDir string) {
 	}
 }
 
-func TestDeleteAppStorage(t *testing.T) {
+func TestDelete(t *testing.T) {
 	tmpDir := t.TempDir()
 	appDir := filepath.Join(tmpDir, "myapp")
 	if err := os.MkdirAll(appDir, 0755); err != nil {
@@ -139,13 +139,16 @@ func TestDeleteAppStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := DeleteAppStorage(appDir); err != nil {
-		t.Fatalf("DeleteAppStorage failed: %v", err)
+	if err := Open(tmpDir).Delete("myapp"); err != nil {
+		t.Fatalf("Delete failed: %v", err)
 	}
 	if _, err := os.Stat(appDir); !os.IsNotExist(err) {
 		t.Errorf("expected appDir to be deleted")
 	}
-	if err := DeleteAppStorage(appDir); err != nil {
-		t.Errorf("DeleteAppStorage on nonexistent dir error: %v", err)
+	if err := Open(tmpDir).Delete("myapp"); err != nil {
+		t.Errorf("Delete on nonexistent dir error: %v", err)
+	}
+	if err := Open(tmpDir).Delete(""); err == nil {
+		t.Errorf("Delete with an empty name must refuse rather than remove the store")
 	}
 }

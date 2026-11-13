@@ -12,10 +12,10 @@ func loadAppConfig(name string) (string, *storage.AppConfig, error) {
 	if err := appname.Validate(name); err != nil {
 		return "", nil, err
 	}
-	appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-	cfg, err := storage.LoadConfig(appDir)
+	store := storage.Default()
+	cfg, err := store.Load(name)
 	if err != nil {
 		return "", nil, appConfigError(name, err)
 	}
-	return appDir, cfg, nil
+	return store.AppDir(name), cfg, nil
 }
