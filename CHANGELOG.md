@@ -4,6 +4,7 @@
 
 ### Added
 
+- `GARE_MAX_PARALLEL_DEPLOYS` caps concurrent webhook deploys across apps (default 2); an invalid value stops the daemon at start.
 - A web client in `apps/client`: sign in with Facile, list apps with a tag filter, deploy with a live log, browse deploy history and roll back container apps, follow runtime logs, edit the environment (masked values, reveal one, merge a pasted `.env` block), manage domains, create apps and destroy them with the name typed back. The daemon API it talks to is not built yet.
 
 ### Security
@@ -25,6 +26,8 @@
 
 ### Changed
 
+- `gare server` deploys only on GitHub `push` and GitLab `Push Hook` events whose ref is the app's branch; other events, including GitHub's `ping`, answer `200 ignored: <event>`, a push to another branch answers `200 ignored: <ref>`, and an unknown app answers `404`. A signed request with no event header still deploys, for manual triggers.
+- Webhook deploys are coalesced: at most one running and one pending deploy per app, answered `202` with `queued`, `running, queued next` or `already queued`. Shutdown waits for running deploys and drops pending ones.
 - **Breaking:** the Go module moved to `apps/api` and its path is now `github.com/FacileStudio/gare/apps/api`, so `go install github.com/FacileStudio/gare/cmd/gare@latest` no longer works. Install with `facile install gare` or the release archive.
 - The CLI commands live in `apps/api/cli`, and `apps/api/main.go` is the only `package main`. The version a plain `go build` reports now comes from `apps/api/version.go`.
 - `sh scripts/check.sh` is the full quality gate: gofmt, vet, tests, the client check, then `filet check .`. It also takes `--go-only` and `--format`.
