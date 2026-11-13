@@ -1,0 +1,81 @@
+// Package daemon runs the API and the web client next to the webhook intake:
+// it opens the database, migrates it, signs operators in through porte and
+// serves everything on one listener. Only `gare server` uses it, so no other
+// command ever needs a database.
+package daemon
+
+import (
+	"errors"
+	"path/filepath"
+
+	"github.com/FacileStudio/gare/apps/api/internal/xdg"
+	"github.com/FacileStudio/gare/apps/api/modules/auth"
+	"github.com/FacileStudio/porte"
+	troncenv "github.com/FacileStudio/tronc/env"
+	"github.com/FacileStudio/tronc/spa"
+)
+
+// DefaultListen is where the daemon listens when GARE_LISTEN is unset:
+// loopback only, so a fresh install exposes nothing until the operator puts a
+// proxy in front of it.
+const DefaultListen = "127.0.0.1:9120"
+
+// Config is the daemon's environment. The OIDC names are the ones every suite
+// app reads, so one deployment panel spells them the same way everywhere.
+type Config struct {
+	Listen      string
+	DatabaseURL string
+	ClientDir   string
+	Auth        auth.Config
+}
+
+// Load reads the environment. It fails only on a value that is set but
+// unusable; whether the API runs at all is Enabled's question.
+func Load() (Config, error) {
+	ssoOnly, err := troncenv.Bool("SSO_ONLY", true)
+	if err != nil {
+		return Config{}, err
+	}
+	return Config{
+		Listen:      troncenv.String("GARE_LISTEN", DefaultListen),
+		DatabaseURL: troncenv.String("DATABASE_URL", ""),
+		ClientDir:   spa.DirFromEnv(),
+		Auth: auth.Config{
+			Porte:       loadPorte(ssoOnly),
+			AdminEmails: auth.ParseEmails(troncenv.String("GARE_ADMIN_EMAILS", "")),
+			StatePath:   filepath.Join(xdg.DataHome(), "gare", "registre-deletions.json"),
+		},
+	}, nil
+}
+
+// loadPorte reads porte's half of the environment under the suite's names.
+func loadPorte(ssoOnly bool) porte.Config {
+	return porte.Config{
+		Issuer:       troncenv.String("OIDC_ISSUER", ""),
+		ClientID:     troncenv.String("OIDC_CLIENT_ID", ""),
+		ClientSecret: troncenv.String("OIDC_CLIENT_SECRET", ""),
+		RedirectURL:  troncenv.String("OIDC_REDIRECT_URL", ""),
+		SuccessURL:   troncenv.String("OIDC_SUCCESS_URL", ""),
+		FailureURL:   troncenv.String("OIDC_FAILURE_URL", ""),
+		SSOOnly:      ssoOnly,
+	}
+}
+
+// Enabled reports whether the API and the web client run. They need a way to
+// sign in, and gare signs in through OIDC only, so without OIDC_ISSUER the
+// daemon stays the webhook intake it always was.
+func (c Config) Enabled() bool {
+	return c.Auth.Porte.Enabled()
+}
+
+// Validate refuses an enabled API that could not work: porte's own checks,
+// plus a database to keep sessions in.
+func (c Config) Validate() error {
+	if err := c.Auth.Porte.Validate(); err != nil {
+		return err
+	}
+	if c.DatabaseURL == "" {
+		return errors.New("DATABASE_URL is required when OIDC_ISSUER is set")
+	}
+	return nil
+}

@@ -24,6 +24,8 @@ limits:
 
 architecture:
   requiredDirs: [apps/api, apps/client]
+  requiredFiles:
+    "apps/api/modules/*": [router.go]
 
 style:
   banInlineComments: true
