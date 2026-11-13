@@ -307,6 +307,32 @@ Queueing: each app has at most one deploy running and one pending. Every deploy 
 
 `GARE_MAX_PARALLEL_DEPLOYS` caps deploys running at once across all apps (default `2`). The daemon refuses to start when it is not a positive integer. On shutdown the daemon waits for running deploys and drops pending ones, logging each drop.
 
+### API and web UI
+
+`gare server` also serves the API under `/api` and the web UI once `OIDC_ISSUER` is set. Without it, the daemon logs `API and web UI disabled` and serves the webhook endpoints alone, exactly as before, and never opens a database. An existing install keeps working with no change.
+
+With the API on, the daemon:
+- listens on `GARE_LISTEN` (default `127.0.0.1:9120`). An explicit `--port` overrides it with `:<port>`.
+- opens `DATABASE_URL`, applies its migrations at start and exits non-zero when they fail. Postgres holds porte's sign-in tables only; apps, env and deploys stay files. `deploy/compose.yml` runs one.
+- signs operators in through the suite's identity provider with porte, single sign-on only. No password route exists.
+- lets in only the addresses in `GARE_ADMIN_EMAILS` (comma separated, case-insensitive). An empty list lets nobody in. A refused sign-in lands on `/login?error=<message>` and stores no session. Removing an address ends its sessions on their next request.
+- serves the built client from `CLIENT_DIR` (default `./client`) at `/` with a fallback for deep links, and skips it when that directory has no `index.html`.
+- serves its API reference at `/docs`.
+
+| Variable | Purpose |
+|---|---|
+| `OIDC_ISSUER` | Identity provider URL. Turns the API on. |
+| `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | The client registered at the provider. |
+| `OIDC_REDIRECT_URL` | `https://<host>/api/auth/oidc/callback`, as registered at the provider. |
+| `OIDC_SUCCESS_URL` | Where a signed-in browser lands, `https://<host>/`. |
+| `OIDC_FAILURE_URL` | Optional. Defaults to `/login` on the success URL's origin. |
+| `SSO_ONLY` | Defaults to `true`. |
+| `GARE_ADMIN_EMAILS` | The allowlist. |
+| `GARE_LISTEN`, `DATABASE_URL`, `CLIENT_DIR` | See above. |
+| `GARE_WEBHOOK_SECRET` | The webhook secret, required in both modes. |
+
+Register `https://<host>/api/auth/backchannel-logout` as the provider's back-channel logout URI. The daemon also polls the provider for erased people, deletes their account and sessions, and refuses them a new one; it remembers them in `$XDG_DATA_HOME/gare/registre-deletions.json`.
+
 ## Development
 
 The Go module lives in `apps/api`; `apps/api/main.go` is the entry point and the commands are in `apps/api/cli`. `gare` uses [mise](https://mise.sh) for task management.

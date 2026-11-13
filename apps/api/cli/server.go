@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
+	"github.com/FacileStudio/gare/apps/api/internal/daemon"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/spf13/cobra"
@@ -28,6 +30,7 @@ const maxParallelEnv = "GARE_MAX_PARALLEL_DEPLOYS"
 
 type serverOptions struct {
 	port       string
+	portSet    bool
 	secretFile string
 }
 
@@ -38,9 +41,12 @@ func NewServerCmd() *cobra.Command {
 		Use:   "server --port <port> [--secret-file <path>]",
 		Short: "Run the webhook HTTP daemon",
 		Long: "Run the webhook HTTP daemon. It refuses to start without a webhook secret, read from\n" +
-			"--secret-file or from the " + webhookSecretEnv + " environment variable.",
+			"--secret-file or from the " + webhookSecretEnv + " environment variable.\n\n" +
+			"With OIDC_ISSUER set it also serves the API and the web UI on GARE_LISTEN, signing\n" +
+			"operators in through the suite's identity provider; --port then overrides GARE_LISTEN.",
 		RunE: func(c *cobra.Command, args []string) error {
-			return runWebhookDaemon(opts)
+			opts.portSet = c.Flags().Changed("port")
+			return runServer(opts)
 		},
 	}
 
@@ -119,6 +125,29 @@ func newWebhookServer(opts serverOptions) (*server.Server, error) {
 			return RunDeploy(ctx, appName)
 		},
 	}), nil
+}
+
+// runServer serves the API and the web UI next to the webhooks when OIDC is configured, and the
+// webhooks alone otherwise, so an install that predates the API keeps running unchanged.
+func runServer(opts serverOptions) error {
+	cfg, err := daemon.Load()
+	if err != nil {
+		return err
+	}
+	if !cfg.Enabled() {
+		printWarning("API and web UI disabled: OIDC_ISSUER is not set, serving webhooks only")
+		return runWebhookDaemon(opts)
+	}
+	srv, err := newWebhookServer(opts)
+	if err != nil {
+		return err
+	}
+	if opts.portSet {
+		cfg.Listen = ":" + opts.port
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return daemon.Serve(ctx, cfg, srv, slog.Default())
 }
 
 func runWebhookDaemon(opts serverOptions) error {
