@@ -2,9 +2,7 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -13,11 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/FacileStudio/gare/apps/api/internal/appname"
 	"github.com/FacileStudio/gare/apps/api/internal/daemon"
-	"github.com/FacileStudio/gare/apps/api/internal/deploys"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
-	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -29,10 +25,13 @@ const webhookSecretEnv = "GARE_WEBHOOK_SECRET"
 // so an operator can size it to what the host can build at once.
 const maxParallelEnv = "GARE_MAX_PARALLEL_DEPLOYS"
 
+// serverOptions is what one `gare server` invocation runs with, including the settings the command
+// resolved from ~/.gare.yml and the global flags, which every deploy the daemon runs inherits.
 type serverOptions struct {
 	port       string
 	portSet    bool
 	secretFile string
+	settings   engine.Settings
 }
 
 // NewServerCmd builds the server command.
@@ -49,6 +48,7 @@ func NewServerCmd() *cobra.Command {
 			"address and wins over --port.",
 		RunE: func(c *cobra.Command, args []string) error {
 			opts.portSet = c.Flags().Changed("port")
+			opts.settings = settingsFrom(c.Context())
 			return runServer(opts)
 		},
 	}
@@ -91,43 +91,6 @@ func resolveMaxParallel() (int, error) {
 		return 0, fmt.Errorf("%s must be a positive integer, got %q", maxParallelEnv, raw)
 	}
 	return n, nil
-}
-
-// storedBranch reports the branch an app deploys from its stored config, so the webhook server
-// can skip pushes to other branches. A missing config means gare does not manage the app.
-func storedBranch(app string) (string, error) {
-	cfg, err := storage.Default().Load(app)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "", server.ErrUnknownApp
-	}
-	if err != nil {
-		return "", err
-	}
-	return cfg.Branch, nil
-}
-
-// newWebhookServer assembles the webhook server from the operator's settings, failing before
-// anything listens when the secret or the concurrency cap is missing or malformed.
-func newWebhookServer(opts serverOptions) (*server.Server, error) {
-	secret, err := resolveWebhookSecret(opts.secretFile)
-	if err != nil {
-		return nil, err
-	}
-	maxParallel, err := resolveMaxParallel()
-	if err != nil {
-		return nil, err
-	}
-	return server.New(server.Config{
-		Secret:      secret,
-		BranchFor:   storedBranch,
-		MaxParallel: maxParallel,
-		DeployHandler: func(ctx context.Context, appName string) error {
-			if err := appname.Validate(appName); err != nil {
-				return err
-			}
-			return RunDeploy(ctx, appName, deploys.TriggerWebhook)
-		},
-	}), nil
 }
 
 // runServer serves the API and the web UI next to the webhooks when OIDC is configured, and the

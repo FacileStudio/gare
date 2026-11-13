@@ -34,7 +34,7 @@ func (terminalSink) Output(string) (io.Writer, io.Writer) {
 }
 
 // newEngine returns the engine a command runs, on the operator's store and with the settings the
-// command resolved. A context without settings, the webhook daemon's, runs with the zero value.
+// command resolved. The webhook daemon attaches the settings it resolved at start to every deploy.
 func newEngine(ctx context.Context) *engine.Engine {
 	return engine.New(storage.Default(), terminalSink{}, settingsFrom(ctx))
 }
