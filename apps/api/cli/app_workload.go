@@ -1,0 +1,73 @@
+package cli
+
+import (
+	"context"
+
+	"github.com/FacileStudio/gare/apps/api/internal/podman"
+	"github.com/FacileStudio/gare/apps/api/internal/repopath"
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
+)
+
+// writeWorkloadArtifacts writes the workload artifacts for the resolved type.
+func writeWorkloadArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
+	switch opts.appType {
+	case string(storage.WorkloadStatic):
+		return writeStaticArtifacts(ctx, name, appDir, opts)
+	case string(storage.WorkloadCompose):
+		return writeComposeArtifacts(ctx, name, appDir, opts)
+	default:
+		return writeAppArtifacts(ctx, name, appDir, opts)
+	}
+}
+
+// normalizeAppType infers the workload type when it is not set explicitly.
+func normalizeAppType(opts appCreateOptions) string {
+	if opts.appType != "" {
+		return opts.appType
+	}
+	if opts.staticDir != "" {
+		return "static"
+	}
+	return "container"
+}
+
+// normalizeCreateOptions applies workload-specific defaults and validates them.
+func normalizeCreateOptions(repoDir string, opts appCreateOptions) (appCreateOptions, error) {
+	opts.appType = normalizeAppType(opts)
+	if opts.appType == "compose" {
+		composeFile, err := resolveComposeWorkload(repoDir, opts.composeFile, opts.port)
+		if err != nil {
+			return opts, err
+		}
+		opts.composeFile = composeFile
+	}
+	if err := storage.ValidateHealthProbes(opts.healthProbes); err != nil {
+		return opts, err
+	}
+	warnStrayComposeFile(repoDir, opts.appType == "compose")
+	if opts.appType == "static" && opts.staticDir == "" {
+		opts.staticDir = "."
+	}
+	if opts.appType == "container" {
+		opts.containerPort = detectContainerPort(repoDir, opts)
+	}
+	return opts, nil
+}
+
+// validateCreatePaths rejects a --static, --context or --containerfile flag that would reach
+// outside the repository, before anything is cloned.
+func validateCreatePaths(opts appCreateOptions) error {
+	return repopath.ValidateSet(map[string]string{
+		"--static":        opts.staticDir,
+		"--context":       opts.contextDir,
+		"--containerfile": opts.containerfile,
+	})
+}
+
+// detectContainerPort returns the configured container port or detects it from the containerfile.
+func detectContainerPort(repoDir string, opts appCreateOptions) int {
+	if opts.containerPort != 0 {
+		return opts.containerPort
+	}
+	return podman.DetectExposedPort(repoDir, opts.containerfile)
+}
