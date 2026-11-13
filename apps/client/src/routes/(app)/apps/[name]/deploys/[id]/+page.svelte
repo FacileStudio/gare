@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Alert, Badge, Button, Inline, Section, Spinner, icons } from '@facile/muse';
-	import { api, deployLogUrl, fetchText, type Deploy } from '$lib/api';
+	import { api, deployLogUrl, type Deploy } from '$lib/api';
 	import { currentApp } from '$lib/current-app.svelte';
 	import { follow } from '$lib/sse';
 	import { ago, deployLabel, deployTone, errorText, isLive, shortCommit, took } from '$lib/status';
@@ -37,8 +37,6 @@
 			reconnecting = false;
 			if (!found) {
 				failure = 'This deploy is not in the history any more.';
-			} else if (!isLive(found)) {
-				lines = (await fetchText(deployLogUrl(name, wanted))).replace(/\n$/, '').split('\n');
 			} else {
 				lines = [];
 				stop = follow(deployLogUrl(name, wanted), {

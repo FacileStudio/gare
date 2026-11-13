@@ -91,18 +91,7 @@ export const api = {
 		request<{ domains: string[] }>(`${app(name)}/domains/${seg(hostname)}`, send('DELETE')).then((a) => a.domains)
 };
 
-/**
- * Reads a plain-text answer, which the JSON kernel refuses: a finished deploy's log. A 401 still
- * goes to sign-in.
- */
-export async function fetchText(url: string): Promise<string> {
-	const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'text/plain' } });
-	if (response.status === 401) redirectToLogin();
-	if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
-	return response.text();
-}
-
-/** The URL of a deploy's log: an event stream while it runs, plain text once it finished. */
+/** The URL of a deploy's log: always an event stream, a finished deploy's replay and done at once. */
 export const deployLogUrl = (name: string, id: string) => `/api${app(name)}/deploys/${seg(id)}/log`;
 
 /** The URL of an app's journal stream, starting `lines` lines back. */
