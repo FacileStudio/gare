@@ -40,7 +40,7 @@ The version lives in two places and both move in the same `chore: release vX` co
 
 ## Why gare ships as a host binary
 
-Other suite apps ship as a distroless image deployed through Dokploy. gare does not, and has no root `Dockerfile`. It writes systemd user units, runs `systemctl --user`, drives the host's rootless podman and reloads the host Caddy, so it must run as the unprivileged user that owns those units, on the host itself. A container would need the user's systemd bus, podman socket and home directory mounted in, which is the host with extra steps. The release archive carries the `gare` binary, and `facile install gare` installs it.
+Other suite apps ship as a distroless image deployed through Dokploy. gare does not, and has no root `Dockerfile`. It writes systemd user units, runs `systemctl --user`, drives the host's rootless podman and reloads the host Caddy, so it must run as the unprivileged user that owns those units, on the host itself. A container would need the user's systemd bus, podman socket and home directory mounted in, which is the host with extra steps. The release archive carries the `gare` binary and the built web client under `client/`; `facile install gare` installs the binary only, and the README shows the command that puts the client in `CLIENT_DIR`.
 
 ## Directory layout
 
