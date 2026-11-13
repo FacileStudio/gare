@@ -1,5 +1,5 @@
 [tools]
-bun = "1.3.11"
+bun = "1.4.2"
 
 [env]
 BUN_BIN = { value = "{{tools.bun.path}}/bin/bun", tools = true }
