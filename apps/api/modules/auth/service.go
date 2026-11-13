@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"net/http"
 
 	"github.com/FacileStudio/porte/directory"
@@ -23,6 +24,9 @@ type Service struct {
 	oidc       *oidc.Kit
 	accounts   *kit.Store
 	deletions  *directory.Deletions
+	identities *pg.IdentityStore
+	sealed     bool
+	logger     *slog.Logger
 	allow      allowlist
 	controller controller
 }
@@ -31,23 +35,27 @@ type Service struct {
 // discovery, so an unreachable or half-configured issuer fails the boot rather
 // than the first sign-in.
 func New(ctx context.Context, db *sql.DB, cfg Config) (*Service, error) {
-	store := pg.New(db)
-	identities := store.Identities()
-	sessions, err := session.New(cfg.Porte, session.Deps{Sessions: store.Sessions(), Logger: cfg.Logger})
+	store, sealed, err := newStore(db, cfg)
 	if err != nil {
 		return nil, err
 	}
 	service := &Service{
-		sessions: sessions,
-		accounts: &kit.Store{DB: db, Columns: kit.Columns{Table: "porte_users"}, Logger: cfg.Logger},
-		allow:    newAllowlist(cfg.AdminEmails),
+		accounts:   &kit.Store{DB: db, Columns: kit.Columns{Table: "porte_users"}, Logger: cfg.Logger},
+		identities: store.Identities(),
+		sealed:     sealed,
+		logger:     cfg.Logger,
+		allow:      newAllowlist(cfg.AdminEmails),
+	}
+	if service.sessions, err = session.New(cfg.Porte, session.Deps{Sessions: store.Sessions(), Logger: cfg.Logger}); err != nil {
+		return nil, err
 	}
 	service.deletions = newDeletions(cfg, store, service.accounts)
 	service.oidc, err = oidc.New(ctx, cfg.Porte, oidc.Deps{
-		Users:      gatedUsers{inner: store.Users(), identities: identities, forget: forgetRefused(db), allow: service.allow},
-		Identities: identities,
+		Users: gatedUsers{inner: store.Users(), identities: service.identities,
+			forget: forgetRefused(db), allow: service.allow},
+		Identities: service.identities,
 		Codes:      noLoginCodes{},
-		Sessions:   sessions,
+		Sessions:   service.sessions,
 		Logger:     cfg.Logger,
 		Erased:     service.deletions,
 	})
@@ -76,9 +84,13 @@ func newDeletions(cfg Config, store *pg.Store, accounts *kit.Store) *directory.D
 	}
 }
 
-// Run polls the provider for erased people until ctx ends. Run it once per
-// daemon: the receiver's state is one file.
+// Run polls the provider for erased people until ctx ends, after starting a
+// reseal of older tokens when sealing is on. Run it once per daemon: the
+// receiver's state is one file.
 func (s *Service) Run(ctx context.Context) {
+	if s.sealed {
+		go reseal(ctx, s.identities, s.logger)
+	}
 	s.deletions.Run(ctx)
 }
 

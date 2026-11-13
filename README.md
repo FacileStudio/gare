@@ -327,7 +327,8 @@ With the API on, the daemon:
 | `OIDC_SUCCESS_URL` | Where a signed-in browser lands, `https://<host>/`. |
 | `OIDC_FAILURE_URL` | Optional. Defaults to `/login` on the success URL's origin. |
 | `SSO_ONLY` | Defaults to `true`. |
-| `GARE_ADMIN_EMAILS` | The allowlist. |
+| `GARE_ADMIN_EMAILS` | The allowlist. Required with `OIDC_ISSUER`. |
+| `PORTE_TOKEN_KEY` | Optional. Seals the provider's access and refresh tokens in Postgres: 32 bytes as 64 hex characters or base64, comma separated, newest first to rotate (`openssl rand -hex 32`). Unset, the daemon warns at start and stores them in plaintext. Setting it reseals the existing rows at start. |
 | `GARE_LISTEN`, `DATABASE_URL`, `CLIENT_DIR` | See above. |
 | `GARE_WEBHOOK_SECRET` | The webhook secret, required in both modes. |
 
