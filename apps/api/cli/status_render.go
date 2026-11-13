@@ -7,10 +7,11 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/tree"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 )
 
-func outputStatusHuman(w io.Writer, d *AppStatusDetails) error {
+func outputStatusHuman(w io.Writer, d *engine.AppStatus) error {
 	bold := lipgloss.NewStyle().Bold(true)
 	title := lipgloss.NewStyle().Foreground(lipgloss.Color(colorPrimary)).Bold(true)
 
@@ -26,7 +27,7 @@ func outputStatusHuman(w io.Writer, d *AppStatusDetails) error {
 
 // workloadSection renders the workload subtree. Every section is built as its own tree because
 // tree.Child returns its receiver, so a section only nests when it is passed as a child itself.
-func workloadSection(d *AppStatusDetails, bold lipgloss.Style) *tree.Tree {
+func workloadSection(d *engine.AppStatus, bold lipgloss.Style) *tree.Tree {
 	section := tree.Root(bold.Render("Workload"))
 	section.Child("Type:   " + d.AppType)
 	section.Child("Status: " + statusStyle(d.Status).Render(d.Status))
@@ -49,27 +50,27 @@ func workloadSection(d *AppStatusDetails, bold lipgloss.Style) *tree.Tree {
 // appendProbes lists the individual probes only when there is more than one, because a single probe
 // repeats the health path already shown above it. A lone implicit probe has no path to show, so it
 // says what it accepts instead.
-func appendProbes(section *tree.Tree, d *AppStatusDetails) {
+func appendProbes(section *tree.Tree, d *engine.AppStatus) {
 	if len(d.Probes) == 1 && d.Probes[0].AnyAnswer {
-		section.Child("Health: any HTTP answer at " + probeTarget(d.Probes[0]))
+		section.Child("Health: any HTTP answer at " + engine.ProbeTarget(d.Probes[0]))
 		return
 	}
 	if len(d.Probes) < 2 {
 		return
 	}
 	for _, probe := range d.Probes {
-		section.Child(fmt.Sprintf("Probe:  %s -> %s", probe.Label(), probeTarget(probe)))
+		section.Child(fmt.Sprintf("Probe:  %s -> %s", probe.Label(), engine.ProbeTarget(probe)))
 	}
 }
 
-func portLine(d *AppStatusDetails) string {
+func portLine(d *engine.AppStatus) string {
 	if d.ContainerPort > 0 && d.ContainerPort != d.Port {
 		return fmt.Sprintf("Port:   %d -> %d", d.Port, d.ContainerPort)
 	}
 	return fmt.Sprintf("Port:   %d", d.Port)
 }
 
-func sourceSection(d *AppStatusDetails, bold lipgloss.Style) *tree.Tree {
+func sourceSection(d *engine.AppStatus, bold lipgloss.Style) *tree.Tree {
 	section := tree.Root(bold.Render("Source"))
 	section.Child("Repo:   " + d.RepoURL)
 	section.Child("Branch: " + d.Branch)

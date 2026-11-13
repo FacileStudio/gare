@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
-	"github.com/FacileStudio/gare/apps/api/internal/storage"
-	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -59,71 +56,29 @@ func NewRestartCmd() *cobra.Command {
 	}
 }
 
+// runStartApp starts an application and reports it active.
 func runStartApp(ctx context.Context, name string) error {
-	appDir, cfg, err := loadAppConfig(name)
-	if err != nil {
+	if err := newEngine(ctx).Start(ctx, name); err != nil {
 		return err
-	}
-	if err := ensureContainerImage(ctx, cfg); err != nil {
-		return err
-	}
-	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
-	if err := activateIngress(ctx, cfg); err != nil {
-		return err
-	}
-	if err := systemd.Start(ctx, name); err != nil {
-		return fmt.Errorf("failed to start %q: %w", name, err)
-	}
-	if err := systemd.WaitForState(ctx, name, "active"); err != nil {
-		return fmt.Errorf("failed to verify %q active state: %w", name, err)
 	}
 	printSuccess(fmt.Sprintf("Started %s.service (active)", name))
 	return nil
 }
 
+// runStopApp stops an application and reports the state systemd settled in.
 func runStopApp(ctx context.Context, name string) error {
-	_, cfg, err := loadAppConfig(name)
+	result, err := newEngine(ctx).Stop(ctx, name)
 	if err != nil {
 		return err
 	}
-	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err == nil {
-		if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-			printWarning(fmt.Sprintf("Caddy reload error: %v", reloadErr))
-		}
-	}
-	if err := systemd.Stop(ctx, name); err != nil {
-		return fmt.Errorf("failed to stop %q: %w", name, err)
-	}
-	props, err := systemd.WaitForStop(ctx, name)
-	if err != nil {
-		return fmt.Errorf("failed to verify %q stopped: %w", name, err)
-	}
-	if props.Result != "" && props.Result != "success" {
-		printWarning(fmt.Sprintf("Service %s exited with result %s (%s); inspect with: gare logs %s",
-			name, props.Result, props.SubState, name))
-	}
-	verifyComposeContainersGone(ctx, cfg, "stop")
-	printSuccess(fmt.Sprintf("Stopped %s.service (%s)", name, props.ActiveState))
+	printSuccess(fmt.Sprintf("Stopped %s.service (%s)", name, result.ActiveState))
 	return nil
 }
 
+// runRestartApp restarts an application and reports it active.
 func runRestartApp(ctx context.Context, name string) error {
-	appDir, cfg, err := loadAppConfig(name)
-	if err != nil {
+	if err := newEngine(ctx).Restart(ctx, name); err != nil {
 		return err
-	}
-	if err := ensureContainerImage(ctx, cfg); err != nil {
-		return err
-	}
-	warnComposeReachability(storage.GetRepoDir(appDir), cfg)
-	if err := activateIngress(ctx, cfg); err != nil {
-		return err
-	}
-	if err := systemd.Restart(ctx, name); err != nil {
-		return fmt.Errorf("failed to restart %q: %w", name, err)
-	}
-	if err := systemd.WaitForState(ctx, name, "active"); err != nil {
-		return fmt.Errorf("failed to verify %q active state: %w", name, err)
 	}
 	printSuccess(fmt.Sprintf("Restarted %s.service (active)", name))
 	return nil

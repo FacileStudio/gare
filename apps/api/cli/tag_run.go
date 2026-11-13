@@ -20,50 +20,34 @@ type appTagItem struct {
 	Tag string `json:"tag"`
 }
 
+// runTagAdd adds tags to an application through the engine and prints its tags afterwards.
 func runTagAdd(ctx context.Context, appName string, tags []string) error {
-	unlock, err := lockApp(ctx, appName)
+	updated, err := newEngine(ctx).AddTags(ctx, appName, tags)
 	if err != nil {
 		return err
 	}
-	defer unlock()
-	_, cfg, err := loadAppConfig(appName)
-	if err != nil {
-		return err
-	}
-	if err := cfg.AddTags(tags...); err != nil {
-		return err
-	}
-	if err := storage.Default().Save(cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(cfg.Tags, ", ")))
+	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(updated, ", ")))
 	return nil
 }
 
+// runTagRemove removes tags from an application through the engine and prints its tags
+// afterwards, or a warning when none of them was set.
 func runTagRemove(ctx context.Context, appName string, tags []string) error {
-	unlock, err := lockApp(ctx, appName)
+	updated, changed, err := newEngine(ctx).RemoveTags(ctx, appName, tags)
 	if err != nil {
 		return err
 	}
-	defer unlock()
-	_, cfg, err := loadAppConfig(appName)
-	if err != nil {
-		return err
-	}
-	if !cfg.RemoveTags(tags...) {
+	if !changed {
 		printWarning(fmt.Sprintf("None of the specified tags were found on app %q", appName))
 		return nil
 	}
-	if err := storage.Default().Save(cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(cfg.Tags, ", ")))
+	printSuccess(fmt.Sprintf("Updated tags for app %q: %s", appName, strings.Join(updated, ", ")))
 	return nil
 }
 
-func runTagList(w io.Writer, targetApp string, opts tagListOptions) error {
+func runTagList(ctx context.Context, w io.Writer, targetApp string, opts tagListOptions) error {
 	if targetApp != "" {
-		_, cfg, err := loadAppConfig(targetApp)
+		cfg, err := newEngine(ctx).Config(targetApp)
 		if err != nil {
 			return err
 		}

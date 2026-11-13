@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,13 +51,11 @@ func printWarning(msg string) {
 	lipgloss.Fprintln(os.Stderr, icon, msg)
 }
 
-// printVerbose writes an extra detail line when the command was given --verbose.
-func printVerbose(ctx context.Context, format string, args ...any) {
-	if !settingsFrom(ctx).verbose {
-		return
-	}
+// printDetail writes an extra detail line. The engine emits one only when the command was given
+// --verbose, so the decision lives in one place.
+func printDetail(msg string) {
 	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(colorSubtle)).Render("·")
-	lipgloss.Println(icon, fmt.Sprintf(format, args...))
+	lipgloss.Println(icon, msg)
 }
 
 // writeJSON renders v as an indented JSON document to w.

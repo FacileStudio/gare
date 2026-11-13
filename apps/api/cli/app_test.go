@@ -12,53 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestValidateCreateInputs(t *testing.T) {
-	testValidInputs(t)
-	testInvalidNames(t)
-	testMissingRequired(t)
-}
-
-func testValidInputs(t *testing.T) {
-	valid := []string{
-		"myapp",
-		"my-app-1",
-		"app_test",
-		"a",
-		"web-service",
-	}
-	for _, name := range valid {
-		opts := appCreateOptions{repo: "https://git.example.com/repo"}
-		if err := validateCreateInputs(name, opts); err != nil {
-			t.Errorf("expected %s to be valid, got: %v", name, err)
-		}
-	}
-}
-
-func testInvalidNames(t *testing.T) {
-	invalidNames := []string{
-		"../traversal",
-		"bad/slash",
-		"has space",
-		"-startshyphen",
-		"_startsunderscore",
-		"",
-		strings.Repeat("a", 64),
-		"bad$char",
-	}
-	opts := appCreateOptions{repo: "https://git.example.com/repo"}
-	for _, name := range invalidNames {
-		if err := validateCreateInputs(name, opts); err == nil {
-			t.Errorf("expected invalid name %q to fail validation", name)
-		}
-	}
-}
-
-func testMissingRequired(t *testing.T) {
-	if err := validateCreateInputs("myapp", appCreateOptions{}); err == nil {
-		t.Error("expected error when --repo is empty")
-	}
-}
-
 func TestRootCmdVersion(t *testing.T) {
 	cmd := newRootCmd("0.1.0")
 	var buf bytes.Buffer

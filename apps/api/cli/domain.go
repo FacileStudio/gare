@@ -62,7 +62,7 @@ func newDomainListCmd() *cobra.Command {
 			if len(args) > 0 {
 				targetApp = args[0]
 			}
-			return runDomainList(cmd.OutOrStdout(), targetApp, opts)
+			return runDomainList(cmd.Context(), cmd.OutOrStdout(), targetApp, opts)
 		},
 	}
 	cmd.Flags().BoolVar(&opts.jsonOutput, "json", false, "Output JSON array")

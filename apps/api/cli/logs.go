@@ -30,7 +30,7 @@ func NewLogsCmd() *cobra.Command {
 }
 
 func runLogs(ctx context.Context, name string, follow bool, lines int) error {
-	if _, _, err := loadAppConfig(name); err != nil {
+	if _, err := newEngine(ctx).Config(name); err != nil {
 		return err
 	}
 	deployed, err := appUnitExists(name)

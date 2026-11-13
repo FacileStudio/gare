@@ -2,17 +2,10 @@ package cli
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appconfig"
-	"github.com/FacileStudio/gare/apps/api/internal/appname"
-	"github.com/FacileStudio/gare/apps/api/internal/git"
-	"github.com/FacileStudio/gare/apps/api/internal/storage"
-	"github.com/FacileStudio/gare/apps/api/internal/systemd"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/spf13/cobra"
 )
 
@@ -96,111 +89,32 @@ func newAppCreateCmd() *cobra.Command {
 	return cmd
 }
 
+// runCreateApp creates an application through the engine. The engine reports each step, the
+// created app included, so nothing is left to print here.
 func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions) error {
-	if name == "" {
-		name = deriveAppName(opts.repo)
-	}
-	if err := validateCreateInputs(name, opts); err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Minute)
 	defer cancel()
-	unlock, err := waitForAppLock(ctx, name)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-
-	store := storage.Default()
-	appDir := store.AppDir(name)
-	if _, err := os.Stat(storage.GetConfigPath(appDir)); err == nil {
-		return fmt.Errorf("app %q already exists at %s", name, appDir)
-	}
-
-	if err := cloneAppRepo(ctx, appDir, opts); err != nil {
-		return errors.Join(err, store.Delete(name))
-	}
-
-	return setupAppWorkload(ctx, store, name, appDir, opts)
+	_, err := newEngine(ctx).Create(ctx, engine.CreateRequest{
+		Name:   name,
+		Repo:   opts.repo,
+		Branch: opts.branch,
+		Flags:  opts.flags(),
+	})
+	return err
 }
 
-func deriveAppName(repoURL string) string {
-	cleaned := strings.TrimSpace(repoURL)
-	cleaned = strings.TrimSuffix(cleaned, "/")
-	cleaned = strings.TrimSuffix(cleaned, ".git")
-	if idx := strings.LastIndexAny(cleaned, "/:"); idx != -1 {
-		cleaned = cleaned[idx+1:]
+// flags returns the create flags in the shape appconfig.Resolve ranks above gare.yml.
+func (o appCreateOptions) flags() appconfig.Flags {
+	return appconfig.Flags{
+		Type:          o.appType,
+		ComposeFile:   o.composeFile,
+		Containerfile: o.containerfile,
+		Context:       o.contextDir,
+		StaticDir:     o.staticDir,
+		BuildCmd:      o.buildCmd,
+		Healthcheck:   o.healthcheck,
+		Port:          o.port,
+		ContainerPort: o.containerPort,
+		Tags:          o.tags,
 	}
-	return strings.ToLower(cleaned)
-}
-
-func setupAppWorkload(ctx context.Context, store *storage.Store, name, appDir string, opts appCreateOptions) error {
-	cfg, err := resolveAppOptions(appDir, opts)
-	if err != nil {
-		return err
-	}
-	cfg.Name, cfg.RepoURL, cfg.Branch = name, opts.repo, opts.branch
-	if cfg.Port, err = store.AvailablePort(cfg.Port); err != nil {
-		return fmt.Errorf("failed to discover port: %w", err)
-	}
-	if err := writeWorkloadArtifacts(ctx, store, cfg); err != nil {
-		return err
-	}
-	if err := systemd.DaemonReload(ctx); err != nil {
-		printWarning(fmt.Sprintf("daemon-reload error: %v", err))
-	}
-	return nil
-}
-
-func validateCreateInputs(name string, opts appCreateOptions) error {
-	if name == "" {
-		return fmt.Errorf("app name is required as an argument or inferrable from --repo")
-	}
-	if err := appname.Validate(name); err != nil {
-		return err
-	}
-	if opts.repo == "" {
-		return fmt.Errorf("--repo is required")
-	}
-	if opts.containerPort < 0 || opts.containerPort > 65535 {
-		return fmt.Errorf("container port must be between 1 and 65535, got %d", opts.containerPort)
-	}
-	if err := validateCreatePaths(opts); err != nil {
-		return err
-	}
-	for _, tag := range opts.tags {
-		if err := storage.ValidateTag(tag); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func cloneAppRepo(ctx context.Context, appDir string, opts appCreateOptions) error {
-	repoDir := storage.GetRepoDir(appDir)
-	printInfo(fmt.Sprintf("Cloning %s (%s) into %s...", opts.repo, opts.branch, repoDir))
-	cloneOpts := git.CloneOptions{
-		RepoURL:   opts.repo,
-		Branch:    opts.branch,
-		TargetDir: repoDir,
-		Auth:      settingsFrom(ctx).auth,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
-	}
-	return git.Clone(ctx, cloneOpts)
-}
-
-// resolveAppOptions decides a new app's configuration from the flags and the cloned repository's
-// gare.yml, with the precedence appconfig.Resolve applies on every deploy.
-func resolveAppOptions(appDir string, opts appCreateOptions) (*storage.AppConfig, error) {
-	repoDir := storage.GetRepoDir(appDir)
-	gf, err := storage.LoadGareFile(repoDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load gare configuration: %w", err)
-	}
-	cfg, err := appconfig.Resolve(opts.flags(), gf, nil)
-	if err != nil {
-		return nil, err
-	}
-	return cfg, normalizeCreateConfig(repoDir, cfg)
 }
