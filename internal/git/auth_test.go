@@ -1,6 +1,8 @@
 package git
 
 import (
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -68,8 +70,32 @@ func TestAuthArgsTokenFallback(t *testing.T) {
 	isolateCredentials(t)
 	t.Setenv("GITHUB_TOKEN", "secret")
 	got := authArgs(Auth{Provider: "github"})
-	if !strings.Contains(got, "password=secret") || !strings.Contains(got, "username=x-access-token") {
+	if !strings.Contains(got, "$GITHUB_TOKEN") || !strings.Contains(got, "username=x-access-token") {
 		t.Errorf("a token must configure a credential helper, got %q", got)
+	}
+	if strings.Contains(got, "secret") {
+		t.Errorf("the token must never appear in git's arguments, got %q", got)
+	}
+}
+
+func TestTokenHelperHandsGitTheToken(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not found in PATH")
+	}
+	isolateCredentials(t)
+	t.Setenv("PATH", filepath.Dir(gitPath))
+	t.Setenv("GH_TOKEN", "s3cr3t-token")
+	args := append(Auth{Provider: "github"}.args(), "credential", "fill")
+	cmd := exec.Command("git", args...)
+	cmd.Env = gitEnviron()
+	cmd.Stdin = strings.NewReader("protocol=https\nhost=github.com\n\n")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git credential fill: %v", err)
+	}
+	if !strings.Contains(string(out), "password=s3cr3t-token\n") {
+		t.Fatalf("git did not receive the token, got %q", out)
 	}
 }
 
