@@ -45,9 +45,16 @@ func writeContainerUnit(ctx context.Context, app App) error {
 }
 
 // resolveManifest adopts the repository's own manifest when it ships one, and otherwise generates a
-// default. Adoption goes through the same path a deploy uses, so a manifest gare adopts at create
-// time keeps the environment a later deploy would have preserved.
+// default, then writes the app env file into it, the same way a deploy does.
 func resolveManifest(app App) error {
+	if err := adoptOrGenerateManifest(app); err != nil {
+		return err
+	}
+	return renderManifestEnv(app)
+}
+
+// adoptOrGenerateManifest writes gare's copy of the manifest at create time.
+func adoptOrGenerateManifest(app App) error {
 	cfg := app.Config
 	if _, err := os.Stat(filepath.Join(app.RepoDir(), "manifest.yaml")); err == nil {
 		return syncRepoManifest(app)
@@ -59,10 +66,17 @@ func resolveManifest(app App) error {
 	return manifest.Generate(cfg.Name, containerPort, cfg.Port, storage.GetManifestPath(app.Dir))
 }
 
-// syncManifest resolves the manifest a deploy plays, pins its local images to never be pulled and
-// points it at the build of commit.
+// syncManifest resolves the manifest a deploy plays, writes the app env file into it, pins its
+// local images to never be pulled and points it at the build of commit. Variables an older gare
+// kept in the manifest move to the env file first, before the repository's copy replaces it.
 func syncManifest(app App, commit string) error {
+	if err := MigrateEnv(app); err != nil {
+		return err
+	}
 	if err := writeManifest(app); err != nil {
+		return err
+	}
+	if err := renderManifestEnv(app); err != nil {
 		return err
 	}
 	if err := manifest.EnsureLocalImagePullPolicy(storage.GetManifestPath(app.Dir)); err != nil {
@@ -89,8 +103,8 @@ func writeManifest(app App) error {
 	return manifest.UpdatePorts(manifestPath, cPort, cfg.Port)
 }
 
-// syncRepoManifest copies the repository's manifest over gare's copy while keeping the environment
-// the operator set, since the manifest is where a container workload's variables live.
+// syncRepoManifest copies the repository's manifest over gare's copy. The operator's variables live
+// in the app env file, which the caller writes into the copy afterwards.
 func syncRepoManifest(app App) error {
 	data, err := os.ReadFile(filepath.Join(app.RepoDir(), "manifest.yaml"))
 	if os.IsNotExist(err) {
@@ -100,14 +114,8 @@ func syncRepoManifest(app App) error {
 		return fmt.Errorf("failed to read repo manifest: %w", err)
 	}
 	appManifest := storage.GetManifestPath(app.Dir)
-	existingEnvs, _ := manifest.GetEnv(appManifest)
 	if err := atomicfile.WriteFile(appManifest, data, 0600); err != nil {
 		return fmt.Errorf("failed to sync manifest: %w", err)
-	}
-	if len(existingEnvs) > 0 {
-		if err := manifest.SetEnv(appManifest, existingEnvs); err != nil {
-			return fmt.Errorf("failed to restore manifest environment: %w", err)
-		}
 	}
 	if err := manifest.EnsureLocalImagePullPolicy(appManifest); err != nil {
 		return fmt.Errorf("failed to pin the local image pull policy: %w", err)

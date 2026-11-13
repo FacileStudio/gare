@@ -53,7 +53,8 @@ func TestWriteStaticUnit(t *testing.T) {
 		"-v " + rootDir + ":/srv:ro,Z",
 		"-v " + storage.GetAppStaticConfigPath(appDir) + ":/etc/caddy/Caddyfile:ro,Z",
 		"--publish 8100:80",
-		"--env-file " + storage.GetAppEnvPath(appDir),
+		"EnvironmentFile=-" + storage.GetAppEnvPath(appDir) + "\n",
+		"--env-file " + systemd.PodmanEnvFile(storage.GetAppEnvPath(appDir)) + " ",
 	} {
 		if !strings.Contains(string(data), snippet) {
 			t.Errorf("static unit is missing %q:\n%s", snippet, string(data))

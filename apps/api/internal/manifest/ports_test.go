@@ -12,8 +12,8 @@ func TestUpdatePorts(t *testing.T) {
 	if err := Generate("app", 3000, 8000, manifestFile); err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	if err := SetEnv(manifestFile, map[string]string{"ENV_VAR": "keep_me"}); err != nil {
-		t.Fatalf("SetEnv failed: %v", err)
+	if err := RenderEnv(manifestFile, "", map[string]string{"ENV_VAR": "keep_me"}); err != nil {
+		t.Fatalf("RenderEnv failed: %v", err)
 	}
 	if err := UpdatePorts(manifestFile, 8080, 9000); err != nil {
 		t.Fatalf("UpdatePorts failed: %v", err)

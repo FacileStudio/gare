@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/FacileStudio/gare/apps/api/internal/workload"
 )
@@ -16,27 +17,22 @@ type EnvResult struct {
 }
 
 // envChange is one environment edit: the verb a failure names, the edit itself, and the line that
-// reports it once the store it landed in is known.
+// reports it.
 type envChange struct {
 	action  string
-	apply   func(store workload.EnvStore, appDir string) error
-	summary func(label string) string
+	apply   func(appDir string) error
+	summary string
 }
 
-// Env returns an app's environment variables from the store its workload reads.
+// Env returns an app's environment variables from its env file.
 func (e *Engine) Env(name string) (map[string]string, error) {
 	cfg, err := e.Config(name)
 	if err != nil {
 		return nil, err
 	}
-	w, err := workload.For(cfg)
+	envs, err := workload.ReadEnv(e.workloadApp(cfg))
 	if err != nil {
-		return nil, err
-	}
-	store := w.Env()
-	envs, err := store.Read(e.store.AppDir(name))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read environment variables from the %s: %w", store.Label, err)
+		return nil, fmt.Errorf("failed to read environment variables from the app env file: %w", err)
 	}
 	return envs, nil
 }
@@ -44,22 +40,18 @@ func (e *Engine) Env(name string) (map[string]string, error) {
 // SetEnv sets environment variables and restarts the app when it is running.
 func (e *Engine) SetEnv(ctx context.Context, name string, vars map[string]string) (*EnvResult, error) {
 	return e.changeEnv(ctx, name, envChange{
-		action: "set",
-		apply:  func(store workload.EnvStore, appDir string) error { return store.Write(appDir, vars) },
-		summary: func(label string) string {
-			return fmt.Sprintf("Updated %d environment variable(s) in %s", len(vars), label)
-		},
+		action:  "set",
+		apply:   func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
+		summary: fmt.Sprintf("Updated %d environment variable(s) in app env file", len(vars)),
 	})
 }
 
 // UnsetEnv removes environment variables and restarts the app when it is running.
 func (e *Engine) UnsetEnv(ctx context.Context, name string, keys []string) (*EnvResult, error) {
 	return e.changeEnv(ctx, name, envChange{
-		action: "unset",
-		apply:  func(store workload.EnvStore, appDir string) error { return store.Remove(appDir, keys) },
-		summary: func(label string) string {
-			return fmt.Sprintf("Removed %d environment variable(s) from %s", len(keys), label)
-		},
+		action:  "unset",
+		apply:   func(appDir string) error { return storage.UnsetAppEnv(appDir, keys) },
+		summary: fmt.Sprintf("Removed %d environment variable(s) from app env file", len(keys)),
 	})
 }
 
@@ -67,16 +59,15 @@ func (e *Engine) UnsetEnv(ctx context.Context, name string, keys []string) (*Env
 // running.
 func (e *Engine) LoadEnv(ctx context.Context, name string, vars map[string]string, source string) (*EnvResult, error) {
 	return e.changeEnv(ctx, name, envChange{
-		action: "load",
-		apply:  func(store workload.EnvStore, appDir string) error { return store.Write(appDir, vars) },
-		summary: func(string) string {
-			return fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), source)
-		},
+		action:  "load",
+		apply:   func(appDir string) error { return storage.SetAppEnv(appDir, vars) },
+		summary: fmt.Sprintf("Loaded %d environment variable(s) from %s", len(vars), source),
 	})
 }
 
-// changeEnv applies one edit under the app's lock, in the store its workload reads, so the change
-// lands where the workload looks, then restarts a running app so it takes effect.
+// changeEnv applies one edit to the app env file under the app's lock, has the workload render it
+// into what its runtime reads, then restarts a running app so it takes effect. lockAndLoad has
+// already moved any variables an older gare kept in a container's manifest into the env file.
 func (e *Engine) changeEnv(ctx context.Context, name string, change envChange) (*EnvResult, error) {
 	unlock, cfg, err := e.lockAndLoad(ctx, name)
 	if err != nil {
@@ -87,11 +78,14 @@ func (e *Engine) changeEnv(ctx context.Context, name string, change envChange) (
 	if err != nil {
 		return nil, err
 	}
-	store := w.Env()
-	if err := change.apply(store, e.store.AppDir(name)); err != nil {
-		return nil, fmt.Errorf("failed to %s environment variables in the %s: %w", change.action, store.Label, err)
+	app := e.workloadApp(cfg)
+	if err := change.apply(app.Dir); err != nil {
+		return nil, fmt.Errorf("failed to %s environment variables in the app env file: %w", change.action, err)
 	}
-	e.report(name).Done(change.summary(store.Label))
+	if err := w.RenderEnv(app); err != nil {
+		return nil, err
+	}
+	e.report(name).Done(change.summary)
 	return e.restartIfActive(ctx, name)
 }
 

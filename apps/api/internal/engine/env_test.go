@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/FacileStudio/gare/apps/api/internal/manifest"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
@@ -51,5 +52,38 @@ func TestEngineRefusesAnUnknownApp(t *testing.T) {
 	}
 	if got := sink.recorded(); len(got) != 0 {
 		t.Errorf("a refused operation must report nothing, got %v", got)
+	}
+}
+
+// TestWorkloadTypeChangeKeepsTheEnv pins that a container app an older gare left with its variables
+// in the manifest keeps them when it becomes a compose app: the first locked operation, which a
+// deploy runs before it resolves the new type, moves them into the env file every type reads.
+func TestWorkloadTypeChangeKeepsTheEnv(t *testing.T) {
+	store := storage.Open(t.TempDir())
+	cfg := &storage.AppConfig{Name: "gare-envtype-test", AppType: "container", Port: 8080}
+	if err := store.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := storage.GetManifestPath(store.AppDir(cfg.Name))
+	if err := manifest.Generate(cfg.Name, 8080, 8080, manifestPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := manifest.RenderEnv(manifestPath, "", map[string]string{"DB_URL": "postgres://db"}); err != nil {
+		t.Fatal(err)
+	}
+	eng, sink := newTestEngine(store, Settings{})
+	if _, err := eng.AddTags(t.Context(), cfg.Name, []string{"api"}); err != nil {
+		t.Fatalf("AddTags: %v", err)
+	}
+	if !sink.hasEvent("done: Moved 1 environment variable(s) from manifest.yaml") {
+		t.Errorf("expected the migration to be reported, got %v", sink.recorded())
+	}
+	cfg.AppType = "compose"
+	if err := store.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	envs, err := eng.Env(cfg.Name)
+	if err != nil || envs["DB_URL"] != "postgres://db" {
+		t.Fatalf("expected the env to survive the type change, got %v err=%v", envs, err)
 	}
 }

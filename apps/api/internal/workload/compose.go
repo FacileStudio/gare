@@ -92,9 +92,10 @@ func (composeStack) Teardown(ctx context.Context, app App, volumes bool) {
 	verifyContainersGone(ctx, app, "teardown")
 }
 
-// Env returns the app env file the compose unit loads.
-func (composeStack) Env() EnvStore {
-	return appEnvFileStore()
+// RenderEnv has nothing to render: the compose unit loads the app env file itself through
+// EnvironmentFile=.
+func (composeStack) RenderEnv(App) error {
+	return nil
 }
 
 // CheckStart warns when the stack is reachable from this host alone; it never refuses a start.

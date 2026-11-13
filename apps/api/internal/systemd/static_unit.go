@@ -27,9 +27,10 @@ RequiresMountsFor={{.ConfigFile}}
 Type=notify
 NotifyAccess=all
 Environment=PODMAN_SYSTEMD_UNIT=%n
+EnvironmentFile=-{{.EnvFile}}
 KillMode=mixed
 Delegate=yes
-ExecStart={{.PodmanPath}} run --name {{.Name}} --cidfile=%t/%N.cid --replace --rm --cgroups=split --sdnotify=conmon -d -v {{.RootDir}}:{{.RootMount}}:ro,Z -v {{.ConfigFile}}:{{.ConfigMount}}:ro,Z --publish {{.Port}}:{{.ContainerPort}} --env-file {{.EnvFile}} {{.Image}} /usr/bin/caddy run --config {{.ConfigMount}} --adapter caddyfile
+ExecStart={{.PodmanPath}} run --name {{.Name}} --cidfile=%t/%N.cid --replace --rm --cgroups=split --sdnotify=conmon -d -v {{.RootDir}}:{{.RootMount}}:ro,Z -v {{.ConfigFile}}:{{.ConfigMount}}:ro,Z --publish {{.Port}}:{{.ContainerPort}} --env-file {{.PodmanEnvFile}} {{.Image}} /usr/bin/caddy run --config {{.ConfigMount}} --adapter caddyfile
 ExecStop={{.PodmanPath}} rm -v -f -i --cidfile=%t/%N.cid
 ExecStopPost=-{{.PodmanPath}} rm -v -f -i --cidfile=%t/%N.cid
 Restart=on-failure
@@ -53,6 +54,7 @@ type StaticUnitData struct {
 	ConfigFile    string
 	ConfigMount   string
 	EnvFile       string
+	PodmanEnvFile string
 	PodmanPath    string
 }
 
@@ -76,7 +78,14 @@ func StaticSiteUnit(name string, port int, rootDir, envFile, configFile string) 
 		ConfigFile:    configFile,
 		ConfigMount:   staticConfigMount,
 		EnvFile:       envFile,
+		PodmanEnvFile: PodmanEnvFile(envFile),
 	}
+}
+
+// PodmanEnvFile returns the variable list written next to an app env file for `podman run
+// --env-file`, which reads values literally and so cannot read the systemd-quoted file itself.
+func PodmanEnvFile(envFile string) string {
+	return envFile + ".podman"
 }
 
 // GenerateStaticUnit renders the systemd unit running a static site's container.
