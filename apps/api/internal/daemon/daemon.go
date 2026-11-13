@@ -13,6 +13,7 @@ import (
 	"github.com/FacileStudio/gare/apps/api/migrations"
 	"github.com/FacileStudio/gare/apps/api/modules/auth"
 	"github.com/FacileStudio/tronc/apiref"
+	"github.com/FacileStudio/tronc/spa"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -71,6 +72,16 @@ func Reference() apiref.Config {
 	}
 }
 
+// logClient says at start whether the web UI is served and from where, since
+// a directory with no index.html turns the UI off without any other sign.
+func logClient(logger *slog.Logger, dir string) {
+	if spa.Available(dir) {
+		logger.Info("web UI served", slog.String("client_dir", dir))
+		return
+	}
+	logger.Warn("web UI off: no index.html in CLIENT_DIR", slog.String("client_dir", dir))
+}
+
 // Handler is the daemon's whole HTTP surface.
 func (d *Daemon) Handler() http.Handler { return d.handler }
 
@@ -90,7 +101,8 @@ func Serve(ctx context.Context, cfg Config, intake *server.Server, logger *slog.
 	httpServer := &http.Server{Addr: cfg.Listen, Handler: d.handler, ReadHeaderTimeout: 10 * time.Second}
 	served := make(chan error, 1)
 	go func() { served <- httpServer.ListenAndServe() }()
-	logger.Info("gare daemon listening", slog.String("addr", cfg.Listen), slog.String("client_dir", cfg.ClientDir))
+	logger.Info("gare daemon listening", slog.String("addr", cfg.Listen))
+	logClient(logger, cfg.ClientDir)
 
 	select {
 	case err := <-served:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -23,6 +24,26 @@ func TestLoadWithoutOIDCKeepsTheAPIOff(t *testing.T) {
 	}
 	if cfg.Enabled() || cfg.Listen != DefaultListen || len(cfg.Auth.AdminEmails) != 0 || !cfg.Auth.Porte.SSOOnly {
 		t.Fatalf("Load = %+v, want the API off on %s with SSO only and nobody allowed", cfg, DefaultListen)
+	}
+}
+
+// TestTheClientDefaultsUnderXDGDataHome proves an unset CLIENT_DIR resolves to
+// an absolute directory under XDG_DATA_HOME, not to a path relative to
+// wherever systemd started the daemon, and that CLIENT_DIR still wins.
+func TestTheClientDefaultsUnderXDGDataHome(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("CLIENT_DIR", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if want := filepath.Join(data, "gare", "client"); cfg.ClientDir != want {
+		t.Fatalf("ClientDir = %q, want %q", cfg.ClientDir, want)
+	}
+	t.Setenv("CLIENT_DIR", "/srv/gare-client")
+	if cfg, _ := Load(); cfg.ClientDir != "/srv/gare-client" {
+		t.Fatalf("ClientDir with CLIENT_DIR set = %q, want /srv/gare-client", cfg.ClientDir)
 	}
 }
 
