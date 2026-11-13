@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 )
 
 // work runs app's deploys until nothing is pending, releasing its slot between deploys so other
@@ -53,7 +56,7 @@ func (q *deployQueue) next(app string) bool {
 		delete(q.apps, app)
 		return false
 	}
-	st.pending = false
+	st.pending, st.current, st.next = false, st.next, deploys.Deploy{}
 	if q.closed {
 		q.forget(app)
 		return false
@@ -61,15 +64,17 @@ func (q *deployQueue) next(app string) bool {
 	return true
 }
 
-// deploy runs one deploy of app under its timeout and logs a failure, since no caller is left
-// waiting for the result of an asynchronous webhook.
+// deploy runs one deploy of app under its timeout, as the queued record it waited under, and logs
+// a failure, since no caller is left waiting for the result of an asynchronous deploy.
 func (q *deployQueue) deploy(app string) {
-	if q.run == nil {
-		return
-	}
+	q.mu.Lock()
+	record, deployer := q.apps[app].current, q.deployer
+	q.apps[app].current = deploys.Deploy{}
+	q.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), deployTimeout)
 	defer cancel()
-	if err := q.run(ctx, app); err != nil {
+	opts := engine.DeployOptions{Trigger: record.Trigger, QueuedID: record.ID}
+	if _, err := deployer.Deploy(ctx, app, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "deploy error for %s: %v\n", app, err)
 	}
 }
@@ -81,9 +86,12 @@ func (q *deployQueue) drop(app string) {
 	q.forget(app)
 }
 
-// forget removes app from the queue and logs the deploy it drops, so an operator can see which
-// pushes a shutdown left undeployed. The caller holds the lock.
+// forget removes app from the queue, settles the record of the deploy it drops and logs it, so an
+// operator can see which pushes a shutdown left undeployed. The caller holds the lock.
 func (q *deployQueue) forget(app string) {
+	if st := q.apps[app]; st != nil {
+		dropRecord(q.deployer, app, st.current)
+	}
 	delete(q.apps, app)
 	fmt.Fprintf(os.Stderr, "dropped pending deploy for %s: server shutting down\n", app)
 }

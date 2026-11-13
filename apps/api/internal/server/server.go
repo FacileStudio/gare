@@ -38,7 +38,7 @@ func New(cfg Config) *Server {
 	return &Server{
 		secret:    cfg.Secret,
 		branchFor: cfg.BranchFor,
-		queue:     newDeployQueue(cfg.DeployHandler, cfg.MaxParallel),
+		queue:     newDeployQueue(handlerDeployer{run: cfg.DeployHandler}, cfg.MaxParallel),
 	}
 }
 

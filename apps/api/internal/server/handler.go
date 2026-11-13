@@ -2,11 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
 )
 
 // Handler returns the HTTP handler with all registered server routes.
@@ -63,12 +65,16 @@ func (s *Server) answerDelivery(w http.ResponseWriter, r *http.Request, appName 
 		writeAnswer(w, status, answer)
 		return
 	}
-	answer, ok := s.queue.enqueue(appName)
-	if !ok {
+	t, err := s.queue.enqueue(appName, deploys.TriggerWebhook)
+	if errors.Is(err, ErrClosed) {
 		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeAnswer(w, http.StatusAccepted, answer)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	writeAnswer(w, http.StatusAccepted, t.answer)
 }
 
 // writeAnswer sends a plain-text answer, which is what a forge shows in its delivery log.
