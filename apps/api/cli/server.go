@@ -15,6 +15,7 @@ import (
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
 	"github.com/FacileStudio/gare/apps/api/internal/daemon"
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/spf13/cobra"
@@ -124,7 +125,7 @@ func newWebhookServer(opts serverOptions) (*server.Server, error) {
 			if err := appname.Validate(appName); err != nil {
 				return err
 			}
-			return RunDeploy(ctx, appName)
+			return RunDeploy(ctx, appName, deploys.TriggerWebhook)
 		},
 	}), nil
 }
