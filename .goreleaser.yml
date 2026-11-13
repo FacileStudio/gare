@@ -5,6 +5,7 @@ project_name: gare
 before:
   hooks:
     - sh -c "cd apps/api && go mod tidy"
+    - sh -c "cd apps/client && bun install --frozen-lockfile && bun run build"
 
 builds:
   - id: gare
@@ -30,6 +31,12 @@ archives:
   - formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - src: apps/client/build/**
+        dst: client
 
 checksum:
   name_template: checksums.txt
