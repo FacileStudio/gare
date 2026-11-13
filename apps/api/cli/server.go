@@ -87,7 +87,7 @@ func resolveMaxParallel() (int, error) {
 // storedBranch reports the branch an app deploys from its stored config, so the webhook server
 // can skip pushes to other branches. A missing config means gare does not manage the app.
 func storedBranch(app string) (string, error) {
-	cfg, err := storage.LoadConfig(storage.GetAppDir(storage.DefaultBaseDir(), app))
+	cfg, err := storage.Default().Load(app)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", server.ErrUnknownApp
 	}

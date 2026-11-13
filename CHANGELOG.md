@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- Two gare commands can no longer change the same app at once. Create, deploy (including webhook deploys), destroy, and `env`, `domain` and `tag` edits hold a per-app lock for their whole run, so a CLI deploy and a webhook deploy no longer interleave, and an env or tag edit made during a deploy is no longer overwritten. A command that has to wait says so.
 - The app env file is round-trip safe. A value with a space, `#`, quotes or a newline survived the first write but was rewritten on the next `gare env set` or `unset` of any other key; `ab #cd` became `ab`. Values are now quoted the way systemd's `EnvironmentFile` reads them, and the parser decodes double quotes the systemd way, so `gare env list` shows what the service receives.
 - A key starting with `export` (for example `exporter`) is no longer cut to its remainder.
 - Deploy syncs the checkout with `git fetch` and a forced checkout instead of `git pull`, so a force-pushed branch or a build that modified a tracked file no longer leaves every later deploy failing. Untracked files are removed and gitignored files are kept.
@@ -28,6 +29,8 @@
 
 ### Changed
 
+- A setting changed in `gare.yml` now takes effect at the next deploy for every key. Before, a stored `build_cmd`, `containerfile`, `context`, `static_dir` or `healthcheck` path silently won over `gare.yml`, while `type`, `port` and `tags` did not. Every setting now follows one order: a flag passed to `gare app create`, then `gare.yml`, then the stored value, then the default. A key removed from `gare.yml` keeps its last value.
+- An invalid tag in `gare.yml` now fails the deploy instead of printing a warning, and `gare app create --type` rejects a workload type other than `container`, `static` or `compose`.
 - `gare server` deploys only on GitHub `push` and GitLab `Push Hook` events whose ref is the app's branch; other events, including GitHub's `ping`, answer `200 ignored: <event>`, a push to another branch answers `200 ignored: <ref>`, and an unknown app answers `404`. A signed request with no event header still deploys, for manual triggers.
 - Webhook deploys are coalesced: at most one running and one pending deploy per app, answered `202` with `queued`, `running, queued next` or `already queued`. Shutdown waits for running deploys and drops pending ones.
 - **Breaking:** the Go module moved to `apps/api` and its path is now `github.com/FacileStudio/gare/apps/api`, so `go install github.com/FacileStudio/gare/cmd/gare@latest` no longer works. Install with `facile install gare` or the release archive.
