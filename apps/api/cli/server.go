@@ -14,6 +14,7 @@ import (
 	"github.com/FacileStudio/gare/apps/api/internal/daemon"
 	"github.com/FacileStudio/gare/apps/api/internal/engine"
 	"github.com/FacileStudio/gare/apps/api/internal/server"
+	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -111,6 +112,7 @@ func runServer(opts serverOptions) error {
 	if opts.portSet {
 		cfg.Listen = daemon.ListenFromEnv(opts.port)
 	}
+	cfg.Settings = opts.settings
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return daemon.Serve(ctx, cfg, srv, slog.Default())
@@ -121,6 +123,7 @@ func runWebhookDaemon(opts serverOptions) error {
 	if err != nil {
 		return err
 	}
+	srv.UseDeployer(engine.New(storage.Default(), terminalSink{}, opts.settings))
 
 	stopCh := make(chan os.Signal, 1)
 	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM)
