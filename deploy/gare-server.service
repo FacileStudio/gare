@@ -1,0 +1,15 @@
+[Unit]
+Description=Gare daemon (webhooks, API and web UI)
+After=gare-db.service podman-user-wait-network-online.service
+Wants=podman-user-wait-network-online.service
+Requires=gare-db.service
+
+[Service]
+Type=exec
+EnvironmentFile=%h/.config/gare/server.env
+ExecStart=%h/.local/bin/gare server
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target

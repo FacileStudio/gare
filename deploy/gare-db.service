@@ -1,0 +1,17 @@
+[Unit]
+Description=Gare daemon database (Postgres for porte sessions)
+After=podman-user-wait-network-online.service podman.socket
+Wants=podman-user-wait-network-online.service
+Requires=podman.socket
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/.local/share/gare/system
+EnvironmentFile=%h/.config/gare/db.env
+TimeoutStartSec=300s
+ExecStart=/usr/bin/podman compose -p gare-system -f %h/.local/share/gare/system/compose.yml up -d --wait
+ExecStop=/usr/bin/podman compose -p gare-system -f %h/.local/share/gare/system/compose.yml down
+
+[Install]
+WantedBy=default.target
