@@ -292,6 +292,21 @@ Supported authentication:
 - GitHub: `X-Hub-Signature-256` header (HMAC-SHA256).
 - GitLab: `X-Gitlab-Token` header.
 
+Events and branch filter:
+- GitHub deploys only on `X-GitHub-Event: push`. A `ping` answers `200 ignored: ping`, so the webhook test in GitHub's settings goes green.
+- GitLab deploys only on `X-Gitlab-Event: Push Hook`.
+- Any other event answers `200 ignored: <event>` and deploys nothing.
+- A push deploys only when its `ref` is `refs/heads/<branch>` for the app's stored branch. A push to another branch answers `200 ignored: <ref>`. An app with no stored branch accepts any ref.
+- A signed request with no event header deploys unconditionally, for a manual trigger with `curl`.
+- An app gare does not manage answers `404 unknown app`.
+
+Queueing: each app has at most one deploy running and one pending. Every deploy syncs to the branch head, so a pending deploy already covers any later push. A queued delivery answers `202` with one of:
+- `queued`: the deploy starts now, or as soon as a slot is free.
+- `running, queued next`: a deploy is running; one more runs after it.
+- `already queued`: a deploy is already waiting; this delivery adds nothing.
+
+`GARE_MAX_PARALLEL_DEPLOYS` caps deploys running at once across all apps (default `2`). The daemon refuses to start when it is not a positive integer. On shutdown the daemon waits for running deploys and drops pending ones, logging each drop.
+
 ## Development
 
 The Go module lives in `apps/api`; `apps/api/main.go` is the entry point and the commands are in `apps/api/cli`. `gare` uses [mise](https://mise.sh) for task management.
