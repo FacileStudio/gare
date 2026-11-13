@@ -12,6 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// manifestMode keeps a pod manifest readable by its owner alone, because it carries the
+// application's environment, secrets included.
+const manifestMode = 0600
+
 var defaultTemplate = template.Must(template.New("manifest").Parse(`apiVersion: v1
 kind: Pod
 metadata:
@@ -56,7 +60,7 @@ func Generate(name string, containerPort int, hostPort int, destPath string) err
 	if err := defaultTemplate.Execute(&buf, data); err != nil {
 		return fmt.Errorf("failed to execute manifest template: %w", err)
 	}
-	return atomicfile.WriteFile(targetFile, buf.Bytes(), 0644)
+	return atomicfile.WriteFile(targetFile, buf.Bytes(), manifestMode)
 }
 
 func writeYAMLNode(filePath string, doc *yaml.Node) error {
@@ -71,7 +75,7 @@ func writeYAMLNode(filePath string, doc *yaml.Node) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	return atomicfile.WriteFile(filePath, buf.Bytes(), 0644)
+	return atomicfile.WriteFile(filePath, buf.Bytes(), manifestMode)
 }
 
 func findMappingValue(node *yaml.Node, key string) *yaml.Node {

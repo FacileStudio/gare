@@ -7,7 +7,10 @@ import (
 
 // DiscoverAvailablePort finds an available TCP port starting from 8000.
 func DiscoverAvailablePort(baseDir string, preferredPort int) (int, error) {
-	assigned := collectAssignedPorts(baseDir)
+	assigned, err := collectAssignedPorts(baseDir)
+	if err != nil {
+		return 0, fmt.Errorf("cannot tell which ports are taken: %w", err)
+	}
 	if preferredPort > 0 {
 		if !isPortAvailable(preferredPort, assigned) {
 			return 0, fmt.Errorf("port %d is not available", preferredPort)
@@ -17,21 +20,23 @@ func DiscoverAvailablePort(baseDir string, preferredPort int) (int, error) {
 	return scanFreePort(assigned)
 }
 
-func collectAssignedPorts(baseDir string) map[int]bool {
+// collectAssignedPorts returns the ports recorded by every app. It fails when an app's
+// configuration cannot be read, because that app's port would otherwise be handed out again.
+func collectAssignedPorts(baseDir string) (map[int]bool, error) {
 	assigned := make(map[int]bool)
 	if baseDir == "" {
-		return assigned
+		return assigned, nil
 	}
-	apps, err := ListApps(baseDir)
+	apps, err := ListAppsStrict(baseDir)
 	if err != nil {
-		return assigned
+		return nil, err
 	}
 	for _, app := range apps {
 		if app.Port > 0 {
 			assigned[app.Port] = true
 		}
 	}
-	return assigned
+	return assigned, nil
 }
 
 func isPortAvailable(port int, assigned map[int]bool) bool {
