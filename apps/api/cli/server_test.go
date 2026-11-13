@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
+	"github.com/FacileStudio/gare/apps/api/internal/engine"
 )
 
 func TestResolveWebhookSecret(t *testing.T) {
@@ -48,5 +52,34 @@ func TestResolveMaxParallel(t *testing.T) {
 		if _, err := resolveMaxParallel(); err == nil {
 			t.Fatalf("expected an error for %q", bad)
 		}
+	}
+}
+
+func TestWebhookDeployCarriesConfigFileSettings(t *testing.T) {
+	cfgPath := writeSettingsFile(t, "verbose: true\ncredential_helper: \"!gare-test-helper\"\n")
+	root, flags := settingsCommand(t, "--config", cfgPath)
+	resolved, err := loadSettings(root, flags)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var received engine.Settings
+	var trigger deploys.Trigger
+	handler := webhookDeploy(resolved, func(ctx context.Context, app string, tr deploys.Trigger) error {
+		received = settingsFrom(ctx)
+		trigger = tr
+		return nil
+	})
+	if err := handler(context.Background(), "web"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if received.Auth.CredentialHelper != "!gare-test-helper" || !received.Verbose {
+		t.Errorf("a webhook deploy must run with the config file's settings, got %+v", received)
+	}
+	if trigger != deploys.TriggerWebhook {
+		t.Errorf("a webhook deploy must be recorded as one, got trigger %q", trigger)
+	}
+	if err := handler(context.Background(), "../escape"); err == nil {
+		t.Error("expected an invalid app name to be rejected before deploying")
 	}
 }

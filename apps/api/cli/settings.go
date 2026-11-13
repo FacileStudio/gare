@@ -10,8 +10,8 @@ import (
 )
 
 // settingsKey keys the engine settings resolved for one invocation on the command context. They
-// ride on the context rather than in a package variable, so the webhook daemon's deploy path
-// resolves no settings at all and keeps git's built-in defaults.
+// ride on the context rather than in a package variable, so each command, and each deploy the
+// webhook daemon runs, carries the settings it was started with and nothing else.
 type settingsKey struct{}
 
 // withSettings returns a context carrying the resolved settings.
