@@ -235,7 +235,7 @@ gare deploy test-app
 
 `gare deploy` executes the deployment steps in order:
 
-1. Pulls the latest commits from the Git repository.
+1. Fetches the configured branch and resets the checkout to it, discarding local edits and untracked files. Gitignored files stay.
 2. Checks for `Containerfile` or `Dockerfile`.
 3. Builds the container image tagged `localhost/test-app:latest` using rootless Podman.
 4. Synchronizes any changes from `repo/manifest.yaml` if defined in the repository.
