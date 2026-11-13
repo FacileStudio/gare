@@ -15,6 +15,10 @@
 
 ### Security
 
+- `--port` no longer binds every interface when the API is on: it changes only the port of `127.0.0.1`, and an explicit `GARE_LISTEN` always wins over it.
+- A refused sign-in no longer leaves an account and identity link in the database. Rows that existed before the attempt are kept.
+- Removing an address from `GARE_ADMIN_EMAILS` deletes its sessions on its next API request, so adding it back does not revive old cookies.
+- `PORTE_TOKEN_KEY` seals the identity provider's access and refresh tokens in Postgres and reseals existing rows at start. When unset, the daemon warns at start.
 - `gare server` refuses to start without a webhook secret, and the server refuses every webhook when it has none. The secret is read from `--secret-file` or `GARE_WEBHOOK_SECRET`; the `--secret` flag is removed, because argv is readable by every user on the host.
 - The app env file, `config.json` and `manifest.yaml` are written `0600`.
 - Git tokens from `GITHUB_TOKEN`, `GH_TOKEN`, `GITLAB_TOKEN` or `GL_TOKEN` no longer appear in git's argv; the credential helper reads them from the environment.
@@ -35,6 +39,9 @@
 
 ### Changed
 
+- **Breaking:** `gare server` in webhook-only mode listens on `127.0.0.1:<port>` instead of every interface. Set `GARE_LISTEN=0.0.0.0:<port>` to keep receiving webhooks without a reverse proxy.
+- The daemon refuses to start with `OIDC_ISSUER` set and `GARE_ADMIN_EMAILS` empty, instead of refusing every sign-in silently.
+- `CLIENT_DIR` defaults to `$XDG_DATA_HOME/gare/client` instead of `./client`, and the start log says whether the web UI is served and from where.
 - `internal/caddy` is now `internal/ingress`, the one package that writes, reloads, restores and probes ingress. A domain added to a running app whose snippet Caddy refuses now warns that the snippet was rolled back instead of failing the command; the domain change itself stays saved.
 - The app lifecycle moved out of the CLI into `internal/engine`, and the per-type behaviour into one adapter per workload type in `internal/workload`. The engine prints nothing: it reports progress through a sink and returns typed results, so the webhook daemon and the API run the same code as the CLI. Commands print the same lines as before.
 - `gare start`, `restart` and the `env` commands refuse an app whose `config.json` names an unknown workload type, instead of treating it as a container.
