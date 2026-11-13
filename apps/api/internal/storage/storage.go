@@ -8,17 +8,25 @@ import (
 	"github.com/FacileStudio/gare/apps/api/internal/atomicfile"
 )
 
+// ComposeRoute is how a compose app is reached: the compose file it runs and, when set, the service
+// gare publishes the routed port for through its override file. AppConfig embeds it, so config.json
+// keeps its flat compose_file and service keys.
+type ComposeRoute struct {
+	ComposeFile string `json:"compose_file,omitempty"`
+	Service     string `json:"service,omitempty"`
+}
+
 // AppConfig represents an application's configuration and deployment metadata.
 type AppConfig struct {
-	Name          string         `json:"name"`
-	RepoURL       string         `json:"repo_url"`
-	Domains       []string       `json:"domains,omitempty"`
-	Port          int            `json:"port"`
-	ContainerPort int            `json:"container_port,omitempty"`
-	Branch        string         `json:"branch"`
-	CreatedAt     string         `json:"created_at"`
-	AppType       string         `json:"app_type,omitempty"`
-	ComposeFile   string         `json:"compose_file,omitempty"`
+	Name          string   `json:"name"`
+	RepoURL       string   `json:"repo_url"`
+	Domains       []string `json:"domains,omitempty"`
+	Port          int      `json:"port"`
+	ContainerPort int      `json:"container_port,omitempty"`
+	Branch        string   `json:"branch"`
+	CreatedAt     string   `json:"created_at"`
+	AppType       string   `json:"app_type,omitempty"`
+	ComposeRoute
 	Containerfile string         `json:"containerfile,omitempty"`
 	ContextDir    string         `json:"context_dir,omitempty"`
 	StaticDir     string         `json:"static_dir,omitempty"`

@@ -34,26 +34,37 @@ func ProjectName(name string) string {
 	return strings.ToLower(name)
 }
 
-// writeComposeUnit writes the synthesized unit for a compose stack and hands the stack over to it.
-// Its guard checks the unit file without probing the podman workload runtime the container and
-// static units need, because a compose unit runs through the podman compose provider rather than
-// kube play, and it retires the Quadlet sources a previous workload type left behind so no stale
-// source keeps generating a unit of the same name.
+// writeComposeUnit writes the synthesized unit for a compose stack, then the override file it
+// passes, and hands the stack over to it. The unit creates the external networks the compose file
+// declares before every start. Its guard checks the unit file without probing the podman workload
+// runtime the container and static units need, because a compose unit runs through the podman
+// compose provider rather than kube play, and it retires the Quadlet sources a previous workload
+// type left behind so no stale source keeps generating a unit of the same name.
 func writeComposeUnit(ctx context.Context, app App, composeFile string) error {
 	name := app.Config.Name
+	networks, err := compose.ExternalNetworks(filepath.Join(app.RepoDir(), composeFile))
+	if err != nil {
+		return err
+	}
 	previous, err := claimUnit(ctx, name, false)
 	if err != nil {
 		return err
 	}
 	unitData := systemd.ComposeUnitData{
-		Name:        name,
-		RepoDir:     app.RepoDir(),
-		ComposeFile: composeFile,
-		ProjectName: ProjectName(name),
-		EnvFile:     storage.GetAppEnvPath(app.Dir),
+		Name:         name,
+		RepoDir:      app.RepoDir(),
+		ComposeFile:  composeFile,
+		OverrideFile: unitOverride(app),
+		ProjectName:  ProjectName(name),
+		EnvFile:      storage.GetAppEnvPath(app.Dir),
+		Networks:     networks,
 	}
-	return handOver(ctx, app, systemd.ComposeUnitDescription(name), previous,
-		func() error { return systemd.WriteComposeUnit(unitData) })
+	return handOver(ctx, app, systemd.ComposeUnitDescription(name), previous, func() error {
+		if err := systemd.WriteComposeUnit(unitData); err != nil {
+			return err
+		}
+		return syncOverride(app)
+	})
 }
 
 // verifyContainersGone warns when compose containers of the app's project outlived a stop or a
@@ -81,7 +92,7 @@ func warnComposeReachability(app App) {
 	if err != nil {
 		return
 	}
-	loopback, err := compose.LoopbackOnly(filepath.Join(app.RepoDir(), composeFile))
+	loopback, err := compose.LoopbackOnly(filepath.Join(app.RepoDir(), composeFile), routedPublishes(cfg)...)
 	if err != nil || !loopback {
 		return
 	}

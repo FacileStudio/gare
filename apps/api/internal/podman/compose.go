@@ -8,14 +8,16 @@ import (
 	"strings"
 )
 
-// ComposeDownOptions contains options for tearing down a compose stack.
+// ComposeDownOptions contains options for tearing down a compose stack. OverrideFile, when set, is
+// gare's own compose file layered over the repository's, passed so down sees the stack up started.
 type ComposeDownOptions struct {
-	RepoDir     string
-	ComposeFile string
-	Project     string
-	Volumes     bool
-	Stdout      io.Writer
-	Stderr      io.Writer
+	RepoDir      string
+	ComposeFile  string
+	OverrideFile string
+	Project      string
+	Volumes      bool
+	Stdout       io.Writer
+	Stderr       io.Writer
 }
 
 // CheckComposeProvider verifies that podman can reach an external compose provider.
@@ -42,7 +44,11 @@ func ComposeProjectContainers(ctx context.Context, project string) ([]string, er
 
 // ComposeDown stops a compose stack, optionally removing its named volumes.
 func ComposeDown(ctx context.Context, opts ComposeDownOptions) error {
-	args := []string{"compose", "-f", opts.ComposeFile, "-p", opts.Project, "down"}
+	args := []string{"compose", "-f", opts.ComposeFile}
+	if opts.OverrideFile != "" {
+		args = append(args, "-f", opts.OverrideFile)
+	}
+	args = append(args, "-p", opts.Project, "down")
 	if opts.Volumes {
 		args = append(args, "-v")
 	}

@@ -1,0 +1,104 @@
+# Deployment shape for every Facile Go service. `scripts/rename.sh` rewrites the
+# slug and the module path on fork; the routing below is what must NOT change.
+#
+# The suite standard is ONE container and ONE public hostname per app:
+#
+#   <app>.facile.studio        -> the Go binary, which serves both halves
+#   <app>.facile.studio/api/*  -> the API routes, mounted under router.Route("/api", ...)
+#   everything else            -> the built SvelteKit SPA, served by tronc/spa
+#
+# There is no client container and no second Traefik router. The root `Dockerfile`
+# builds the client with bun, builds the API with Go, and copies both into one
+# distroless image: the binary at /api, the SPA at /client. `spa.DirFromEnv()`
+# reads CLIENT_DIR and falls back to ./client, which resolves to /client in the
+# image, so nothing has to be configured here.
+#
+# Consequences, all of them deliberate:
+#
+#   - No PathPrefix and no stripprefix. A single router takes the whole host and
+#     the Go router decides what is API and what is SPA. The routes live under
+#     /api in main.go, so the prefix must reach the binary intact - putting a
+#     stripprefix middleware back would 404 every route.
+#   - Every browser request is same-origin, so CORS is unnecessary in production,
+#     cookies stay first-party in Safari, and the client build carries no
+#     environment-specific API URL. The client calls `/api`, relative, always.
+#   - The service is `expose`d and never `ports`-published: only Traefik reaches
+#     it, over the shared dokploy-network.
+#
+# Compose labels REPLACE what Dokploy injects for a service, they do not merge
+# with it. Declaring labels here therefore takes full ownership of this service's
+# routing, which is exactly what we want.
+#
+# If a fork needs a route that is neither /api nor the SPA (Nuage serves /webdav
+# that way), add another router with its own rule pointing at the same service.
+# Do not add a second service.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-gosvelteboilerplate}
+    expose:
+      - "5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "4000"
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.gosvelteboilerplate-web.rule: "Host(`gosvelteboilerplate.facile.studio`)"
+      traefik.http.routers.gosvelteboilerplate-web.entrypoints: web
+      traefik.http.routers.gosvelteboilerplate-web.middlewares: redirect-to-https@file
+      traefik.http.routers.gosvelteboilerplate-web.service: gosvelteboilerplate-svc
+      traefik.http.routers.gosvelteboilerplate-secure.rule: "Host(`gosvelteboilerplate.facile.studio`)"
+      traefik.http.routers.gosvelteboilerplate-secure.entrypoints: websecure
+      traefik.http.routers.gosvelteboilerplate-secure.tls.certresolver: letsencrypt
+      traefik.http.routers.gosvelteboilerplate-secure.service: gosvelteboilerplate-svc
+      traefik.http.services.gosvelteboilerplate-svc.loadbalancer.server.port: "4000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gosvelteboilerplate}?sslmode=disable
+      PORT: "4000"
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Same-origin in production, so this only matters for a cross-origin dev client.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      JOURNAL_URL: ${JOURNAL_URL:-}
+      JOURNAL_TOKEN: ${JOURNAL_TOKEN:-}
+    healthcheck:
+      # The image is distroless: no shell, no wget, no curl. Re-executing the
+      # binary is the only probe available. Provided by tronc's healthcheck
+      # package, which answers before any configuration is read.
+      test: ["CMD", "/api", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  db_data:
+    name: gosvelteboilerplate_db_data

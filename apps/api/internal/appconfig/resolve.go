@@ -26,10 +26,12 @@ type Flags struct {
 	Tags          []string
 }
 
-// fileLayer is what gare.yml sets, in the shape of the flags plus the probes no flag can declare.
+// fileLayer is what gare.yml sets, in the shape of the flags plus the probes and the routed compose
+// service no flag can declare.
 type fileLayer struct {
 	Flags
-	probes []health.Probe
+	probes  []health.Probe
+	service string
 }
 
 // Resolve returns the configuration an application runs with. For every key the precedence is the
@@ -50,6 +52,7 @@ func Resolve(flags Flags, gareFile *storage.GareFile, stored *storage.AppConfig)
 	}
 	cfg.AppType = first(strings.ToLower(strings.TrimSpace(flags.Type)), file.Type, cfg.AppType)
 	cfg.ComposeFile = first(flags.ComposeFile, file.ComposeFile, cfg.ComposeFile)
+	cfg.Service = first(file.service, cfg.Service)
 	cfg.Containerfile = first(flags.Containerfile, file.Containerfile, cfg.Containerfile)
 	cfg.ContextDir = first(flags.Context, file.Context, cfg.ContextDir)
 	cfg.StaticDir = first(flags.StaticDir, file.StaticDir, cfg.StaticDir)
@@ -80,7 +83,7 @@ func readGareFile(gf *storage.GareFile) (fileLayer, error) {
 	if err := storage.ValidateHealthProbes(gf.Healthchecks); err != nil {
 		return fileLayer{}, err
 	}
-	layer := fileLayer{probes: gf.Healthchecks, Flags: Flags{
+	layer := fileLayer{probes: gf.Healthchecks, service: strings.TrimSpace(gf.Service), Flags: Flags{
 		ComposeFile: gf.ResolveComposeFile(), Containerfile: gf.Containerfile, Context: gf.Context,
 		StaticDir: gf.StaticDir, BuildCmd: gf.BuildCmd, Healthcheck: gf.Healthcheck,
 		Port: gf.Port, ContainerPort: gf.ContainerPort, Tags: gf.Tags,

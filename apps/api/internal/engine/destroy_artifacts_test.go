@@ -41,7 +41,7 @@ func artifactCases() map[string]artifactCase {
 		},
 		"compose keeps volumes by default": {
 			workload: storage.WorkloadCompose,
-			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeFile: "compose.yml"},
+			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeRoute: storage.ComposeRoute{ComposeFile: "compose.yml"}},
 			wantPodman: []string{
 				"compose -f compose.yml -p myapp down",
 				"ps -a --filter label=com.docker.compose.project=myapp --format {{.ID}}",
@@ -50,7 +50,7 @@ func artifactCases() map[string]artifactCase {
 		"compose with --volumes": {
 			workload: storage.WorkloadCompose,
 			volumes:  true,
-			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeFile: "compose.yml"},
+			cfg:      &storage.AppConfig{Name: "myapp", AppType: "compose", ComposeRoute: storage.ComposeRoute{ComposeFile: "compose.yml"}},
 			wantPodman: []string{
 				"compose -f compose.yml -p myapp down -v",
 				"ps -a --filter label=com.docker.compose.project=myapp --format {{.ID}}",

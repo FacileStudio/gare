@@ -6,9 +6,10 @@ import (
 
 // LoopbackOnly reports whether every host port a compose file publishes is bound to the loopback
 // interface. Such a workload is reachable from the host but from no other machine, so it depends on
-// ingress to be served externally. A file that publishes nothing reports false.
-func LoopbackOnly(composePath string) (bool, error) {
-	doc, err := readDocument(composePath)
+// ingress to be served externally. A file that publishes nothing reports false. A port gare
+// publishes through its override file counts as published.
+func LoopbackOnly(composePath string, publishes ...Publish) (bool, error) {
+	doc, err := readDocument(composePath, publishes...)
 	if err != nil {
 		return false, err
 	}

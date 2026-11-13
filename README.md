@@ -132,11 +132,20 @@ gare deploy stack
 `podman compose` requires the `podman-compose` external provider and the podman API socket. `gare init` reports both, and `gare deploy` fails with a clear error when the provider is missing. Additional behavior:
 
 - Compose stacks are supervised by the same kind of gare-written unit as every other workload type, so `gare` never translates a compose file into something else, losing whatever that translation does not cover.
-- `port` is required in `gare.yml` and must match a published host port in the compose file, so Caddy routes to the port the stack actually binds.
+- Without `service`, `port` is required in `gare.yml` and must match a published host port in the compose file, so Caddy routes to the port the stack actually binds.
+- With `service`, the compose file runs unmodified even when it only `expose`s its ports, as files written for Traefik do. Name the service to route to and its port inside the container; gare assigns the host port (or takes `port` from `gare.yml`) and publishes it on loopback through an override file it writes at `apps/<name>/compose.gare.yml`. Every `podman compose` call gare makes passes `-f <compose file> -f <override>`.
+
+  ```yaml
+  type: compose
+  service: api
+  container_port: 4000
+  ```
+
+- Networks the compose file declares `external: true` (such as `dokploy-network`) are created before every start by an `ExecStartPre=podman network create --ignore <name>` line in the unit, so the stack also starts after a reboot or a `podman system reset`. gare never removes them, since other stacks may share them.
 - The systemd unit is a `RemainAfterExit` oneshot that requires `podman.socket` (started with the app) and runs the stack detached from the repository checkout, so relative build contexts, bind mounts, and `env_file` paths resolve as written. `stop` and `restart` run `podman compose down`; containers are never left to a watching provider process.
 - Each application gets its own compose project name (the app name), so two apps never share containers, networks, or volumes.
 - `gare env set` writes to the application env file, which systemd injects into the provider through `EnvironmentFile=` for `${VAR}` interpolation.
-- Health probes are derived from the compose file's own HTTP healthchecks when `gare.yml` declares none, so a stack that is already health-checked does not need its ports repeated.
+- Health probes are derived from the compose file's own HTTP healthchecks when `gare.yml` declares none, so a stack that is already health-checked does not need its ports repeated. The port gare publishes for `service` counts as published.
 - `gare destroy` runs `podman compose down -v`, removing the stack's containers, networks, **and named volumes**, and reports any container the provider failed to remove instead of claiming a clean teardown.
 - Compose images built by `build:` sections are not removed by `gare destroy`; prune them with `podman image prune` when needed.
 

@@ -15,7 +15,8 @@ import (
 var fileCandidates = []string{"compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"}
 
 type document struct {
-	Services map[string]service `yaml:"services"`
+	Services map[string]service  `yaml:"services"`
+	Networks map[string]*network `yaml:"networks"`
 }
 
 type service struct {
@@ -91,7 +92,9 @@ func ValidatePort(composePath string, port int) error {
 	return fmt.Errorf("port %d is not published by %s (published: %v)", port, filepath.Base(composePath), ports)
 }
 
-func readDocument(composePath string) (*document, error) {
+// readDocument parses a compose file and merges the ports gare publishes through its override file,
+// so every reader sees the stack as the provider will run it.
+func readDocument(composePath string, publishes ...Publish) (*document, error) {
 	data, err := os.ReadFile(composePath)
 	if err != nil {
 		return nil, err
@@ -99,6 +102,14 @@ func readDocument(composePath string) (*document, error) {
 	var doc document
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", composePath, err)
+	}
+	for _, publish := range publishes {
+		svc, ok := doc.Services[publish.Service]
+		if !ok {
+			continue
+		}
+		svc.Ports = append(svc.Ports, publish.spec())
+		doc.Services[publish.Service] = svc
 	}
 	return &doc, nil
 }
