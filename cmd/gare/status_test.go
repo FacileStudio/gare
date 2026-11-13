@@ -52,6 +52,7 @@ func TestStatusCmdHuman(t *testing.T) {
 	cfg := &storage.AppConfig{
 		Name:    "humanapp",
 		AppType: "static",
+		Port:    8123,
 		Domains: []string{"human.local"},
 		RepoURL: "https://github.com/example/humanapp",
 		Branch:  "main",
@@ -74,6 +75,7 @@ func TestStatusCmdHuman(t *testing.T) {
 	}
 	assertNestedUnderASection(t, output, "Type:   static")
 	assertNestedUnderASection(t, output, "Branch: main")
+	assertNestedUnderASection(t, output, "Health: any HTTP answer at http://127.0.0.1:8123/")
 }
 
 // assertNestedUnderASection guards the lipgloss tree API's trap: tree.Child returns its receiver, so

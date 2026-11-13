@@ -63,6 +63,7 @@ internal/
 - Each compose unit passes `-p <app-name>` so every app owns its own project; without it, every app's checkout is named `repo` and `down` targets the wrong stack.
 - Compose file names come from `compose_file` or discovery (`compose.yml`, `compose.yaml`, `docker-compose.yml`, `docker-compose.yaml`); a name with whitespace or path traversal is rejected before it reaches a unit file.
 - `healthchecks:` in `gare.yml` declares one HTTP probe per published port; deploy verifies each and names the failing probe. Probes live in `health` in `config.json`, with the legacy `healthcheck` key migrated on load.
+- A declared probe (a `healthcheck` path, a `healthchecks` entry or a compose-derived probe) passes only on 2xx or 3xx. The implicit probe gare adds when none is declared sends `GET /` and passes on any HTTP answer, for the same reason the ingress probe never inspects the status: an API with no root route answers 404 at `/` and is up. `health.Probe.AnyAnswer` carries that distinction and is never serialised, so a stored probe is always a declared one.
 - When `healthchecks:` is absent for a compose workload, probes are derived from the compose file: only services whose healthcheck issues an HTTP request to a *published* container port qualify, so container-internal checks (and unpublished ports) are skipped rather than probed and failed.
 
 ## Rules and constraints

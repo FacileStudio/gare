@@ -26,15 +26,20 @@ func TestAppConfigHealthProbes(t *testing.T) {
 
 	fallback := &AppConfig{Name: "web", Port: 8100, Health: &HealthSection{Path: "/health"}}
 	probes := fallback.HealthProbes()
-	if len(probes) != 1 || probes[0].Port != 8100 || probes[0].Path != "/health" || probes[0].Name != "web" {
+	if len(probes) != 1 || probes[0].Port != 8100 || probes[0].Path != "/health" || probes[0].Name != "web" || probes[0].AnyAnswer {
 		t.Errorf("fallback probes: got %+v", probes)
+	}
+
+	implicit := (&AppConfig{Name: "api", Port: 8100}).HealthProbes()
+	if len(implicit) != 1 || implicit[0].Port != 8100 || !implicit[0].AnyAnswer {
+		t.Errorf("implicit probe must accept any answer: got %+v", implicit)
 	}
 
 	explicit := &AppConfig{Name: "web", Port: 8100, Health: &HealthSection{
 		Path:   "/health",
 		Probes: []health.Probe{{Name: "api", Port: 8100, Path: "/health"}, {Name: "db", Port: 8200}},
 	}}
-	if got := explicit.HealthProbes(); len(got) != 2 || got[1].Port != 8200 {
+	if got := explicit.HealthProbes(); len(got) != 2 || got[1].Port != 8200 || got[1].AnyAnswer {
 		t.Errorf("explicit probes: got %+v", got)
 	}
 

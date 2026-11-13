@@ -101,7 +101,9 @@ healthchecks:
 
 The `healthchecks` list declares one HTTP readiness probe per workload (or per published port); each entry takes an optional `name`, a `port`, and a `path`. `gare deploy` verifies every probe and names the one that fails.
 
-When a compose file already declares healthchecks, gare derives the probes for you instead: every service whose healthcheck issues an HTTP request to a published container port becomes a probe, named after the service, with the port mapped to its published host port. Non-HTTP healthchecks (such as `pg_isready`) and unpublished ports are skipped, since they cannot be reached from the host. An explicit `healthchecks` list always wins. Without either, the single `port` plus `healthcheck` path is used.
+When a compose file already declares healthchecks, gare derives the probes for you instead: every service whose healthcheck issues an HTTP request to a published container port becomes a probe, named after the service, with the port mapped to its published host port. Non-HTTP healthchecks (such as `pg_isready`) and unpublished ports are skipped, since they cannot be reached from the host. An explicit `healthchecks` list always wins. Without either, gare probes the single `port`.
+
+A declared probe, from `healthchecks`, a compose healthcheck or a `healthcheck` path, passes only on a 2xx or 3xx answer. With no `healthcheck` path either, gare sends `GET /` and passes on any HTTP answer, whatever its status: an API with no root route answers 404 there and is still up. The implicit probe only proves the port speaks HTTP, so declare a `healthcheck` path when readiness means more than that.
 
 CLI flags take precedence over `gare.yml` settings.
 
