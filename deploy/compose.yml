@@ -1,0 +1,27 @@
+# The daemon's database: porte's identity and session tables, nothing else.
+# Apps, env and deploy records stay files under $XDG_DATA_HOME/gare/.
+#
+#   POSTGRES_PASSWORD=... podman compose -p gare-system -f deploy/compose.yml up -d
+#
+# The port is published on loopback only. GARE_DB_PORT moves it when 5439 is taken.
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gare
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: gare
+    ports:
+      - "127.0.0.1:${GARE_DB_PORT:-5439}:5432"
+    volumes:
+      - gare-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gare -d gare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  gare-postgres:
