@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -194,8 +195,9 @@ func TestPathParsingAndFallback(t *testing.T) {
 	mu.Lock()
 	apps := append([]string(nil), deployedApps...)
 	mu.Unlock()
+	slices.Sort(apps)
 	expected := []string{"service-alpha", "service-beta", "service-gamma"}
-	if len(apps) != len(expected) || apps[0] != expected[0] || apps[1] != expected[1] || apps[2] != expected[2] {
+	if !slices.Equal(apps, expected) {
 		t.Fatalf("got apps %v, want %v", apps, expected)
 	}
 }
