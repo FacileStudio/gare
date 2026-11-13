@@ -41,3 +41,12 @@ jobs:
       - name: test
         working-directory: apps/api
         run: go test -v -race ./...
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: client
+        working-directory: apps/client
+        run: |
+          bun install --frozen-lockfile
+          bun run check
+          bun run build
