@@ -4,7 +4,6 @@ package dotenv
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -66,31 +65,23 @@ func isValueComplete(entry string) bool {
 		return true
 	}
 	val := strings.TrimSpace(value)
-	if strings.HasPrefix(val, `"`) {
-		return hasClosingQuote(val[1:], '"')
-	}
-	if strings.HasPrefix(val, "'") {
-		return hasClosingQuote(val[1:], '\'')
+	if strings.HasPrefix(val, `"`) || strings.HasPrefix(val, "'") {
+		return closingQuote(val[1:], val[0]) >= 0
 	}
 	return true
 }
 
-func hasClosingQuote(s string, quote byte) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == quote {
-			if quote == '\'' || i == 0 || s[i-1] != '\\' {
-				return true
-			}
+func stripExport(entry string) string {
+	for _, prefix := range []string{"export ", "export\t"} {
+		if after, ok := strings.CutPrefix(entry, prefix); ok {
+			return strings.TrimSpace(after)
 		}
 	}
-	return false
+	return entry
 }
 
 func assignEntry(res map[string]string, entry string) {
-	entry = strings.TrimSpace(entry)
-	if after, ok := strings.CutPrefix(entry, "export"); ok {
-		entry = strings.TrimSpace(after)
-	}
+	entry = stripExport(strings.TrimSpace(entry))
 	key, value, ok := strings.Cut(entry, "=")
 	if !ok {
 		return
@@ -103,18 +94,9 @@ func assignEntry(res map[string]string, entry string) {
 }
 
 func cleanValue(v string) string {
-	if strings.HasPrefix(v, `"`) {
-		if end := strings.LastIndex(v, `"`); end > 0 {
-			quoted := v[:end+1]
-			if unquoted, err := strconv.Unquote(quoted); err == nil {
-				return unquoted
-			}
-			return quoted[1 : len(quoted)-1]
-		}
-	}
-	if strings.HasPrefix(v, "'") {
-		if end := strings.LastIndex(v, "'"); end > 0 {
-			return v[1:end]
+	if strings.HasPrefix(v, `"`) || strings.HasPrefix(v, "'") {
+		if end := closingQuote(v[1:], v[0]); end >= 0 {
+			return unquoteBody(v[0], v[1:1+end])
 		}
 	}
 	if idx := strings.Index(v, " #"); idx != -1 {

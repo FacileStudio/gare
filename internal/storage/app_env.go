@@ -1,16 +1,17 @@
 package storage
 
 import (
-	"bytes"
-	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/FacileStudio/gare/internal/atomicfile"
 	"github.com/FacileStudio/gare/internal/dotenv"
 )
+
+// envFileMode keeps an application's env file readable by its owner alone, because it holds the
+// application's secrets.
+const envFileMode = 0600
 
 // GetAppEnvPath returns the path to the application env file.
 func GetAppEnvPath(appDir string) string {
@@ -42,7 +43,7 @@ func EnsureAppEnvFile(appDir string) error {
 	path := GetAppEnvPath(appDir)
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		return atomicfile.WriteFile(path, nil, 0644)
+		return atomicfile.WriteFile(path, nil, envFileMode)
 	}
 	if err != nil {
 		return err
@@ -73,15 +74,5 @@ func UnsetAppEnv(appDir string, keys []string) error {
 }
 
 func writeEnvFile(filePath string, envs map[string]string) error {
-	keys := make([]string, 0, len(envs))
-	for k := range envs {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var buf bytes.Buffer
-	for _, k := range keys {
-		fmt.Fprintf(&buf, "%s=%s\n", k, envs[k])
-	}
-	return atomicfile.WriteFile(filePath, buf.Bytes(), 0644)
+	return atomicfile.WriteFile(filePath, dotenv.Format(envs), envFileMode)
 }
