@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-13
+
 ### Added
 
 - The daemon API behind the signed-in session: `GET|POST /api/apps`, `GET|DELETE /api/apps/{name}` (the name typed back in `confirm`, compose volumes only with `?volumes=true`), `POST /api/apps/{name}/{start,stop,restart}`, `PUT /api/apps/{name}/tags`, `GET|PATCH /api/apps/{name}/env` (masked values, `?reveal=KEY`, `{set, unset}` merges), and `GET|POST|DELETE /api/apps/{name}/domains`. A change to an app another operation holds answers 409 after 2 seconds instead of hanging.
