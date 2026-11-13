@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/podman"
+	"github.com/FacileStudio/gare/internal/repopath"
 	"github.com/FacileStudio/gare/internal/storage"
 	"github.com/FacileStudio/gare/internal/systemd"
 )
@@ -19,7 +19,11 @@ func prepareStaticDeploy(ctx context.Context, name, appDir, repoDir string, cfg 
 	if err := runBuildCommand(ctx, repoDir, cfg.BuildCmd); err != nil {
 		return err
 	}
-	return writeStaticUnit(ctx, name, appDir, filepath.Join(repoDir, cfg.StaticDir), cfg.Port)
+	staticPath, err := repopath.Join("static_dir", repoDir, cfg.StaticDir)
+	if err != nil {
+		return err
+	}
+	return writeStaticUnit(ctx, name, appDir, staticPath, cfg.Port)
 }
 
 // prepareContainerDeploy builds the application image, syncs its manifest and writes its unit.

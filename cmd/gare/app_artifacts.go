@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/FacileStudio/gare/internal/manifest"
+	"github.com/FacileStudio/gare/internal/repopath"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -52,7 +53,10 @@ func mergeGareFileDefaults(opts appCreateOptions, gf *storage.GareFile) (appCrea
 }
 
 func writeStaticArtifacts(ctx context.Context, name, appDir string, opts appCreateOptions) error {
-	staticPath := filepath.Join(storage.GetRepoDir(appDir), opts.staticDir)
+	staticPath, err := repopath.Join("static_dir", storage.GetRepoDir(appDir), opts.staticDir)
+	if err != nil {
+		return err
+	}
 	if err := writeStaticUnit(ctx, name, appDir, staticPath, opts.port); err != nil {
 		return err
 	}
@@ -108,6 +112,9 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 	}
 	if _, err := gf.ResolveWorkload(); err != nil {
 		return err
+	}
+	if err := gf.ValidatePaths(); err != nil {
+		return fmt.Errorf("gare.yml: %w", err)
 	}
 	if cfg.BuildCmd == "" {
 		cfg.BuildCmd = gf.BuildCmd
