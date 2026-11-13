@@ -159,11 +159,7 @@ func TestGitLabTokenHeader(t *testing.T) {
 }
 
 func postPathCase(t *testing.T, targetURL string, body []byte, expectedStatus int) {
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	resp, err := http.Post(targetURL, "application/json", reader)
+	resp, err := signedPost(targetURL, body)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
@@ -178,14 +174,12 @@ func TestPathParsingAndFallback(t *testing.T) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	s := New(Config{
-		DeployHandler: func(ctx context.Context, appName string) error {
-			mu.Lock()
-			deployedApps = append(deployedApps, appName)
-			mu.Unlock()
-			wg.Done()
-			return nil
-		},
+	s := newSignedServer(func(ctx context.Context, appName string) error {
+		mu.Lock()
+		deployedApps = append(deployedApps, appName)
+		mu.Unlock()
+		wg.Done()
+		return nil
 	})
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
@@ -207,7 +201,7 @@ func TestPathParsingAndFallback(t *testing.T) {
 }
 
 func TestPathTraversalAppNames(t *testing.T) {
-	s := New(Config{})
+	s := newSignedServer(nil)
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
 
@@ -216,6 +210,7 @@ func TestPathTraversalAppNames(t *testing.T) {
 	postPathCase(t, ts.URL+"/webhook/invalid@name", nil, http.StatusBadRequest)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook", nil)
+	req.Header.Set("X-Hub-Signature-256", computeSignature(testSecret, nil))
 	req.SetPathValue("app", "../../etc")
 	rec := httptest.NewRecorder()
 	s.handleWebhook(rec, req)

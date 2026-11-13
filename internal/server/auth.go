@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
+// verifyAuth accepts a request only when it proves knowledge of the server's secret. A server with
+// no secret accepts nothing, so a missing secret can never leave the deploy endpoint open.
 func (s *Server) verifyAuth(r *http.Request, body []byte) bool {
+	if s.secret == "" {
+		return false
+	}
 	if gitlabToken := r.Header.Get("X-Gitlab-Token"); gitlabToken != "" {
 		return subtle.ConstantTimeCompare([]byte(gitlabToken), []byte(s.secret)) == 1
 	}

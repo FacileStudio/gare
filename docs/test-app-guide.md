@@ -376,13 +376,20 @@ The `try_files` fallback is why the site is configured by a Caddyfile rather tha
 To trigger deployments automatically on `git push`, start the built-in webhook receiver:
 
 ```sh
-gare server --port 9000 --secret super-secret-token
+GARE_WEBHOOK_SECRET=super-secret-token gare server --port 9000
 ```
 
 The server exposes two endpoints:
 
 - `POST /webhook/<app-name>`: Authenticated webhook endpoint. Accepts GitHub `X-Hub-Signature-256` HMAC signatures or GitLab `X-Gitlab-Token` headers.
 - `GET /health`: Healthcheck probe.
+
+Create the webhook secret once, readable by you alone:
+
+```sh
+install -d -m 700 ~/.config/gare
+(umask 077; openssl rand -hex 32 > ~/.config/gare/webhook-secret)
+```
 
 To run `gare server` continuously under systemd user supervision, create `~/.config/systemd/user/gare-server.service`:
 
@@ -394,7 +401,7 @@ Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec
-ExecStart=%h/.local/bin/gare server --port 9000 --secret super-secret-token
+ExecStart=%h/.local/bin/gare server --port 9000 --secret-file %h/.config/gare/webhook-secret
 Restart=always
 RestartSec=5s
 

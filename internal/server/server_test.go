@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -97,14 +96,12 @@ func TestPerAppConcurrencyLock(t *testing.T) {
 	var currentApp1, maxApp1, app1Runs atomic.Int32
 	var wg sync.WaitGroup
 
-	s := New(Config{
-		DeployHandler: func(ctx context.Context, appName string) error {
-			defer wg.Done()
-			if appName == "app1" {
-				recordConcurrency(&currentApp1, &maxApp1, &app1Runs)
-			}
-			return nil
-		},
+	s := newSignedServer(func(ctx context.Context, appName string) error {
+		defer wg.Done()
+		if appName == "app1" {
+			recordConcurrency(&currentApp1, &maxApp1, &app1Runs)
+		}
+		return nil
 	})
 
 	ts := httptest.NewServer(s.Handler())
@@ -139,7 +136,7 @@ func recordConcurrency(curr, maxVal, runs *atomic.Int32) {
 }
 
 func sendTestWebhook(t *testing.T, targetURL string) {
-	resp, err := http.Post(targetURL, "application/json", bytes.NewReader([]byte(`{}`)))
+	resp, err := signedPost(targetURL, []byte(`{}`))
 	if err != nil {
 		t.Errorf("post error: %v", err)
 		return
