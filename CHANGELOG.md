@@ -4,6 +4,10 @@
 
 ### Added
 
+- The daemon API behind the signed-in session: `GET|POST /api/apps`, `GET|DELETE /api/apps/{name}` (the name typed back in `confirm`, compose volumes only with `?volumes=true`), `POST /api/apps/{name}/{start,stop,restart}`, `PUT /api/apps/{name}/tags`, `GET|PATCH /api/apps/{name}/env` (masked values, `?reveal=KEY`, `{set, unset}` merges), and `GET|POST|DELETE /api/apps/{name}/domains`. A change to an app another operation holds answers 409 after 2 seconds instead of hanging.
+- `POST /api/apps/{name}/deploy` and `/rollback` answer 202 with the deploy record. API deploys join the webhook queue, so a push and an API deploy of one app coalesce and share `GARE_MAX_PARALLEL_DEPLOYS`.
+- `GET /api/apps/{name}/deploys` and `/deploys/{id}` read the history. `/deploys/{id}/log` streams the log as server-sent events from its first line, resumes after `Last-Event-ID`, and ends with `event: done` carrying the final deploy. `GET /api/apps/{name}/logs` streams the journal (`?lines=` up to 2000).
+- Webhook deploys show in the history as `queued` from the moment they are accepted, in both server modes. A queued deploy dropped by a shutdown is recorded as failed.
 - With `ANTENNE_URL` and `ANTENNE_SECRET` set, a deploy that fails or rolls back posts one alert to Antenne's generic webhook (`/webhook/generic`, signed `sha256=` in `x-generic-signature-256`) with the app, deploy id, commit, trigger, host and error; severity is `error` for a failed deploy and `warning` for a rolled-back one. Successful deploys send nothing, and an Antenne that does not answer within 5 seconds only produces a warning.
 - Release archives carry the built web client under `client/` next to the `gare` binary. `facile install gare` installs only the binary; the README gives the command that unpacks the client into `$XDG_DATA_HOME/gare/client`, the default `CLIENT_DIR`.
 - Every deploy is recorded under `apps/<name>/deploys/<id>/` with its status, trigger, commit and full log; the last 50 per app are kept. `gare deploys <app> [--json]` lists them and `gare deploys <app> <id> --log` prints a log, following it while the deploy runs.
@@ -17,7 +21,7 @@
 - `deploy/compose.yml` runs the daemon's Postgres (`postgres:16-alpine`) on `127.0.0.1:5439`; `mise run db-up` and `mise run db-down` start and stop it for development.
 - The `migrations` package holds the daemon's schema: porte v0.19.0's account, identity and session tables, applied forward-only through tronc/migrate.
 - `GARE_MAX_PARALLEL_DEPLOYS` caps concurrent webhook deploys across apps (default 2); an invalid value stops the daemon at start.
-- A web client in `apps/client`: sign in with Facile, list apps with a tag filter, deploy with a live log, browse deploy history and roll back container apps, follow runtime logs, edit the environment (masked values, reveal one, merge a pasted `.env` block), manage domains, create apps and destroy them with the name typed back. The daemon API it talks to is not built yet.
+- A web client in `apps/client`: sign in with Facile, list apps with a tag filter, deploy with a live log, browse deploy history and roll back container apps, follow runtime logs, edit the environment (masked values, reveal one, merge a pasted `.env` block), manage domains, create apps and destroy them with the name typed back.
 
 ### Security
 
