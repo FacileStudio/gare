@@ -4,6 +4,8 @@
 
 ### Added
 
+- `deploy/compose.yml` runs the daemon's Postgres (`postgres:16-alpine`) on `127.0.0.1:5439`; `mise run db-up` and `mise run db-down` start and stop it for development.
+- The `migrations` package holds the daemon's schema: porte v0.19.0's account, identity and session tables, applied forward-only through tronc/migrate.
 - `GARE_MAX_PARALLEL_DEPLOYS` caps concurrent webhook deploys across apps (default 2); an invalid value stops the daemon at start.
 - A web client in `apps/client`: sign in with Facile, list apps with a tag filter, deploy with a live log, browse deploy history and roll back container apps, follow runtime logs, edit the environment (masked values, reveal one, merge a pasted `.env` block), manage domains, create apps and destroy them with the name typed back. The daemon API it talks to is not built yet.
 
