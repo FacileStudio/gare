@@ -316,7 +316,7 @@ With the API on, the daemon:
 - opens `DATABASE_URL`, applies its migrations at start and exits non-zero when they fail. Postgres holds porte's sign-in tables only; apps, env and deploys stay files. `deploy/compose.yml` runs one.
 - signs operators in through the suite's identity provider with porte, single sign-on only. No password route exists.
 - lets in only the addresses in `GARE_ADMIN_EMAILS` (comma separated, case-insensitive). The daemon refuses to start when the list is empty, since it would let nobody in. A refused sign-in lands on `/login?error=<message>` with no session. porte writes an account and an identity link before gare can refuse, so gare deletes the ones that attempt created; an account or link that existed before the attempt keeps its row, with the name and picture porte refreshed from the provider. Removing an address deletes all its sessions on their next request to the API, so putting it back needs a new sign-in.
-- serves the built client from `CLIENT_DIR` (default `./client`) at `/` with a fallback for deep links, and skips it when that directory has no `index.html`.
+- serves the built client from `CLIENT_DIR` (default `$XDG_DATA_HOME/gare/client`, so `~/.local/share/gare/client`) at `/` with a fallback for deep links, and skips it when that directory has no `index.html`. The start log says which: `web UI served` or `web UI off`, with the directory.
 - serves its API reference at `/docs`.
 
 | Variable | Purpose |

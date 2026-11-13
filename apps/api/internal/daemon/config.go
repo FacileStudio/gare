@@ -12,7 +12,6 @@ import (
 	"github.com/FacileStudio/gare/apps/api/modules/auth"
 	"github.com/FacileStudio/porte"
 	troncenv "github.com/FacileStudio/tronc/env"
-	"github.com/FacileStudio/tronc/spa"
 )
 
 // DefaultListen is where the daemon listens when GARE_LISTEN is unset:
@@ -22,6 +21,9 @@ const DefaultListen = "127.0.0.1:9120"
 
 // Config is the daemon's environment. The OIDC names are the ones every suite
 // app reads, so one deployment panel spells them the same way everywhere.
+// ClientDir defaults under XDG_DATA_HOME rather than to a relative path,
+// because a systemd user unit starts in $HOME and a relative default would
+// silently find no client there.
 type Config struct {
 	Listen      string
 	DatabaseURL string
@@ -39,7 +41,7 @@ func Load() (Config, error) {
 	return Config{
 		Listen:      troncenv.String("GARE_LISTEN", DefaultListen),
 		DatabaseURL: troncenv.String("DATABASE_URL", ""),
-		ClientDir:   spa.DirFromEnv(),
+		ClientDir:   troncenv.String("CLIENT_DIR", filepath.Join(xdg.DataHome(), "gare", "client")),
 		Auth: auth.Config{
 			Porte:       loadPorte(ssoOnly),
 			AdminEmails: auth.ParseEmails(troncenv.String("GARE_ADMIN_EMAILS", "")),
