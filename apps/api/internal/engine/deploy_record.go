@@ -99,4 +99,17 @@ func (e *Engine) finishRecord(name string, rec *deploys.Recorder, cause error) {
 	if err := finish(); err != nil {
 		e.report(name).Warn(fmt.Sprintf("Could not record deploy %s (%v)", rec.Record().ID, err))
 	}
+	e.alert(name, rec.Record())
+}
+
+// alert tells Antenne about a deploy that failed or rolled back. A CLI deploy waits for the alert,
+// bounded by the notifier's timeout, because the process exits as soon as the deploy returns; a
+// deploy the daemon runs sends it in the background, so the next deploy in the queue never waits.
+func (e *Engine) alert(name string, d deploys.Deploy) {
+	warn := e.report(name).Warn
+	if d.Trigger == deploys.TriggerCLI {
+		e.alerts.Notify(d, warn)
+		return
+	}
+	go e.alerts.Notify(d, warn)
 }
