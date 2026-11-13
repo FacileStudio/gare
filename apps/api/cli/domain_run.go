@@ -16,6 +16,11 @@ type domainItem struct {
 }
 
 func runDomainAdd(ctx context.Context, appName, hostname string) error {
+	unlock, err := lockApp(ctx, appName)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err
@@ -51,6 +56,11 @@ func checkDomainAvailable(store *storage.Store, appName, hostname string) error 
 }
 
 func runDomainRemove(ctx context.Context, appName, hostname string) error {
+	unlock, err := lockApp(ctx, appName)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	_, cfg, err := loadAppConfig(appName)
 	if err != nil {
 		return err

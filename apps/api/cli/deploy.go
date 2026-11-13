@@ -28,8 +28,15 @@ func NewDeployCmd() *cobra.Command {
 }
 
 // RunDeploy executes the deployment pipeline for a single application. Every workload type runs the
-// same tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up.
+// same tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up. It
+// holds the app's lock from start to finish, so a CLI deploy and a webhook deploy of one app never
+// interleave their git sync, unit writes and config saves.
 func RunDeploy(ctx context.Context, name string) error {
+	unlock, err := lockApp(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	store := storage.Default()
 	appDir, cfg, err := loadAppConfig(name)
 	if err != nil {

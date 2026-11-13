@@ -94,6 +94,11 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 	if err != nil {
 		return err
 	}
+	unlock, err := lockApp(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	appDir, store, err := resolveEnvStore(name)
 	if err != nil {
 		return err
@@ -106,6 +111,11 @@ func runEnvSet(ctx context.Context, name string, assignments []string) error {
 }
 
 func runEnvUnset(ctx context.Context, name string, keys []string) error {
+	unlock, err := lockApp(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	appDir, store, err := resolveEnvStore(name)
 	if err != nil {
 		return err
@@ -122,6 +132,11 @@ func runEnvLoad(ctx context.Context, name string, opts envLoadOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to read env file: %w", err)
 	}
+	unlock, err := lockApp(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	appDir, store, err := resolveEnvStore(name)
 	if err != nil {
 		return err
