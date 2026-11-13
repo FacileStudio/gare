@@ -402,3 +402,15 @@ Code quality and architectural constraints are enforced by [filet](https://githu
 ## License
 
 gare is released under the [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`).
+
+## Running the daemon on a host
+
+`deploy/` holds what runs gare's daemon as user units next to the apps it manages, the way `garev2.facile.studio` runs on ruche:
+
+1. Copy `deploy/compose.yml` to `~/.local/share/gare/system/compose.yml`, and write `~/.config/gare/db.env` (mode 0600) with `POSTGRES_PASSWORD` and, when 5439 is taken, `GARE_DB_PORT`.
+2. Copy `deploy/gare-db.service` and `deploy/gare-server.service` to `~/.config/systemd/user/`.
+3. Write `~/.config/gare/server.env` (mode 0600) with the daemon's settings: `GARE_LISTEN`, `DATABASE_URL`, the `OIDC_*` block, `SSO_ONLY=true`, `GARE_ADMIN_EMAILS`, `GARE_WEBHOOK_SECRET` and `PORTE_TOKEN_KEY` (64 hex characters).
+4. Unpack the release's `client/` into `~/.local/share/gare/client`.
+5. `systemctl --user daemon-reload && systemctl --user enable --now gare-db.service gare-server.service`.
+
+Behind a reverse proxy that runs in Docker, bind `GARE_LISTEN` to the Docker bridge gateway (for example `10.128.0.1:9120`) rather than to every interface, and point the proxy at that address.
