@@ -23,6 +23,8 @@
 
 ### Fixed
 
+- A snippet Caddy refuses is rolled back: gare restores the previous snippet (or removes a new one), reloads Caddy again and reports Caddy's message, instead of leaving a file on disk that made every later reload by any app fail. Removing a snippet on stop and destroy follows the same rule.
+- Domain uniqueness compares the host without its port, case-insensitively, so `example.com:443` can no longer be added beside `example.com` on another app or the same one. The same host is accepted twice only on two different explicit ports other than 80 and 443.
 - Two gare commands can no longer change the same app at once. Create, deploy (including webhook deploys), destroy, and `env`, `domain` and `tag` edits hold a per-app lock for their whole run, so a CLI deploy and a webhook deploy no longer interleave, and an env or tag edit made during a deploy is no longer overwritten. A command that has to wait says so.
 - The app env file is round-trip safe. A value with a space, `#`, quotes or a newline survived the first write but was rewritten on the next `gare env set` or `unset` of any other key; `ab #cd` became `ab`. Values are now quoted the way systemd's `EnvironmentFile` reads them, and the parser decodes double quotes the systemd way, so `gare env list` shows what the service receives.
 - A key starting with `export` (for example `exporter`) is no longer cut to its remainder.
@@ -33,6 +35,7 @@
 
 ### Changed
 
+- `internal/caddy` is now `internal/ingress`, the one package that writes, reloads, restores and probes ingress. A domain added to a running app whose snippet Caddy refuses now warns that the snippet was rolled back instead of failing the command; the domain change itself stays saved.
 - The app lifecycle moved out of the CLI into `internal/engine`, and the per-type behaviour into one adapter per workload type in `internal/workload`. The engine prints nothing: it reports progress through a sink and returns typed results, so the webhook daemon and the API run the same code as the CLI. Commands print the same lines as before.
 - `gare start`, `restart` and the `env` commands refuse an app whose `config.json` names an unknown workload type, instead of treating it as a container.
 - Without `OIDC_ISSUER`, `gare server` logs that the API and web UI are disabled and serves webhooks only, as before, without a database. An explicit `--port` overrides `GARE_LISTEN` when the API is on.
