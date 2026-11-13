@@ -37,7 +37,7 @@ func artifactCases() map[string]artifactCase {
 		"container": {
 			workload:   storage.WorkloadContainer,
 			cfg:        &storage.AppConfig{Name: "myapp", AppType: "container"},
-			wantPodman: []string{"rmi -f localhost/myapp:latest"},
+			wantPodman: []string{"images --noheading --format {{.Tag}} localhost/myapp", "rmi -f localhost/myapp:latest"},
 		},
 		"compose keeps volumes by default": {
 			workload: storage.WorkloadCompose,

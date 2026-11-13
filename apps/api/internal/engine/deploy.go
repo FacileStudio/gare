@@ -55,7 +55,7 @@ func (e *Engine) deploy(ctx context.Context, name string, rec *deploys.Recorder)
 	if err := w.Prepare(ctx, e.workloadApp(cfg), workload.Deploy); err != nil {
 		return nil, err
 	}
-	if err := e.activate(ctx, cfg); err != nil {
+	if err := e.activate(ctx, cfg, commit); err != nil {
 		return nil, err
 	}
 	return &DeployResult{Name: name, AppType: cfg.AppType, Commit: commit, Target: deployTarget(cfg)}, nil
@@ -99,18 +99,25 @@ func (e *Engine) fetchRevision(ctx context.Context, repoDir string, cfg *storage
 
 // activate syncs ingress, restarts the unit, and only reports success once the ingress serves the
 // app's domains and the health probes pass.
-func (e *Engine) activate(ctx context.Context, cfg *storage.AppConfig) error {
+func (e *Engine) activate(ctx context.Context, cfg *storage.AppConfig, commit string) error {
 	if err := e.activateIngress(ctx, cfg); err != nil {
 		return err
 	}
+	return e.restartAndVerify(ctx, cfg, commit)
+}
+
+// restartAndVerify restarts the unit on the build of commit and verifies its health. A container
+// app whose probes fail goes back to the last deploy that passed them, when one is kept.
+func (e *Engine) restartAndVerify(ctx context.Context, cfg *storage.AppConfig, commit string) error {
 	e.report(cfg.Name).Verbose(fmt.Sprintf("Enabling and restarting %s.service", cfg.Name))
 	if err := e.restartUnit(ctx, cfg.Name); err != nil {
 		return err
 	}
 	if err := e.verifyHealth(ctx, cfg); err != nil {
-		return err
+		return e.rollBackFailed(ctx, cfg, commit, err)
 	}
 	e.cleanupDeploy(ctx, cfg.Name)
+	e.pruneImageTags(ctx, cfg)
 	return nil
 }
 
