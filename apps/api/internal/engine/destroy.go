@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appname"
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/FacileStudio/gare/apps/api/internal/workload"
@@ -93,8 +93,8 @@ func (e *Engine) teardownServices(ctx context.Context, name string) {
 // a guessed teardown would be worse than none.
 func (e *Engine) removeArtifacts(ctx context.Context, plan destroyPlan) {
 	report := e.report(plan.name)
-	report.Step("Removing Caddy snippet...")
-	e.bestEffort(plan.name, "removing caddy snippet", func() error { return caddy.RemoveSnippet(caddy.ResolveConfDir(), plan.name) })
+	report.Step("Removing Caddy snippet and reloading Caddy...")
+	e.bestEffort(plan.name, "removing caddy snippet", func() error { return ingress.Remove(ctx, plan.name) })
 
 	if plan.workload != nil {
 		plan.workload.Teardown(ctx, e.workloadApp(plan.cfg), plan.volumes)
@@ -104,12 +104,9 @@ func (e *Engine) removeArtifacts(ctx context.Context, plan destroyPlan) {
 	e.bestEffort(plan.name, "removing storage", func() error { return e.store.Delete(plan.name) })
 }
 
-// reloadDaemons makes systemd forget the removed unit and Caddy drop the removed snippet.
+// reloadDaemons makes systemd forget the removed unit.
 func (e *Engine) reloadDaemons(ctx context.Context, name string) {
 	report := e.report(name)
 	report.Step("Reloading systemd daemon...")
 	e.bestEffort(name, "daemon-reload", func() error { return systemd.DaemonReload(ctx) })
-
-	report.Step("Reloading Caddy...")
-	e.bestEffort(name, "caddy reload", func() error { return caddy.Reload(ctx) })
 }

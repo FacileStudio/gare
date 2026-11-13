@@ -1,4 +1,4 @@
-package caddy
+package ingress
 
 import (
 	"context"
@@ -13,18 +13,18 @@ import (
 // ingressProbeTimeout bounds a single ingress probe so a firewalled or hung port cannot stall a deploy.
 const ingressProbeTimeout = 2 * time.Second
 
-// IngressTarget is one hostname and loopback listener the ingress is asked to answer on. Secure
+// Target is one hostname and loopback listener the ingress is asked to answer on. Secure
 // selects TLS, so a probe addresses the socket the hostname is served on instead of the plaintext one.
-type IngressTarget struct {
+type Target struct {
 	Host   string
 	Port   int
 	Secure bool
 }
 
-// ProbeIngress sends one HTTP request to the loopback listener the hostname is served on, carrying
+// ProbeTarget sends one HTTP request to the loopback listener the hostname is served on, carrying
 // that hostname as the request's Host header, and reports whether the ingress answered it. A bound
 // socket is not an answer: a connection nothing replies to fails the probe.
-func ProbeIngress(ctx context.Context, target IngressTarget) error {
+func ProbeTarget(ctx context.Context, target Target) error {
 	client := &http.Client{
 		Timeout:       ingressProbeTimeout,
 		Transport:     ingressTransport(target),
@@ -53,7 +53,7 @@ func stopAtFirstResponse(*http.Request, []*http.Request) error {
 // request carries. Certificate verification is off because the probe asks whether the ingress
 // answers for the hostname, not whether its certificate is trusted, and a Caddy on this host may
 // serve an internal one; the loopback connection is not a trust boundary.
-func ingressTransport(target IngressTarget) *http.Transport {
+func ingressTransport(target Target) *http.Transport {
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 			dialer := net.Dialer{Timeout: ingressProbeTimeout}
@@ -64,7 +64,7 @@ func ingressTransport(target IngressTarget) *http.Transport {
 }
 
 // ingressURL addresses the hostname over the scheme the ingress port is served with.
-func ingressURL(target IngressTarget) string {
+func ingressURL(target Target) string {
 	scheme := "http"
 	if target.Secure {
 		scheme = "https"
@@ -72,6 +72,6 @@ func ingressURL(target IngressTarget) string {
 	return fmt.Sprintf("%s://%s/", scheme, target.Host)
 }
 
-func (t IngressTarget) address() string {
+func (t Target) address() string {
 	return net.JoinHostPort("127.0.0.1", strconv.Itoa(t.Port))
 }

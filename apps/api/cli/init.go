@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/spf13/cobra"
@@ -102,7 +102,7 @@ func initDirectories() error {
 }
 
 func checkCaddyPermissions() {
-	confDir := caddy.ResolveConfDir()
+	confDir := ingress.ResolveConfDir()
 	testFile := filepath.Join(confDir, ".gare_test")
 	f, err := os.Create(testFile)
 	if err != nil {
@@ -115,11 +115,11 @@ func checkCaddyPermissions() {
 			printWarning(fmt.Sprintf("Could not remove test file: %v", rmErr))
 		}
 	}
-	if err := caddy.EnsureCaddyfile(); err != nil {
+	if err := ingress.EnsureCaddyfile(); err != nil {
 		printWarning(fmt.Sprintf("Could not configure Caddyfile: %v", err))
 		return
 	}
-	caddyfilePath := caddy.ResolveCaddyfilePath()
+	caddyfilePath := ingress.ResolveCaddyfilePath()
 	data, err := os.ReadFile(caddyfilePath)
 	if err != nil || !strings.Contains(string(data), "conf.d") {
 		printWarning("Caddyfile missing conf.d import directive")

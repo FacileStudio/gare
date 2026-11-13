@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/repopath"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
@@ -65,7 +65,7 @@ func writeStaticUnit(ctx context.Context, app App, rootDir string) error {
 	}
 	data := systemd.StaticSiteUnit(name, app.Config.Port, rootDir, storage.GetAppEnvPath(app.Dir),
 		storage.GetAppStaticConfigPath(app.Dir))
-	if err := caddy.WriteStaticServerConfig(data.ConfigFile, data.RootMount, data.ContainerPort); err != nil {
+	if err := ingress.WriteStaticServerConfig(data.ConfigFile, data.RootMount, data.ContainerPort); err != nil {
 		return fmt.Errorf("failed to write the static site Caddyfile: %w", err)
 	}
 	return handOver(ctx, app, systemd.StaticUnitDescription(name), previous,

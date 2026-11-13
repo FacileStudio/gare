@@ -1,4 +1,4 @@
-package caddy
+package ingress
 
 import (
 	"context"
@@ -23,13 +23,13 @@ func openPort(t *testing.T) (int, net.Listener) {
 	return addr.Port, listener
 }
 
-func serveOn(t *testing.T, server *httptest.Server) IngressTarget {
+func serveOn(t *testing.T, server *httptest.Server) Target {
 	t.Helper()
 	addr, ok := server.Listener.Addr().(*net.TCPAddr)
 	if !ok {
 		t.Fatalf("unexpected server address %v", server.Listener.Addr())
 	}
-	return IngressTarget{Host: "app.example.com", Port: addr.Port, Secure: server.TLS != nil}
+	return Target{Host: "app.example.com", Port: addr.Port, Secure: server.TLS != nil}
 }
 
 // TestProbeIngressAnswersWithTheHostname pins that the ingress is addressed by the hostname the app
@@ -42,7 +42,7 @@ func TestProbeIngressAnswersWithTheHostname(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := ProbeIngress(context.Background(), serveOn(t, server)); err != nil {
+	if err := ProbeTarget(context.Background(), serveOn(t, server)); err != nil {
 		t.Fatalf("expected the ingress to answer, got: %v", err)
 	}
 	if host != "app.example.com" {
@@ -63,7 +63,7 @@ func TestProbeIngressAnswersOverTLS(t *testing.T) {
 	if !target.Secure {
 		t.Fatal("expected the TLS server to be probed over TLS")
 	}
-	if err := ProbeIngress(context.Background(), target); err != nil {
+	if err := ProbeTarget(context.Background(), target); err != nil {
 		t.Fatalf("expected a self-signed ingress to answer, got: %v", err)
 	}
 }
@@ -74,7 +74,7 @@ func TestProbeIngressReportsNoAnswer(t *testing.T) {
 		t.Fatalf("failed to close listener: %v", err)
 	}
 
-	err := ProbeIngress(context.Background(), IngressTarget{Host: "app.example.com", Port: port})
+	err := ProbeTarget(context.Background(), Target{Host: "app.example.com", Port: port})
 	if err == nil {
 		t.Fatalf("expected a closed port %d to fail the probe", port)
 	}
@@ -100,7 +100,7 @@ func TestProbeIngressRejectsASocketThatDoesNotAnswer(t *testing.T) {
 		}
 	}()
 
-	if err := ProbeIngress(context.Background(), IngressTarget{Host: "app.example.com", Port: port}); err == nil {
+	if err := ProbeTarget(context.Background(), Target{Host: "app.example.com", Port: port}); err == nil {
 		t.Fatal("expected a socket that does not answer HTTP to fail the probe")
 	}
 }
@@ -115,7 +115,7 @@ func TestProbeIngressKeepsTheFirstResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := ProbeIngress(context.Background(), serveOn(t, server)); err != nil {
+	if err := ProbeTarget(context.Background(), serveOn(t, server)); err != nil {
 		t.Fatalf("expected the redirect itself to answer, got: %v", err)
 	}
 	if requests != 1 {

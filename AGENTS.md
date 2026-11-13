@@ -33,6 +33,7 @@ The version lives in two places and both move in the same `chore: release vX` co
 - Static containers are addressed through a cidfile (`%t/%N.cid`) so `ExecStop` can remove the exact container the unit started.
 - Static content is served from a gare-written Caddyfile (`~/.local/share/gare/apps/<app-name>/Caddyfile`) mounted at `/etc/caddy/Caddyfile`, not from `caddy file-server` flags: `file-server` cannot express the SPA fallback (`try_files {path} /index.html`) that static sites depend on for deep links.
 - Ingress: Caddy drop-in snippets at `/etc/caddy/conf.d/<app-name>.caddy`.
+- Ingress changes are transactions: `ingress.Apply` and `ingress.Remove` keep the previous snippet (or its absence), write, reload Caddy, and when Caddy refuses, restore the previous state byte for byte and reload again, because a refused snippet left on disk makes every later reload by any app fail. The engine calls only `Apply`/`Remove`; the `ingress` package alone writes, reloads, restores and probes.
 - Storage: predictable filesystem paths under `$XDG_DATA_HOME/gare/apps/<app-name>/`, defaulting to `~/.local/share/gare/apps/<app-name>/`.
 - Server: lightweight webhook receiver verifying HMAC-SHA256 signatures.
 
@@ -52,12 +53,12 @@ apps/api/               the Go module github.com/FacileStudio/gare/apps/api
     appconfig/          Resolve: the one precedence rule for an app's settings (flag, gare.yml, stored, default)
     appname/            application name validation shared by the CLI and the webhook server
     atomicfile/         crash-safe atomic file writes
-    caddy/              caddy configuration snippets and reloads
     compose/            compose file discovery, published ports, derived probes
     dotenv/             dotenv parsing and writing
     engine/             the app lifecycle: create, deploy, start, stop, restart, destroy, status, env, domain and tag edits
     git/                git clone, fetch-and-reset sync, commit lookup and credential plumbing
     health/             the readiness probe type and HTTP polling
+    ingress/            caddy snippets, the root Caddyfile, transactional reloads and the ingress probe
     manifest/           Pod manifest generation and env/port rewriting
     podman/             podman build, image, Containerfile and compose CLI invocation
     repopath/           keeps configured paths (static_dir, context, containerfile, compose_file) inside the repo

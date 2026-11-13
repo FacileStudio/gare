@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
 	"github.com/FacileStudio/gare/apps/api/internal/workload"
 )
@@ -67,10 +67,8 @@ func (e *Engine) Stop(ctx context.Context, name string) (*StopResult, error) {
 		return nil, err
 	}
 	report := e.report(name)
-	if err := caddy.RemoveSnippet(caddy.ResolveConfDir(), name); err == nil {
-		if reloadErr := caddy.Reload(ctx); reloadErr != nil {
-			report.Warn(fmt.Sprintf("Caddy reload error: %v", reloadErr))
-		}
+	if err := ingress.Remove(ctx, name); err != nil {
+		report.Warn(err.Error())
 	}
 	if err := systemd.Stop(ctx, name); err != nil {
 		return nil, fmt.Errorf("failed to stop %q: %w", name, err)

@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/testkit"
 	"github.com/FacileStudio/gare/apps/api/internal/workload"
@@ -71,6 +71,8 @@ func assertArtifactTeardown(t *testing.T, tc artifactCase) {
 	logPath := testkit.StubPodman(t)
 	confDir := t.TempDir()
 	t.Setenv("GARE_CADDY_CONF_DIR", confDir)
+	t.Setenv("GARE_CADDYFILE", filepath.Join(confDir, "Caddyfile"))
+	fakeCaddy(t)
 	seedSnippet(t, confDir, "myapp")
 	seedComposeRepo(t, appDir, tc.workload)
 
@@ -84,13 +86,13 @@ func assertArtifactTeardown(t *testing.T, tc artifactCase) {
 	if got := testkit.RecordedCalls(t, logPath); !slices.Equal(got, tc.wantPodman) {
 		t.Errorf("podman invocations = %v, want %v", got, tc.wantPodman)
 	}
-	testkit.AssertGone(t, caddy.GetSnippetPath(confDir, "myapp"))
+	testkit.AssertGone(t, ingress.GetSnippetPath(confDir, "myapp"))
 	testkit.AssertGone(t, appDir)
 }
 
 func seedSnippet(t *testing.T, confDir, name string) {
 	t.Helper()
-	if err := os.WriteFile(caddy.GetSnippetPath(confDir, name), []byte(name+".example {\n}\n"), 0644); err != nil {
+	if err := os.WriteFile(ingress.GetSnippetPath(confDir, name), []byte(name+".example {\n}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 }
