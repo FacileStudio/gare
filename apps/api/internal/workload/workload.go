@@ -51,7 +51,7 @@ type Builder interface {
 	Settle(app App, stage Stage) error
 	Prepare(ctx context.Context, app App, stage Stage) error
 	Teardown(ctx context.Context, app App, volumes bool)
-	Env() EnvStore
+	RenderEnv(app App) error
 }
 
 // Runner is the part of a workload type that checks an already deployed app around a start and

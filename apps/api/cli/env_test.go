@@ -45,10 +45,13 @@ func TestEnvSetAndList(t *testing.T) {
 		t.Fatalf("env set failed: %v", err)
 	}
 
-	manifestPath := storage.GetManifestPath(appDir)
-	envs, err := manifest.GetEnv(manifestPath)
+	envs, err := storage.GetAppEnv(appDir)
 	if err != nil || len(envs) != 2 || envs["KEY1"] != "VAL1" {
-		t.Fatalf("unexpected manifest envs: %+v, err: %v", envs, err)
+		t.Fatalf("unexpected app env file: %+v, err: %v", envs, err)
+	}
+	envs, err = manifest.GetEnv(storage.GetManifestPath(appDir))
+	if err != nil || len(envs) != 2 || envs["KEY1"] != "VAL1" {
+		t.Fatalf("expected the manifest to be rendered from the env file, got %+v, err: %v", envs, err)
 	}
 
 	cmdList := NewEnvCmd()
@@ -71,7 +74,7 @@ func TestEnvSetAndList(t *testing.T) {
 func TestEnvUnset(t *testing.T) {
 	_, appDir := setupTestApp(t, "testenv2", false)
 	manifestPath := storage.GetManifestPath(appDir)
-	if err := manifest.SetEnv(manifestPath, map[string]string{"K1": "V1", "K2": "V2"}); err != nil {
+	if err := manifest.RenderEnv(manifestPath, "", map[string]string{"K1": "V1", "K2": "V2"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -82,8 +85,11 @@ func TestEnvUnset(t *testing.T) {
 	}
 
 	envs, _ := manifest.GetEnv(manifestPath)
-	if _, ok := envs["K1"]; ok {
-		t.Fatalf("expected K1 to be unset, got %+v", envs)
+	if _, ok := envs["K1"]; ok || envs["K2"] != "V2" {
+		t.Fatalf("expected only K1 to be unset from the manifest, got %+v", envs)
+	}
+	if envs, _ := storage.GetAppEnv(appDir); len(envs) != 1 || envs["K2"] != "V2" {
+		t.Fatalf("expected the manifest env to move to the env file before the unset, got %+v", envs)
 	}
 }
 
@@ -100,8 +106,7 @@ func TestEnvLoad(t *testing.T) {
 		t.Fatalf("env load failed: %v", err)
 	}
 
-	manifestPath := storage.GetManifestPath(appDir)
-	envs, _ := manifest.GetEnv(manifestPath)
+	envs, _ := storage.GetAppEnv(appDir)
 	if envs["FROM_FILE"] != "loaded" {
 		t.Errorf("expected FROM_FILE=loaded, got %s", envs["FROM_FILE"])
 	}

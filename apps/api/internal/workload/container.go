@@ -66,9 +66,13 @@ func (container) Teardown(ctx context.Context, app App, _ bool) {
 	removeImages(ctx, app)
 }
 
-// Env returns the pod manifest, which is where a container workload reads its variables.
-func (container) Env() EnvStore {
-	return podManifestStore()
+// RenderEnv rewrites the pod manifest's environment from the app env file, so a restart plays the
+// new values. An app whose manifest is not written yet gets it at its next deploy.
+func (container) RenderEnv(app App) error {
+	if !manifestExists(app) {
+		return nil
+	}
+	return renderManifestEnv(app)
 }
 
 // CheckStart fails a start before systemd does when the image is not built yet, so the operator is

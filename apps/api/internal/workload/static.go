@@ -39,9 +39,9 @@ func (static) Prepare(ctx context.Context, app App, stage Stage) error {
 // Teardown has nothing to remove: a static site's content is the storage a destroy removes anyway.
 func (static) Teardown(context.Context, App, bool) {}
 
-// Env returns the app env file the static unit loads.
-func (static) Env() EnvStore {
-	return appEnvFileStore()
+// RenderEnv rewrites the variable list the static container's podman reads its values through.
+func (static) RenderEnv(app App) error {
+	return writePodmanEnv(app)
 }
 
 // CheckStart has nothing to check: the Caddy image is pulled by the unit itself.
@@ -62,6 +62,9 @@ func writeStaticUnit(ctx context.Context, app App, rootDir string) error {
 	}
 	if err := storage.EnsureAppEnvFile(app.Dir); err != nil {
 		return fmt.Errorf("failed to prepare the application env file: %w", err)
+	}
+	if err := writePodmanEnv(app); err != nil {
+		return err
 	}
 	data := systemd.StaticSiteUnit(name, app.Config.Port, rootDir, storage.GetAppEnvPath(app.Dir),
 		storage.GetAppStaticConfigPath(app.Dir))

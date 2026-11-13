@@ -160,7 +160,7 @@ gare deploy stack
 
 ### 3. Manage environment variables
 
-Manage container environment variables directly in the Kubernetes manifest:
+Every app keeps its variables in one file, `~/.local/share/gare/apps/<app-name>/env` (mode `0600`), whatever its workload type, so changing the type keeps them:
 
 ```sh
 # Set key-value pairs
@@ -178,6 +178,14 @@ gare env unset myapp LOG_LEVEL
 ```
 
 When updated, active application services are automatically restarted to apply new environment values.
+
+How each type receives the file:
+
+- `container`: gare writes the variables into the pod manifest's first container `env:` at every deploy and every env change. Variables the repository's own `manifest.yaml` declares stay; the env file wins on a name clash.
+- `static`: systemd loads the file through `EnvironmentFile=`, and `podman run --env-file` reads a generated list of names (`env.podman`) that takes each value from that environment.
+- `compose`: systemd loads the file through `EnvironmentFile=` for `${VAR}` interpolation.
+
+An app deployed by an older gare kept a container's variables in `manifest.yaml`. The first gare command that locks the app moves them into the env file once and says so.
 
 ### 4. Manage domains
 
