@@ -48,6 +48,7 @@ internal/
   health/             the readiness probe type and HTTP polling
   manifest/           Pod manifest generation and env/port rewriting
   podman/             podman build, image, Containerfile and compose CLI invocation
+  repopath/           keeps configured paths (static_dir, context, containerfile, compose_file) inside the repo
   server/             webhook HTTP daemon and HMAC verification
   storage/            app state, workload types, tags, domains, health, ports
   systemd/            unit file synthesis and systemctl operations

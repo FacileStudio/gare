@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/FacileStudio/gare/internal/podman"
+	"github.com/FacileStudio/gare/internal/repopath"
 	"github.com/FacileStudio/gare/internal/storage"
 )
 
@@ -51,6 +52,16 @@ func normalizeCreateOptions(repoDir string, opts appCreateOptions) (appCreateOpt
 		opts.containerPort = detectContainerPort(repoDir, opts)
 	}
 	return opts, nil
+}
+
+// validateCreatePaths rejects a --static, --context or --containerfile flag that would reach
+// outside the repository, before anything is cloned.
+func validateCreatePaths(opts appCreateOptions) error {
+	return repopath.ValidateSet(map[string]string{
+		"--static":        opts.staticDir,
+		"--context":       opts.contextDir,
+		"--containerfile": opts.containerfile,
+	})
 }
 
 // detectContainerPort returns the configured container port or detects it from the containerfile.

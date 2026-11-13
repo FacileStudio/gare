@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/FacileStudio/gare/internal/repopath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,7 +42,7 @@ func DetectFile(repoDir string) string {
 func LocateFile(repoDir, configured string) (string, error) {
 	name := strings.TrimSpace(configured)
 	if name != "" {
-		if err := validateFileName(name); err != nil {
+		if err := repopath.Validate("compose file", name); err != nil {
 			return "", err
 		}
 		if _, err := os.Stat(filepath.Join(repoDir, name)); err != nil {
@@ -53,16 +54,6 @@ func LocateFile(repoDir, configured string) (string, error) {
 		return detected, nil
 	}
 	return "", fmt.Errorf("no compose file found in repository (looked for %s)", strings.Join(fileCandidates, ", "))
-}
-
-func validateFileName(name string) error {
-	if strings.ContainsAny(name, " \t\r\n") {
-		return fmt.Errorf("invalid compose file %q: whitespace is not allowed", name)
-	}
-	if filepath.IsAbs(name) || strings.Contains(name, "..") {
-		return fmt.Errorf("invalid compose file %q: must be a relative path inside the repository", name)
-	}
-	return nil
 }
 
 // PublishedPorts returns the host ports published by a compose file.

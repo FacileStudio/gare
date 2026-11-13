@@ -164,6 +164,9 @@ func validateCreateInputs(name string, opts appCreateOptions) error {
 	if opts.containerPort < 0 || opts.containerPort > 65535 {
 		return fmt.Errorf("container port must be between 1 and 65535, got %d", opts.containerPort)
 	}
+	if err := validateCreatePaths(opts); err != nil {
+		return err
+	}
 	for _, tag := range opts.tags {
 		if err := storage.ValidateTag(tag); err != nil {
 			return err
@@ -191,6 +194,9 @@ func resolveAppOptions(appDir string, opts appCreateOptions) (appCreateOptions, 
 	gf, err := storage.LoadGareFile(repoDir)
 	if err != nil {
 		return opts, fmt.Errorf("failed to load gare configuration: %w", err)
+	}
+	if err := gf.ValidatePaths(); err != nil {
+		return opts, fmt.Errorf("gare.yml: %w", err)
 	}
 
 	resolved, err := mergeGareFileDefaults(opts, gf)

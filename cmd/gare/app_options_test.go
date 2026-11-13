@@ -208,3 +208,35 @@ func TestResolveAppOptionsContainerPortExpose(t *testing.T) {
 		t.Errorf("expected detected containerPort 8080 from Dockerfile, got %d", resolved.containerPort)
 	}
 }
+
+func TestRepoPathsOutsideTheRepositoryAreRejected(t *testing.T) {
+	flags := map[string]func(*appCreateOptions){
+		"--static":        func(o *appCreateOptions) { o.staticDir = "../x" },
+		"--context":       func(o *appCreateOptions) { o.contextDir = "../x" },
+		"--containerfile": func(o *appCreateOptions) { o.containerfile = "../x" },
+	}
+	for key, set := range flags {
+		opts := appCreateOptions{repo: "https://example.com/repo.git"}
+		set(&opts)
+		if err := validateCreateInputs("app", opts); err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("flag %s=../x: expected a rejection naming it, got %v", key, err)
+		}
+	}
+	for _, key := range []string{"static_dir", "context", "containerfile"} {
+		appDir := t.TempDir()
+		repoDir := storage.GetRepoDir(appDir)
+		if err := os.MkdirAll(repoDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repoDir, "gare.yml"), []byte(key+": ../x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, createErr := resolveAppOptions(appDir, appCreateOptions{repo: "https://example.com/repo.git"})
+		deployErr := syncGareFileConfig(t.TempDir(), repoDir, &storage.AppConfig{Name: "app"})
+		for _, err := range []error{createErr, deployErr} {
+			if err == nil || !strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "../x") {
+				t.Errorf("gare.yml %s: ../x: expected a rejection naming key and value, got %v", key, err)
+			}
+		}
+	}
+}

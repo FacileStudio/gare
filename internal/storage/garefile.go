@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/FacileStudio/gare/internal/health"
+	"github.com/FacileStudio/gare/internal/repopath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,6 +31,20 @@ func (g *GareFile) ResolveComposeFile() string {
 		return ""
 	}
 	return strings.TrimSpace(g.ComposeFile)
+}
+
+// ValidatePaths rejects a static_dir, context or containerfile that would reach outside the
+// repository, since a repository controls its own gare.yml and must not be able to point gare at
+// another app's directory. A nil file or an unset key has nothing to check.
+func (g *GareFile) ValidatePaths() error {
+	if g == nil {
+		return nil
+	}
+	return repopath.ValidateSet(map[string]string{
+		"static_dir":    g.StaticDir,
+		"context":       g.Context,
+		"containerfile": g.Containerfile,
+	})
 }
 
 // LoadGareFile reads and parses gare.yaml or gare.yml from the repo directory.
