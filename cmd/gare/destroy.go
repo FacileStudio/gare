@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/FacileStudio/gare/internal/appname"
 	"github.com/FacileStudio/gare/internal/caddy"
 	"github.com/FacileStudio/gare/internal/podman"
 	"github.com/FacileStudio/gare/internal/storage"
@@ -15,33 +14,21 @@ import (
 
 // NewDestroyCmd builds the destroy command.
 func NewDestroyCmd() *cobra.Command {
-	return &cobra.Command{
+	opts := destroyOptions{}
+	cmd := &cobra.Command{
 		Use:     "destroy <name>",
 		Aliases: []string{"delete", "rm"},
 		Short:   "Stop and tear down an application and its resources",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			if err := appname.Validate(name); err != nil {
-				return err
-			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 			defer cancel()
-
-			appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-			cfg, workload, err := resolveDestroyWorkload(appDir)
-			if err != nil {
-				printWarning(fmt.Sprintf("%v — tearing down only what does not depend on the workload type, so a workload may keep running and its image survives: check them with `podman ps` and `podman images`", err))
-			}
-
-			teardownServices(ctx, name)
-			removeArtifacts(ctx, name, appDir, workload, cfg)
-			reloadDaemons(ctx)
-
-			printSuccess(fmt.Sprintf("App %s completely destroyed", name))
-			return nil
+			return runDestroy(ctx, args[0], opts)
 		},
 	}
+	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "Destroy without asking for confirmation")
+	cmd.Flags().BoolVar(&opts.volumes, "volumes", false, "Also delete a compose stack's named volumes and their data")
+	return cmd
 }
 
 // bestEffort runs one teardown step and reports its failure as a warning, because a destroy keeps
@@ -80,33 +67,33 @@ func resolveDestroyWorkload(appDir string) (*storage.AppConfig, storage.Workload
 	return cfg, workload, nil
 }
 
-func removeArtifacts(ctx context.Context, name, appDir string, workload storage.WorkloadType, cfg *storage.AppConfig) {
+func removeArtifacts(ctx context.Context, plan destroyPlan) {
 	printInfo("Removing Caddy snippet...")
-	bestEffort("removing caddy snippet", func() error { return caddy.RemoveSnippet(caddy.ResolveConfDir(), name) })
+	bestEffort("removing caddy snippet", func() error { return caddy.RemoveSnippet(caddy.ResolveConfDir(), plan.name) })
 
-	teardownWorkload(ctx, name, appDir, workload, cfg)
+	teardownWorkload(ctx, plan)
 
-	printInfo(fmt.Sprintf("Removing app storage at %s...", appDir))
-	bestEffort("removing storage", func() error { return storage.DeleteAppStorage(appDir) })
+	printInfo(fmt.Sprintf("Removing app storage at %s...", plan.appDir))
+	bestEffort("removing storage", func() error { return storage.DeleteAppStorage(plan.appDir) })
 }
 
 // teardownWorkload tears down the workload itself, the one part of a destroy that depends on the
 // workload type. Only a compose stack and a container image need it: a static site's content is the
 // storage removed either way, and an unknown type is left alone because gare does not know which
 // workload it started, so a guessed teardown would be worse than none.
-func teardownWorkload(ctx context.Context, name, appDir string, workload storage.WorkloadType, cfg *storage.AppConfig) {
-	switch workload {
+func teardownWorkload(ctx context.Context, plan destroyPlan) {
+	switch plan.workload {
 	case storage.WorkloadCompose:
-		destroyComposeWorkload(ctx, appDir, cfg)
+		destroyComposeWorkload(ctx, plan.appDir, plan.cfg, plan.volumes)
 	case storage.WorkloadContainer:
-		removeContainerImage(ctx, name)
+		removeContainerImage(ctx, plan.name)
 	}
 }
 
 // removeContainerImage removes the local image a container workload was built from, so a destroy
 // does not leave a versionless image behind for the next build to reuse silently.
 func removeContainerImage(ctx context.Context, name string) {
-	imageName := fmt.Sprintf("localhost/%s:latest", name)
+	imageName := appImageRef(name)
 	printInfo(fmt.Sprintf("Removing container image %s...", imageName))
 	bestEffort("removing container image", func() error { return podman.RemoveImage(ctx, imageName) })
 }

@@ -15,6 +15,8 @@
 
 ### Changed
 
+- **Breaking:** `gare destroy` asks for the app name to be typed back, or needs `--yes`; without a terminal and without `--yes` it refuses.
+- **Breaking:** `gare destroy` keeps a compose stack's named volumes unless `--volumes` is passed. It ran `podman compose down -v` unconditionally, so a typo deleted a database.
 - **Breaking:** `gare server --secret` is gone. Use `GARE_WEBHOOK_SECRET` or `--secret-file`.
 - Double-quoted values in an env file follow systemd's escapes: `\n` inside double quotes stays a backslash and an `n`, as systemd passes it to the service.
 

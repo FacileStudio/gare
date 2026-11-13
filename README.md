@@ -221,10 +221,14 @@ gare logs myapp -f
 ### 8. Tear down an application
 
 ```sh
-gare destroy myapp
+gare destroy myapp              # asks you to type the app name back
+gare destroy myapp --yes        # no prompt, for scripts
+gare destroy myapp --volumes    # also delete a compose stack's named volumes
 ```
 
-Stops the systemd service, disables it, removes the unit file, its `default.target.wants` enable link and any Quadlet source an older gare left behind, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down -v` so no containers, networks, or volumes leak if the unit file is already gone.
+Stops the systemd service, disables it, removes the unit file, its `default.target.wants` enable link and any Quadlet source an older gare left behind, removes the Caddy snippet, prunes container images, and cleans up app storage. For compose workloads, it additionally runs `podman compose down` so no containers or networks leak if the unit file is already gone. Named volumes, which hold a database's data, are kept unless you pass `--volumes`.
+
+A destroy cannot be undone, so it never runs unconfirmed: without `--yes` it asks for the app name on a terminal, and refuses when there is no terminal to ask on.
 
 ## Global Configuration (`~/.gare.yml`)
 

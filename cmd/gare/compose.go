@@ -81,7 +81,7 @@ func prepareComposeDeploy(ctx context.Context, name, appDir, repoDir string, cfg
 	return writeComposeUnit(ctx, name, appDir, repoDir, composeFile)
 }
 
-func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.AppConfig) {
+func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.AppConfig, volumes bool) {
 	repoDir := storage.GetRepoDir(appDir)
 	composeFile, err := compose.LocateFile(repoDir, cfg.ComposeFile)
 	if err != nil {
@@ -89,12 +89,12 @@ func destroyComposeWorkload(ctx context.Context, appDir string, cfg *storage.App
 		return
 	}
 
-	printInfo(fmt.Sprintf("Removing compose stack %s including volumes...", composeFile))
+	printInfo(fmt.Sprintf("Removing compose stack %s%s...", composeFile, volumeNote(volumes)))
 	downOpts := podman.ComposeDownOptions{
 		RepoDir:     repoDir,
 		ComposeFile: composeFile,
 		Project:     composeProjectName(cfg.Name),
-		Volumes:     true,
+		Volumes:     volumes,
 		Stdout:      os.Stdout,
 		Stderr:      os.Stderr,
 	}
