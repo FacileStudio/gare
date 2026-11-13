@@ -1,0 +1,30 @@
+[tools]
+bun = "1.3.11"
+
+[env]
+BUN_BIN = { value = "{{tools.bun.path}}/bin/bun", tools = true }
+
+[tasks.install]
+description = "Install client dependencies"
+sources = ["package.json", "bun.lock"]
+run = '"$BUN_BIN" install --frozen-lockfile'
+
+[tasks.build]
+description = "Build the client into build/"
+depends = [":install"]
+run = '"$BUN_BIN" run build'
+
+[tasks.check]
+description = "Type-check the client and run its tests"
+depends = [":install"]
+run = ['"$BUN_BIN" run check', '"$BUN_BIN" test']
+
+[tasks.dev]
+description = "Start the client dev server, proxying /api to 127.0.0.1:9120"
+depends = [":install"]
+run = '"$BUN_BIN" run dev'
+
+[tasks.preview]
+description = "Preview the production client build"
+depends = [":build"]
+run = '"$BUN_BIN" run preview'
