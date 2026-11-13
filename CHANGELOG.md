@@ -4,6 +4,7 @@
 
 ### Added
 
+- With `ANTENNE_URL` and `ANTENNE_SECRET` set, a deploy that fails or rolls back posts one alert to Antenne's generic webhook (`/webhook/generic`, signed `sha256=` in `x-generic-signature-256`) with the app, deploy id, commit, trigger, host and error; severity is `error` for a failed deploy and `warning` for a rolled-back one. Successful deploys send nothing, and an Antenne that does not answer within 5 seconds only produces a warning.
 - Release archives carry the built web client under `client/` next to the `gare` binary. `facile install gare` installs only the binary; the README gives the command that unpacks the client into `$XDG_DATA_HOME/gare/client`, the default `CLIENT_DIR`.
 - Every deploy is recorded under `apps/<name>/deploys/<id>/` with its status, trigger, commit and full log; the last 50 per app are kept. `gare deploys <app> [--json]` lists them and `gare deploys <app> <id> --log` prints a log, following it while the deploy runs.
 - Container deploys roll back by themselves: when the health check fails after the restart, gare runs the image of the last successful deploy again and records the failed deploy as `rolled-back`. `gare rollback <app> [<deploy id>]` does the same on demand. Static and compose apps cannot be rolled back.
@@ -20,6 +21,7 @@
 
 ### Security
 
+- A deploy alert never carries a line of the error that assigns a variable ending in `SECRET`, `TOKEN`, `PASSWORD` or `KEY`, and its error text is capped at 2000 characters.
 - `--port` no longer binds every interface when the API is on: it changes only the port of `127.0.0.1`, and an explicit `GARE_LISTEN` always wins over it.
 - A refused sign-in no longer leaves an account and identity link in the database. Rows that existed before the attempt are kept.
 - Removing an address from `GARE_ADMIN_EMAILS` deletes its sessions on its next API request, so adding it back does not revive old cookies.
