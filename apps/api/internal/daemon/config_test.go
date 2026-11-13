@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/FacileStudio/gare/apps/api/internal/server"
@@ -32,6 +33,7 @@ func TestNewFailsWithoutAMigratedDatabase(t *testing.T) {
 	cfg.Auth.Porte.Issuer = "https://sso.example.test"
 	cfg.Auth.Porte.ClientID, cfg.Auth.Porte.ClientSecret = "gare", "secret"
 	cfg.Auth.Porte.RedirectURL, cfg.Auth.Porte.SuccessURL = "https://g.example.test/cb", "https://g.example.test/"
+	cfg.Auth.AdminEmails = []string{"ops@example.test"}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if _, err := New(context.Background(), cfg, server.New(server.Config{}), logger); err == nil {
 		t.Fatal("New succeeded against an unreachable database")
@@ -66,5 +68,21 @@ func TestLoadReadsTheSuiteNames(t *testing.T) {
 	cfg.DatabaseURL = "postgres://localhost/gare"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate: %v", err)
+	}
+}
+
+// TestAnEnabledAPIWithNoAdminIsRefused proves the daemon will not start an
+// API nobody can sign in to, and says which variable to set.
+func TestAnEnabledAPIWithNoAdminIsRefused(t *testing.T) {
+	cfg := Config{DatabaseURL: "postgres://localhost/gare"}
+	cfg.Auth.Porte.Issuer = "https://sso.example.test"
+	cfg.Auth.Porte.ClientID, cfg.Auth.Porte.ClientSecret = "gare", "secret"
+	cfg.Auth.Porte.RedirectURL, cfg.Auth.Porte.SuccessURL = "https://g.example.test/cb", "https://g.example.test/"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GARE_ADMIN_EMAILS") {
+		t.Fatalf("Validate with no admin address = %v, want an error naming GARE_ADMIN_EMAILS", err)
+	}
+	cfg.Auth.AdminEmails = []string{"ops@example.test"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate with an admin address: %v", err)
 	}
 }

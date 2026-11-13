@@ -69,13 +69,17 @@ func (c Config) Enabled() bool {
 }
 
 // Validate refuses an enabled API that could not work: porte's own checks,
-// plus a database to keep sessions in.
+// a database to keep sessions in, and at least one address allowed in, since
+// an empty list would refuse every sign-in without saying why.
 func (c Config) Validate() error {
 	if err := c.Auth.Porte.Validate(); err != nil {
 		return err
 	}
 	if c.DatabaseURL == "" {
 		return errors.New("DATABASE_URL is required when OIDC_ISSUER is set")
+	}
+	if len(c.Auth.AdminEmails) == 0 {
+		return errors.New("GARE_ADMIN_EMAILS is required when OIDC_ISSUER is set: with no address listed, nobody can sign in")
 	}
 	return nil
 }
