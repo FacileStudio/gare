@@ -4,6 +4,8 @@
 
 ### Added
 
+- Compose apps can name the `service` to route to and its `container_port` in `gare.yml`; gare publishes it on a gare-assigned loopback port through `apps/<name>/compose.gare.yml`, so a compose file that only `expose`s its port (as the Facile suite files do) runs unmodified.
+- The compose unit creates every network the compose file declares `external: true` (such as `dokploy-network`) before each start.
 - `gare server` serves the API under `/api` and the web UI from `CLIENT_DIR` once `OIDC_ISSUER` is set, listening on `GARE_LISTEN` (default `127.0.0.1:9120`). It migrates `DATABASE_URL` at start and exits non-zero when the migrations fail.
 - Operators sign in through the suite's identity provider with porte, single sign-on only. Only addresses in `GARE_ADMIN_EMAILS` get in; an empty list lets nobody in, a refused sign-in lands on `/login?error=` with no session, and removing an address ends its sessions.
 - `GET /api/me` answers the signed-in operator as `{email, name, picture}`.
