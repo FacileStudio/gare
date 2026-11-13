@@ -100,3 +100,42 @@ func TestGenerateComposeUnitResolvesPodmanPath(t *testing.T) {
 		t.Errorf("expected unit to contain %q, got:\n%s", expected, unit)
 	}
 }
+
+func TestGenerateComposeUnitLayersTheOverrideAndCreatesNetworks(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	repoDir := t.TempDir()
+	data := composeUnitInput("my-app")
+	data.RepoDir = repoDir
+	data.EnvFile = repoDir + "/env"
+	data.OverrideFile = repoDir + "/compose.gare.yml"
+	data.Networks = []string{"dokploy-network"}
+	if err := WriteComposeUnit(data); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(GetUnitPath("my-app"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := "compose -f docker-compose.yml -f " + data.OverrideFile + " -p my-app "
+	for _, want := range []string{
+		"ExecStartPre=/usr/bin/podman network create --ignore dokploy-network\nExecStart=",
+		"ExecStart=/usr/bin/podman " + files + "up -d\n",
+		"ExecStop=-/usr/bin/podman " + files + "down\n",
+		"ExecStopPost=-/usr/bin/podman " + files + "down\n",
+	} {
+		if !strings.Contains(string(content), want) {
+			t.Errorf("expected unit to contain %q, got:\n%s", want, content)
+		}
+	}
+	verifyUnitWithSystemd(t, GetUnitPath("my-app"))
+}
+
+func TestGenerateComposeUnitRefusesAnOverrideSystemdWouldSplit(t *testing.T) {
+	for _, override := range []string{"compose.gare.yml", "/home/a user/compose.gare.yml"} {
+		data := composeUnitInput("my-app")
+		data.OverrideFile = override
+		if _, err := GenerateComposeUnit(data); err == nil {
+			t.Errorf("expected override path %q to be refused", override)
+		}
+	}
+}

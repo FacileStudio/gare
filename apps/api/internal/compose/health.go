@@ -14,9 +14,10 @@ var healthcheckURLRegex = regexp.MustCompile(`https?://[^\s"']+`)
 
 // HealthProbes derives HTTP probes from HTTP healthchecks declared in a compose file. Only services
 // whose healthcheck reaches a published container port qualify, because a container-internal check
-// cannot be reached from the host.
-func HealthProbes(composePath string) ([]health.Probe, error) {
-	doc, err := readDocument(composePath)
+// cannot be reached from the host. A port gare publishes through its override file counts as
+// published.
+func HealthProbes(composePath string, publishes ...Publish) ([]health.Probe, error) {
+	doc, err := readDocument(composePath, publishes...)
 	if err != nil {
 		return nil, err
 	}

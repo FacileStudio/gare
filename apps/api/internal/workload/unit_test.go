@@ -189,9 +189,7 @@ func workloadWriterCases() map[string]workloadWriterCase {
 		"compose": {
 			previous:    systemd.KubeUnitDescription("myapp"),
 			description: systemd.ComposeUnitDescription("myapp"),
-			write: func(ctx context.Context, app App) error {
-				return writeComposeUnit(ctx, app, "compose.yml")
-			},
+			write:       writeSeededComposeUnit,
 		},
 	}
 }

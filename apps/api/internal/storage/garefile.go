@@ -14,6 +14,7 @@ import (
 type GareFile struct {
 	Type          string         `yaml:"type"`
 	ComposeFile   string         `yaml:"compose_file,omitempty"`
+	Service       string         `yaml:"service,omitempty"`
 	Port          int            `yaml:"port"`
 	ContainerPort int            `yaml:"container_port,omitempty"`
 	Containerfile string         `yaml:"containerfile"`

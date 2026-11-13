@@ -23,14 +23,15 @@ func allFlags() Flags {
 }
 
 func allFile() *storage.GareFile {
-	return &storage.GareFile{Type: "static", ComposeFile: "file.yml", Containerfile: "File.Containerfile",
+	return &storage.GareFile{Type: "static", ComposeFile: "file.yml", Service: "filesvc", Containerfile: "File.Containerfile",
 		Context: "filectx", StaticDir: "filedir", BuildCmd: "file build", Healthcheck: "/file",
 		Port: 9002, ContainerPort: 3002, Tags: []string{"file"},
 		Healthchecks: []health.Probe{{Name: "file", Port: 9002, Path: "/file"}}}
 }
 
 func allStored() *storage.AppConfig {
-	return &storage.AppConfig{Name: "app", AppType: "compose", ComposeFile: "stored.yml",
+	return &storage.AppConfig{Name: "app", AppType: "compose",
+		ComposeRoute:  storage.ComposeRoute{ComposeFile: "stored.yml", Service: "storedsvc"},
 		Containerfile: "Stored.Containerfile", ContextDir: "storedctx", StaticDir: "storeddir",
 		BuildCmd: "stored build", Port: 9003, ContainerPort: 3003, Tags: []string{"stored"},
 		Health: &storage.HealthSection{Path: "/stored", Probes: []health.Probe{{Name: "stored", Port: 9003}}}}
@@ -46,6 +47,7 @@ func keyCases() []keyCase {
 	return []keyCase{
 		{"type", func(c *storage.AppConfig) any { return c.AppType }, [4]any{"container", "static", "compose", "container"}},
 		{"compose_file", func(c *storage.AppConfig) any { return c.ComposeFile }, [4]any{"flag.yml", "file.yml", "stored.yml", ""}},
+		{"service", func(c *storage.AppConfig) any { return c.Service }, [4]any{"filesvc", "filesvc", "storedsvc", ""}},
 		{"containerfile", func(c *storage.AppConfig) any { return c.Containerfile }, [4]any{"Flag.Containerfile", "File.Containerfile", "Stored.Containerfile", ""}},
 		{"context", func(c *storage.AppConfig) any { return c.ContextDir }, [4]any{"flagctx", "filectx", "storedctx", ""}},
 		{"static_dir", func(c *storage.AppConfig) any { return c.StaticDir }, [4]any{"flagdir", "filedir", "storeddir", ""}},
