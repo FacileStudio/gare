@@ -130,12 +130,17 @@ func (h *harness) do(method, target string, header http.Header) *http.Response {
 
 // sessions counts porte's session rows in the scratch schema.
 func (h *harness) sessions() int {
+	return h.count("porte_sessions")
+}
+
+// count is the number of rows in one of porte's tables in the scratch schema.
+func (h *harness) count(table string) int {
 	h.t.Helper()
-	var count int
-	if err := h.db.QueryRow("SELECT count(*) FROM porte_sessions").Scan(&count); err != nil {
-		h.t.Fatalf("count sessions: %v", err)
+	var n int
+	if err := h.db.QueryRow("SELECT count(*) FROM " + table).Scan(&n); err != nil {
+		h.t.Fatalf("count %s: %v", table, err)
 	}
-	return count
+	return n
 }
 
 // scratchURL creates a schema of its own for the test, dropped afterwards,

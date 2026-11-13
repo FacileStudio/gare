@@ -32,6 +32,7 @@ type Service struct {
 // than the first sign-in.
 func New(ctx context.Context, db *sql.DB, cfg Config) (*Service, error) {
 	store := pg.New(db)
+	identities := store.Identities()
 	sessions, err := session.New(cfg.Porte, session.Deps{Sessions: store.Sessions(), Logger: cfg.Logger})
 	if err != nil {
 		return nil, err
@@ -43,8 +44,8 @@ func New(ctx context.Context, db *sql.DB, cfg Config) (*Service, error) {
 	}
 	service.deletions = newDeletions(cfg, store, service.accounts)
 	service.oidc, err = oidc.New(ctx, cfg.Porte, oidc.Deps{
-		Users:      gatedUsers{inner: store.Users(), allow: service.allow},
-		Identities: store.Identities(),
+		Users:      gatedUsers{inner: store.Users(), identities: identities, forget: forgetRefused(db), allow: service.allow},
+		Identities: identities,
 		Codes:      noLoginCodes{},
 		Sessions:   sessions,
 		Logger:     cfg.Logger,

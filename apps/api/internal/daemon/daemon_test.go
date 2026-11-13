@@ -26,19 +26,28 @@ func TestMeNeedsASession(t *testing.T) {
 }
 
 // TestAnAddressOffTheListIsRefusedWithoutASession proves the allowlist sends a
-// stranger back to the login page and stores no session for them.
+// stranger back to the login page and leaves no account, identity link or
+// session for them, while an operator who was there first keeps their rows.
 func TestAnAddressOffTheListIsRefusedWithoutASession(t *testing.T) {
 	h := newHarness(t, "", "ops@example.test")
+	h.signIn("ops@example.test")
 	landed := h.signIn("stranger@example.test")
 	parsed, err := url.Parse(landed)
 	if err != nil || parsed.Path != "/login" || parsed.Query().Get("error") == "" {
 		t.Fatalf("refused login landed on %q, want /login?error=...", landed)
 	}
-	if n := h.sessions(); n != 0 {
-		t.Fatalf("a refused login left %d session rows", n)
-	}
-	if response := h.do(http.MethodGet, h.base+"/api/me", nil); response.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("GET /api/me after a refusal = %d, want 401", response.StatusCode)
+	assertRows(t, h, 1, 1, 1)
+	h.restart("someone-else@example.test")
+	h.signIn("ops@example.test")
+	assertRows(t, h, 1, 1, 1)
+}
+
+// assertRows checks porte's account, identity and session row counts.
+func assertRows(t *testing.T, h *harness, users, identities, sessions int) {
+	t.Helper()
+	got := [3]int{h.count("porte_users"), h.count("porte_identities"), h.sessions()}
+	if want := [3]int{users, identities, sessions}; got != want {
+		t.Fatalf("users, identities, sessions = %v, want %v", got, want)
 	}
 }
 

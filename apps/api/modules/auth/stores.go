@@ -19,27 +19,38 @@ var errNoCLILogin = errors.New("gare has no CLI sign-in")
 
 // gatedUsers is the porte.UserStore porte/oidc writes through on every
 // sign-in, so the allowlist is enforced at the one point porte asks the app to
-// accept an account. A refused address gets no identity row and no session,
-// because porte stops at the error before writing either.
+// accept an account. porte's upsert commits the account and the identity link
+// in its own transaction before the gate can refuse, so forget takes back the
+// rows a refused login created. A refusal still leaves what existed before
+// it: an account or link that was already there keeps its row, and porte's
+// profile refresh of it stays applied. It never gets a session.
 type gatedUsers struct {
-	inner porte.UserStore
-	allow allowlist
+	inner      accountStore
+	identities identityFinder
+	forget     func(context.Context, loginRows) error
+	allow      allowlist
 }
 
 // UpsertFromOIDC runs porte's own upsert first and decides afterwards, so a
-// refusal does the same database work as an acceptance and its timing does
-// not tell an outsider which addresses are on the list. Only a verified
-// address counts: an unverified claim is whatever the person typed.
+// refusal walks the same lookups and writes as an acceptance before its
+// cleanup. Only a verified address counts: an unverified claim is whatever the
+// person typed.
 func (g gatedUsers) UpsertFromOIDC(ctx context.Context, claims porte.Claims) (int64, error) {
-	userID, err := g.inner.UpsertFromOIDC(ctx, claims)
-	allowed := g.allow.allows(claims.Email) && claims.EmailVerified
+	rows, err := g.before(ctx, claims)
 	if err != nil {
 		return 0, err
 	}
-	if !allowed {
-		return 0, troncerrors.Forbidden(refusedMessage)
+	rows.userID, err = g.inner.UpsertFromOIDC(ctx, claims)
+	if err != nil {
+		return 0, err
 	}
-	return userID, nil
+	if g.allow.allows(claims.Email) && claims.EmailVerified {
+		return rows.userID, nil
+	}
+	if err := g.forget(ctx, rows); err != nil {
+		return 0, err
+	}
+	return 0, troncerrors.Forbidden(refusedMessage)
 }
 
 // noLoginCodes is the porte.LoginCodeStore of a daemon without CLI sign-in.
