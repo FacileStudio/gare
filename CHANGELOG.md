@@ -14,6 +14,8 @@
 
 - The app env file is round-trip safe. A value with a space, `#`, quotes or a newline survived the first write but was rewritten on the next `gare env set` or `unset` of any other key; `ab #cd` became `ab`. Values are now quoted the way systemd's `EnvironmentFile` reads them, and the parser decodes double quotes the systemd way, so `gare env list` shows what the service receives.
 - A key starting with `export` (for example `exporter`) is no longer cut to its remainder.
+- Deploy syncs the checkout with `git fetch` and a forced checkout instead of `git pull`, so a force-pushed branch or a build that modified a tracked file no longer leaves every later deploy failing. Untracked files are removed and gitignored files are kept.
+- A configured branch that starts with `-` or is not a valid git branch name is rejected before git runs, and `clone` passes the repository URL after `--`.
 - An app with no declared health check no longer fails every deploy when it answers 404 at `/`: the implicit probe on its port now passes on any HTTP answer. Declared probes (`healthcheck`, `healthchecks`, compose-derived) still require 2xx or 3xx.
 - Port discovery refuses when an app's `config.json` exists but cannot be read, instead of handing that app's port to a new one; `gare list` names such apps.
 
