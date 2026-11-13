@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
 	"github.com/FacileStudio/gare/apps/api/internal/git"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 	"github.com/FacileStudio/gare/apps/api/internal/systemd"
@@ -23,8 +24,20 @@ type DeployResult struct {
 // Deploy runs the deployment pipeline for a single application. Every workload type runs the same
 // tail: prepare its artifacts, sync ingress, restart the unit, verify health, then clean up. It
 // holds the app's lock from start to finish, so a CLI deploy and a webhook deploy of one app never
-// interleave their git sync, unit writes and config saves.
-func (e *Engine) Deploy(ctx context.Context, name string) (*DeployResult, error) {
+// interleave their git sync, unit writes and config saves. Each deploy is recorded with its log
+// from the moment it starts, before it waits for the lock, so the history shows it at once.
+func (e *Engine) Deploy(ctx context.Context, name string, opts DeployOptions) (*DeployResult, error) {
+	run, rec, err := e.startRecord(name, deploys.Request{Trigger: opts.Trigger}, opts.QueuedID)
+	if err != nil {
+		return nil, err
+	}
+	result, err := run.deploy(ctx, name, rec)
+	e.finishRecord(name, rec, err)
+	return result, err
+}
+
+// deploy runs one recorded deploy under the app's lock.
+func (e *Engine) deploy(ctx context.Context, name string, rec *deploys.Recorder) (*DeployResult, error) {
 	unlock, cfg, err := e.lockAndLoad(ctx, name)
 	if err != nil {
 		return nil, err
@@ -35,6 +48,8 @@ func (e *Engine) Deploy(ctx context.Context, name string) (*DeployResult, error)
 	if err != nil {
 		return nil, err
 	}
+	commit := DeployedCommit(ctx, repoDir)
+	e.recordCommit(name, rec, commit)
 	e.report(name).Verbose(fmt.Sprintf("Resolved %s app %s: repo %s, port %d, container port %d, unit %s",
 		cfg.AppType, name, repoDir, cfg.Port, cfg.ContainerPort, systemd.GetUnitPath(name)))
 	if err := w.Prepare(ctx, e.workloadApp(cfg), workload.Deploy); err != nil {
@@ -43,8 +58,17 @@ func (e *Engine) Deploy(ctx context.Context, name string) (*DeployResult, error)
 	if err := e.activate(ctx, cfg); err != nil {
 		return nil, err
 	}
-	return &DeployResult{Name: name, AppType: cfg.AppType, Commit: DeployedCommit(ctx, repoDir),
-		Target: deployTarget(cfg)}, nil
+	return &DeployResult{Name: name, AppType: cfg.AppType, Commit: commit, Target: deployTarget(cfg)}, nil
+}
+
+// recordCommit stores the commit a deploy runs in its record, once the checkout knows it.
+func (e *Engine) recordCommit(name string, rec *deploys.Recorder, commit string) {
+	if commit == "-" {
+		return
+	}
+	if err := rec.SetCommit(commit); err != nil {
+		e.report(name).Warn(fmt.Sprintf("Could not record the deployed commit (%v)", err))
+	}
 }
 
 // fetchRevision aligns the checkout with its remote, then settles the configuration the synced

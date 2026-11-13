@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FacileStudio/gare/apps/api/internal/deploys"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
@@ -19,7 +20,7 @@ func TestDeployWaitsForTheAppLock(t *testing.T) {
 	done := make(chan error, 1)
 	eng, sink := newTestEngine(store, Settings{})
 	go func() {
-		_, err := eng.Deploy(t.Context(), "app")
+		_, err := eng.Deploy(t.Context(), "app", DeployOptions{Trigger: deploys.TriggerCLI})
 		done <- err
 	}()
 	select {
