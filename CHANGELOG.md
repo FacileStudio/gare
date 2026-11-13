@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-13
+
+### Fixed
+
+- The release build installs the web client with bun 1.4.2, the version that wrote `apps/client/bun.lock`. The v0.14.0 tag exists but its release build failed before publishing anything, so v0.14.1 is the first release that carries the changes listed under 0.14.0.
+- CI installs the client with a frozen lockfile, checks it and builds it, so a lockfile the pinned bun cannot read fails a pull request instead of a release.
+
 ## [0.14.0] - 2026-11-13
 
 ### Added
