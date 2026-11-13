@@ -413,4 +413,6 @@ gare is released under the [GNU General Public License v3.0 only](LICENSE) (`GPL
 4. Unpack the release's `client/` into `~/.local/share/gare/client`.
 5. `systemctl --user daemon-reload && systemctl --user enable --now gare-db.service gare-server.service`.
 
+The daemon writes its log to `~/.local/state/gare/server.log` (create the directory first: `install -d -m 700 ~/.local/state/gare`), because a user unit's output does not always reach `journalctl --user`. `GARE_ADMIN_EMAILS` must hold the address your identity provider account uses, verified: a sign-in from any other address is refused.
+
 Behind a reverse proxy that runs in Docker, bind `GARE_LISTEN` to the Docker bridge gateway (for example `10.128.0.1:9120`) rather than to every interface, and point the proxy at that address.

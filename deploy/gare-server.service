@@ -10,6 +10,8 @@ EnvironmentFile=%h/.config/gare/server.env
 ExecStart=%h/.local/bin/gare server
 Restart=on-failure
 RestartSec=5s
+StandardOutput=append:%h/.local/state/gare/server.log
+StandardError=append:%h/.local/state/gare/server.log
 
 [Install]
 WantedBy=default.target
