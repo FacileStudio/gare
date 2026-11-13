@@ -498,6 +498,13 @@ To re-enable automatic deployments on Git push without Dokploy, deploy the `gare
 
 ### 1. Create the systemd service for gare server
 
+Create the webhook secret once, readable by you alone:
+
+```sh
+install -d -m 700 ~/.config/gare
+(umask 077; openssl rand -hex 32 > ~/.config/gare/webhook-secret)
+```
+
 Write `~/.config/systemd/user/gare-server.service`:
 
 ```ini
@@ -508,7 +515,7 @@ Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec
-ExecStart=%h/.local/bin/gare server --port 9000 --secret YOUR_WEBHOOK_SECRET
+ExecStart=%h/.local/bin/gare server --port 9000 --secret-file %h/.config/gare/webhook-secret
 Restart=always
 RestartSec=5s
 

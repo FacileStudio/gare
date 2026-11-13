@@ -261,8 +261,10 @@ A flag only overrides the file when you actually pass it, so a value in `~/.gare
 Start the webhook receiver to automate deploys on push:
 
 ```sh
-gare server --port 8080 --secret your-webhook-secret
+GARE_WEBHOOK_SECRET=your-webhook-secret gare server --port 8080
 ```
+
+The daemon refuses to start without a secret. It reads it from `--secret-file <path>` or from `GARE_WEBHOOK_SECRET`; it is never a command-line argument, because every user on the host can read argv.
 
 Endpoints:
 - `POST /webhook/<app-name>`: Authenticated webhook endpoint.

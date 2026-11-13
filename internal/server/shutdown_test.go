@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -49,12 +48,10 @@ func TestMaxBytesPayload(t *testing.T) {
 
 func TestShutdownWaitsForDeploy(t *testing.T) {
 	var deployFinished atomic.Bool
-	s := New(Config{
-		DeployHandler: func(ctx context.Context, appName string) error {
-			time.Sleep(80 * time.Millisecond)
-			deployFinished.Store(true)
-			return nil
-		},
+	s := newSignedServer(func(ctx context.Context, appName string) error {
+		time.Sleep(80 * time.Millisecond)
+		deployFinished.Store(true)
+		return nil
 	})
 	go s.Start("127.0.0.1:0")
 	addr := waitForServerAddr(s)
@@ -62,7 +59,7 @@ func TestShutdownWaitsForDeploy(t *testing.T) {
 		t.Fatal("server address not bound")
 	}
 
-	resp, err := http.Post("http://"+addr+"/webhook/app", "application/json", bytes.NewReader([]byte(`{}`)))
+	resp, err := signedPost("http://"+addr+"/webhook/app", []byte(`{}`))
 	if err != nil {
 		t.Fatalf("post error: %v", err)
 	}
@@ -80,11 +77,9 @@ func TestShutdownWaitsForDeploy(t *testing.T) {
 
 func TestShutdownTimeout(t *testing.T) {
 	release := make(chan struct{})
-	s := New(Config{
-		DeployHandler: func(ctx context.Context, appName string) error {
-			<-release
-			return nil
-		},
+	s := newSignedServer(func(ctx context.Context, appName string) error {
+		<-release
+		return nil
 	})
 	go s.Start("127.0.0.1:0")
 	addr := waitForServerAddr(s)
@@ -92,7 +87,7 @@ func TestShutdownTimeout(t *testing.T) {
 		t.Fatal("server address not bound")
 	}
 
-	resp, err := http.Post("http://"+addr+"/webhook/app", "application/json", bytes.NewReader([]byte(`{}`)))
+	resp, err := signedPost("http://"+addr+"/webhook/app", []byte(`{}`))
 	if err != nil {
 		t.Fatalf("post error: %v", err)
 	}

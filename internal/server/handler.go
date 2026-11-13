@@ -38,7 +38,7 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.secret != "" && !s.verifyAuth(r, body) {
+	if !s.verifyAuth(r, body) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Security
+
+- `gare server` refuses to start without a webhook secret, and the server refuses every webhook when it has none. The secret is read from `--secret-file` or `GARE_WEBHOOK_SECRET`; the `--secret` flag is removed, because argv is readable by every user on the host.
+- The app env file, `config.json` and `manifest.yaml` are written `0600`.
+
+### Fixed
+
+- The app env file is round-trip safe. A value with a space, `#`, quotes or a newline survived the first write but was rewritten on the next `gare env set` or `unset` of any other key; `ab #cd` became `ab`. Values are now quoted the way systemd's `EnvironmentFile` reads them, and the parser decodes double quotes the systemd way, so `gare env list` shows what the service receives.
+- A key starting with `export` (for example `exporter`) is no longer cut to its remainder.
+- Port discovery refuses when an app's `config.json` exists but cannot be read, instead of handing that app's port to a new one; `gare list` names such apps.
+
+### Changed
+
+- **Breaking:** `gare server --secret` is gone. Use `GARE_WEBHOOK_SECRET` or `--secret-file`.
+- Double-quoted values in an env file follow systemd's escapes: `\n` inside double quotes stays a backslash and an `n`, as systemd passes it to the service.
+
 ## [0.13.6] - 2026-11-11
 
 ### Security
