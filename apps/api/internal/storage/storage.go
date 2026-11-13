@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/FacileStudio/gare/apps/api/internal/atomicfile"
-	"github.com/FacileStudio/gare/apps/api/internal/xdg"
 )
 
 // AppConfig represents an application's configuration and deployment metadata.
@@ -28,27 +27,14 @@ type AppConfig struct {
 	Tags          []string       `json:"tags,omitempty"`
 }
 
-// DefaultBaseDir returns the default directory path for app storage.
-func DefaultBaseDir() string {
-	return filepath.Join(xdg.DataHome(), "gare", "apps")
-}
-
-// GetAppDir returns the directory path for a named app.
-func GetAppDir(baseDir, name string) string {
-	if baseDir == "" {
-		baseDir = DefaultBaseDir()
-	}
-	return filepath.Join(baseDir, name)
-}
-
 // GetConfigPath returns the config.json path within an app directory.
 func GetConfigPath(appDir string) string {
 	return filepath.Join(appDir, "config.json")
 }
 
-// SaveConfig writes an AppConfig to the app directory's config.json atomically, readable by its
+// saveConfig writes an AppConfig to the app directory's config.json atomically, readable by its
 // owner alone.
-func SaveConfig(appDir string, cfg *AppConfig) error {
+func saveConfig(appDir string, cfg *AppConfig) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -57,8 +43,8 @@ func SaveConfig(appDir string, cfg *AppConfig) error {
 	return atomicfile.WriteFile(GetConfigPath(appDir), data, 0600)
 }
 
-// LoadConfig reads an AppConfig from the app directory's config.json.
-func LoadConfig(appDir string) (*AppConfig, error) {
+// loadConfig reads an AppConfig from the app directory's config.json.
+func loadConfig(appDir string) (*AppConfig, error) {
 	data, err := os.ReadFile(GetConfigPath(appDir))
 	if err != nil {
 		return nil, err
@@ -70,9 +56,4 @@ func LoadConfig(appDir string) (*AppConfig, error) {
 	migrateDomain(&cfg, data)
 	migrateHealth(&cfg, data)
 	return &cfg, nil
-}
-
-// DeleteAppStorage removes the application directory and all its contents.
-func DeleteAppStorage(appDir string) error {
-	return os.RemoveAll(appDir)
 }

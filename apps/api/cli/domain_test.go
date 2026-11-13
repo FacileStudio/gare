@@ -19,7 +19,7 @@ func setupDomainTestApp(t *testing.T, tmpDir, name string, domains []string) *st
 		Port:    8080,
 		Domains: domains,
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	return cfg
@@ -38,7 +38,7 @@ func TestDomainAddAndDuplicate(t *testing.T) {
 	}
 
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "app1")
-	cfg, err := storage.LoadConfig(appDir)
+	cfg, err := storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if err != nil || len(cfg.Domains) != 1 || cfg.Domains[0] != "app1.example.com" {
 		t.Fatalf("expected app1.example.com domain, got: %+v", cfg)
 	}
@@ -85,7 +85,7 @@ func TestDomainRemove(t *testing.T) {
 		t.Fatalf("unexpected error removing domain: %v", err)
 	}
 
-	cfg, _ := storage.LoadConfig(filepath.Join(tmpDir, ".local", "share", "gare", "apps", "myapp"))
+	cfg, _ := storage.Open(filepath.Join(tmpDir, ".local", "share", "gare", "apps")).Load("myapp")
 	if len(cfg.Domains) != 1 || cfg.Domains[0] != "b.example.com" {
 		t.Fatalf("expected b.example.com remaining, got: %+v", cfg.Domains)
 	}

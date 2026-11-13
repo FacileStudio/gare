@@ -149,7 +149,7 @@ func TestLoadConfigMigratesLegacyDomain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, err := LoadConfig(appDir)
+	cfg, err := loadConfig(appDir)
 	if err != nil {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestSaveConfigDropsLegacyDomain(t *testing.T) {
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := SaveConfig(appDir, cfg); err != nil {
+	if err := saveConfig(appDir, cfg); err != nil {
 		t.Fatal(err)
 	}
 

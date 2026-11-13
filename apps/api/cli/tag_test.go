@@ -18,7 +18,7 @@ func setupTagTestApp(t *testing.T, tmpDir, name string, tags []string) *storage.
 		Port: 8080,
 		Tags: tags,
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	return cfg
@@ -36,7 +36,7 @@ func TestTagAddAndDuplicate(t *testing.T) {
 	}
 
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "app1")
-	cfg, err := storage.LoadConfig(appDir)
+	cfg, err := storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if err != nil || len(cfg.Tags) != 2 || cfg.Tags[0] != "client-a" || cfg.Tags[1] != "prod" {
 		t.Fatalf("expected tags [client-a prod], got: %+v", cfg.Tags)
 	}
@@ -46,7 +46,7 @@ func TestTagAddAndDuplicate(t *testing.T) {
 	if err := dupCmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cfg, _ = storage.LoadConfig(appDir)
+	cfg, _ = storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if len(cfg.Tags) != 3 || cfg.Tags[2] != "api" {
 		t.Fatalf("expected 3 tags, got: %+v", cfg.Tags)
 	}
@@ -82,7 +82,7 @@ func TestTagRemove(t *testing.T) {
 	}
 
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "app1")
-	cfg, _ := storage.LoadConfig(appDir)
+	cfg, _ := storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if len(cfg.Tags) != 1 || cfg.Tags[0] != "client-a" {
 		t.Fatalf("expected only [client-a], got: %+v", cfg.Tags)
 	}

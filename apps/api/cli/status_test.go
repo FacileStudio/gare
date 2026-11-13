@@ -24,7 +24,7 @@ func TestStatusCmdJSON(t *testing.T) {
 		CreatedAt: "2026-09-17T00:00:00Z",
 		Health:    &storage.HealthSection{Path: "/health"},
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -57,7 +57,7 @@ func TestStatusCmdHuman(t *testing.T) {
 		RepoURL: "https://github.com/example/humanapp",
 		Branch:  "main",
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 

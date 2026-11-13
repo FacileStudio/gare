@@ -109,17 +109,17 @@ func runCreateApp(parentCtx context.Context, name string, opts appCreateOptions)
 	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Minute)
 	defer cancel()
 
-	baseDir := storage.DefaultBaseDir()
-	appDir := storage.GetAppDir(baseDir, name)
+	store := storage.Default()
+	appDir := store.AppDir(name)
 	if _, err := os.Stat(storage.GetConfigPath(appDir)); err == nil {
 		return fmt.Errorf("app %q already exists at %s", name, appDir)
 	}
 
 	if err := cloneAppRepo(ctx, appDir, opts); err != nil {
-		return errors.Join(err, storage.DeleteAppStorage(appDir))
+		return errors.Join(err, store.Delete(name))
 	}
 
-	return setupAppWorkload(ctx, baseDir, name, appDir, opts)
+	return setupAppWorkload(ctx, store, name, appDir, opts)
 }
 
 func deriveAppName(repoURL string) string {
@@ -132,12 +132,12 @@ func deriveAppName(repoURL string) string {
 	return strings.ToLower(cleaned)
 }
 
-func setupAppWorkload(ctx context.Context, baseDir, name, appDir string, opts appCreateOptions) error {
+func setupAppWorkload(ctx context.Context, store *storage.Store, name, appDir string, opts appCreateOptions) error {
 	resolvedOpts, err := resolveAppOptions(appDir, opts)
 	if err != nil {
 		return err
 	}
-	port, err := storage.DiscoverAvailablePort(baseDir, resolvedOpts.port)
+	port, err := store.AvailablePort(resolvedOpts.port)
 	if err != nil {
 		return fmt.Errorf("failed to discover port: %w", err)
 	}

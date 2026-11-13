@@ -20,6 +20,7 @@ type destroyOptions struct {
 // destroyPlan names everything one destroy acts on, so the teardown steps agree on the app and on
 // whether its data volumes go with it.
 type destroyPlan struct {
+	store    *storage.Store
 	name     string
 	appDir   string
 	workload storage.WorkloadType
@@ -36,13 +37,14 @@ func runDestroy(ctx context.Context, name string, opts destroyOptions) error {
 	if err := confirmDestroy(name, opts.yes, os.Stdin, os.Stdout, stdinIsTerminal()); err != nil {
 		return err
 	}
-	appDir := storage.GetAppDir(storage.DefaultBaseDir(), name)
-	cfg, workload, err := resolveDestroyWorkload(appDir)
+	store := storage.Default()
+	appDir := store.AppDir(name)
+	cfg, workload, err := resolveDestroyWorkload(store, name)
 	if err != nil {
 		printWarning(fmt.Sprintf("%v — tearing down only what does not depend on the workload type, so a workload may keep running and its image survives: check them with `podman ps` and `podman images`", err))
 	}
 	teardownServices(ctx, name)
-	removeArtifacts(ctx, destroyPlan{name: name, appDir: appDir, workload: workload, cfg: cfg, volumes: opts.volumes})
+	removeArtifacts(ctx, destroyPlan{store: store, name: name, appDir: appDir, workload: workload, cfg: cfg, volumes: opts.volumes})
 	reloadDaemons(ctx)
 	printSuccess(fmt.Sprintf("App %s completely destroyed", name))
 	return nil

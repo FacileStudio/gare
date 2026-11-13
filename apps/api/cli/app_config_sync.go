@@ -9,10 +9,10 @@ import (
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
-func syncGareFilePorts(baseDir string, cfg *storage.AppConfig, gf *storage.GareFile) error {
+func syncGareFilePorts(store *storage.Store, cfg *storage.AppConfig, gf *storage.GareFile) error {
 	reqPort := gf.Port
 	if reqPort > 0 && reqPort != cfg.Port {
-		if _, err := storage.DiscoverAvailablePort(baseDir, reqPort); err != nil {
+		if _, err := store.AvailablePort(reqPort); err != nil {
 			return fmt.Errorf("port %d in gare.yml is not available — choose another port: %w", reqPort, err)
 		}
 		cfg.Port = reqPort

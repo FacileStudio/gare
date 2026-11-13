@@ -81,7 +81,7 @@ func TestListCmdJSON(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "testapp")
 	cfg := &storage.AppConfig{Name: "testapp", Port: 8000, Domains: []string{"test.local"}}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	cmd := NewListCmd()
@@ -105,7 +105,7 @@ func TestListCmdQuiet(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "quietapp")
 	cfg := &storage.AppConfig{Name: "quietapp", Port: 8001, Domains: []string{"quiet.local"}}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	cmd := NewListCmd()
@@ -163,7 +163,7 @@ func TestAppListExecutionViaAppCmd(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "subapp")
 	cfg := &storage.AppConfig{Name: "subapp", Port: 8002, Domains: []string{"sub.local"}}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 

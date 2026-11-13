@@ -98,14 +98,14 @@ func saveAppMetadata(name, appDir string, opts appCreateOptions) error {
 	if err := appCfg.AddTags(opts.tags...); err != nil {
 		return fmt.Errorf("failed to add tags: %w", err)
 	}
-	if err := storage.SaveConfig(appDir, appCfg); err != nil {
+	if err := storage.Default().Save(appCfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	printSuccess(fmt.Sprintf("App %q successfully created on port %d", name, opts.port))
 	return nil
 }
 
-func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
+func syncGareFileConfig(store *storage.Store, repoDir string, cfg *storage.AppConfig) error {
 	gf, err := storage.LoadGareFile(repoDir)
 	if err != nil || gf == nil {
 		return err
@@ -123,7 +123,7 @@ func syncGareFileConfig(baseDir, repoDir string, cfg *storage.AppConfig) error {
 		return err
 	}
 	applyGareTags(cfg, gf)
-	if err := syncGareFilePorts(baseDir, cfg, gf); err != nil {
+	if err := syncGareFilePorts(store, cfg, gf); err != nil {
 		return err
 	}
 	applyGareWorkloadConfig(cfg, gf)

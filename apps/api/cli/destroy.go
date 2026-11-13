@@ -55,14 +55,15 @@ func teardownServices(ctx context.Context, name string) {
 // is torn down. destroy branches on this explicit type rather than on the IsStatic and IsCompose
 // predicates, which read a configuration gare could not load as a container workload — the reading
 // that once removed a compose stack's unit and storage while leaving the stack itself running.
-func resolveDestroyWorkload(appDir string) (*storage.AppConfig, storage.WorkloadType, error) {
-	cfg, err := storage.LoadConfig(appDir)
+func resolveDestroyWorkload(store *storage.Store, name string) (*storage.AppConfig, storage.WorkloadType, error) {
+	configPath := storage.GetConfigPath(store.AppDir(name))
+	cfg, err := store.Load(name)
 	if err != nil {
-		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read %s: %w", storage.GetConfigPath(appDir), err)
+		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read %s: %w", configPath, err)
 	}
 	workload, err := cfg.ResolveWorkloadType()
 	if err != nil {
-		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read the workload type from %s: %w", storage.GetConfigPath(appDir), err)
+		return nil, storage.WorkloadUnknown, fmt.Errorf("could not read the workload type from %s: %w", configPath, err)
 	}
 	return cfg, workload, nil
 }
@@ -74,7 +75,7 @@ func removeArtifacts(ctx context.Context, plan destroyPlan) {
 	teardownWorkload(ctx, plan)
 
 	printInfo(fmt.Sprintf("Removing app storage at %s...", plan.appDir))
-	bestEffort("removing storage", func() error { return storage.DeleteAppStorage(plan.appDir) })
+	bestEffort("removing storage", func() error { return plan.store.Delete(plan.name) })
 }
 
 // teardownWorkload tears down the workload itself, the one part of a destroy that depends on the

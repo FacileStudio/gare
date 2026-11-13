@@ -65,14 +65,15 @@ func artifactCases() map[string]artifactCase {
 
 func assertArtifactTeardown(t *testing.T, tc artifactCase) {
 	t.Helper()
-	appDir := t.TempDir()
+	store := storage.Open(t.TempDir())
+	appDir := store.AppDir("myapp")
 	logPath := stubPodman(t)
 	confDir := t.TempDir()
 	t.Setenv("GARE_CADDY_CONF_DIR", confDir)
 	seedSnippet(t, confDir, "myapp")
 	seedComposeRepo(t, appDir, tc.workload)
 
-	plan := destroyPlan{name: "myapp", appDir: appDir, workload: tc.workload, cfg: tc.cfg, volumes: tc.volumes}
+	plan := destroyPlan{store: store, name: "myapp", appDir: appDir, workload: tc.workload, cfg: tc.cfg, volumes: tc.volumes}
 	removeArtifacts(context.Background(), plan)
 
 	if got := recordedCalls(t, logPath); !slices.Equal(got, tc.wantPodman) {

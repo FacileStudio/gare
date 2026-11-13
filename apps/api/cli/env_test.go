@@ -25,7 +25,7 @@ func setupTestApp(t *testing.T, name string, isStatic bool) (string, string) {
 		Port:    8080,
 		AppType: appType,
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	manifestPath := storage.GetManifestPath(appDir)

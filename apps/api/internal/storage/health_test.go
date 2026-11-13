@@ -66,7 +66,7 @@ func TestMigrateLegacyHealthcheck(t *testing.T) {
 	if err := writeLegacyConfig(appDir, `{"name":"legacy","port":8000,"healthcheck":"/healthz"}`); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := LoadConfig(appDir)
+	cfg, err := loadConfig(appDir)
 	if err != nil {
 		t.Fatalf("failed to load legacy config: %v", err)
 	}

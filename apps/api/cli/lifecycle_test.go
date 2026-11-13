@@ -14,7 +14,7 @@ func TestLifecycleUnitNotFound(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", "testcontainer")
 	cfg := &storage.AppConfig{Name: "testcontainer", AppType: "compose"}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -40,7 +40,7 @@ func TestStartContainerImageMissing(t *testing.T) {
 	name := "gare-missing-image-test"
 	appDir := filepath.Join(tmpDir, ".local", "share", "gare", "apps", name)
 	cfg := &storage.AppConfig{Name: name, AppType: "container", Port: 8000}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 

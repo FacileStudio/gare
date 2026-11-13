@@ -134,10 +134,10 @@ func TestStaticConfigStorage(t *testing.T) {
 		StaticDir: "public",
 		BuildCmd:  "npm run build",
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := storage.LoadConfig(appDir)
+	loaded, err := storage.Open(filepath.Dir(appDir)).Load(filepath.Base(appDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestListCmdStaticTable(t *testing.T) {
 		Domains: []string{"static.local"},
 		AppType: "static",
 	}
-	if err := storage.SaveConfig(appDir, cfg); err != nil {
+	if err := storage.Open(filepath.Dir(appDir)).Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	cmd := NewListCmd()
@@ -232,7 +232,7 @@ func TestRepoPathsOutsideTheRepositoryAreRejected(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, createErr := resolveAppOptions(appDir, appCreateOptions{repo: "https://example.com/repo.git"})
-		deployErr := syncGareFileConfig(t.TempDir(), repoDir, &storage.AppConfig{Name: "app"})
+		deployErr := syncGareFileConfig(storage.Open(t.TempDir()), repoDir, &storage.AppConfig{Name: "app"})
 		for _, err := range []error{createErr, deployErr} {
 			if err == nil || !strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "../x") {
 				t.Errorf("gare.yml %s: ../x: expected a rejection naming key and value, got %v", key, err)
