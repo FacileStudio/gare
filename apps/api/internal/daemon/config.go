@@ -6,6 +6,7 @@ package daemon
 
 import (
 	"errors"
+	"net"
 	"path/filepath"
 
 	"github.com/FacileStudio/gare/apps/api/internal/xdg"
@@ -18,6 +19,10 @@ import (
 // loopback only, so a fresh install exposes nothing until the operator puts a
 // proxy in front of it.
 const DefaultListen = "127.0.0.1:9120"
+
+// ListenEnv names the variable that sets the daemon's whole address, host
+// included. It is the only way to bind anything other than loopback.
+const ListenEnv = "GARE_LISTEN"
 
 // Config is the daemon's environment. The OIDC names are the ones every suite
 // app reads, so one deployment panel spells them the same way everywhere.
@@ -39,7 +44,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return Config{
-		Listen:      troncenv.String("GARE_LISTEN", DefaultListen),
+		Listen:      ListenFromEnv(""),
 		DatabaseURL: troncenv.String("DATABASE_URL", ""),
 		ClientDir:   troncenv.String("CLIENT_DIR", filepath.Join(xdg.DataHome(), "gare", "client")),
 		Auth: auth.Config{
@@ -49,6 +54,27 @@ func Load() (Config, error) {
 			TokenKey:    troncenv.String(auth.TokenKeyEnv, ""),
 		},
 	}, nil
+}
+
+// ListenAddress resolves the address the daemon binds. An explicit listen
+// address always wins, since it is the one setting that names a host;
+// otherwise port, when given, replaces only the port of DefaultListen, so a
+// --port flag never widens the bind to every interface.
+func ListenAddress(listen, port string) string {
+	if listen != "" {
+		return listen
+	}
+	if port == "" {
+		return DefaultListen
+	}
+	host, _, _ := net.SplitHostPort(DefaultListen)
+	return net.JoinHostPort(host, port)
+}
+
+// ListenFromEnv is ListenAddress over GARE_LISTEN, shared by Load and by both
+// modes of `gare server`, so every path resolves its address one way.
+func ListenFromEnv(port string) string {
+	return ListenAddress(troncenv.String(ListenEnv, ""), port)
 }
 
 // loadPorte reads porte's half of the environment under the suite's names.

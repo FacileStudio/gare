@@ -515,7 +515,8 @@ Wants=podman-user-wait-network-online.service
 
 [Service]
 Type=exec
-ExecStart=%h/.local/bin/gare server --port 9000 --secret-file %h/.config/gare/webhook-secret
+Environment=GARE_LISTEN=127.0.0.1:9000
+ExecStart=%h/.local/bin/gare server --secret-file %h/.config/gare/webhook-secret
 Restart=always
 RestartSec=5s
 
@@ -536,7 +537,7 @@ Create `/etc/caddy/conf.d/gare-webhook.caddy`:
 
 ```caddyfile
 gare.facile.studio {
-	reverse_proxy localhost:9000
+	reverse_proxy 127.0.0.1:9000
 }
 ```
 

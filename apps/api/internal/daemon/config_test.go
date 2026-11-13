@@ -27,6 +27,28 @@ func TestLoadWithoutOIDCKeepsTheAPIOff(t *testing.T) {
 	}
 }
 
+// TestListenAddress proves an explicit GARE_LISTEN always wins, and that
+// --port alone changes only the port of the loopback default, never the host.
+func TestListenAddress(t *testing.T) {
+	cases := []struct{ listen, port, want string }{
+		{"", "", DefaultListen},
+		{"", "9000", "127.0.0.1:9000"},
+		{"", "8080", "127.0.0.1:8080"},
+		{"0.0.0.0:9120", "", "0.0.0.0:9120"},
+		{"10.0.0.1:7000", "9000", "10.0.0.1:7000"},
+		{"[::1]:9120", "9000", "[::1]:9120"},
+	}
+	for _, c := range cases {
+		if got := ListenAddress(c.listen, c.port); got != c.want {
+			t.Errorf("ListenAddress(%q, %q) = %q, want %q", c.listen, c.port, got, c.want)
+		}
+	}
+	t.Setenv(ListenEnv, " 0.0.0.0:7000 ")
+	if got := ListenFromEnv("9000"); got != "0.0.0.0:7000" {
+		t.Errorf("ListenFromEnv with GARE_LISTEN set = %q, want 0.0.0.0:7000", got)
+	}
+}
+
 // TestTheClientDefaultsUnderXDGDataHome proves an unset CLIENT_DIR resolves to
 // an absolute directory under XDG_DATA_HOME, not to a path relative to
 // wherever systemd started the daemon, and that CLIENT_DIR still wins.

@@ -282,6 +282,8 @@ Start the webhook receiver to automate deploys on push:
 GARE_WEBHOOK_SECRET=your-webhook-secret gare server --port 8080
 ```
 
+The daemon listens on loopback only, `127.0.0.1:8080` here: `--port` changes the port and never the host. Put a reverse proxy in front of it, or set `GARE_LISTEN` to the whole address to bind another interface. `GARE_LISTEN` wins over `--port`.
+
 The daemon refuses to start without a secret. It reads it from `--secret-file <path>` or from `GARE_WEBHOOK_SECRET`; it is never a command-line argument, because every user on the host can read argv.
 
 Endpoints:
@@ -312,7 +314,7 @@ Queueing: each app has at most one deploy running and one pending. Every deploy 
 `gare server` also serves the API under `/api` and the web UI once `OIDC_ISSUER` is set. Without it, the daemon logs `API and web UI disabled` and serves the webhook endpoints alone, exactly as before, and never opens a database. An existing install keeps working with no change.
 
 With the API on, the daemon:
-- listens on `GARE_LISTEN` (default `127.0.0.1:9120`). An explicit `--port` overrides it with `:<port>`.
+- listens on `GARE_LISTEN` (default `127.0.0.1:9120`). Without `GARE_LISTEN`, `--port` changes only the port, giving `127.0.0.1:<port>`.
 - opens `DATABASE_URL`, applies its migrations at start and exits non-zero when they fail. Postgres holds porte's sign-in tables only; apps, env and deploys stay files. `deploy/compose.yml` runs one.
 - signs operators in through the suite's identity provider with porte, single sign-on only. No password route exists.
 - lets in only the addresses in `GARE_ADMIN_EMAILS` (comma separated, case-insensitive). The daemon refuses to start when the list is empty, since it would let nobody in. A refused sign-in lands on `/login?error=<message>` with no session. porte writes an account and an identity link before gare can refuse, so gare deletes the ones that attempt created; an account or link that existed before the attempt keeps its row, with the name and picture porte refreshed from the provider. Removing an address deletes all its sessions on their next request to the API, so putting it back needs a new sign-in.
