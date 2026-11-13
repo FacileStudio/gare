@@ -82,18 +82,22 @@ func (s *Service) Run(ctx context.Context) {
 	s.deletions.Run(ctx)
 }
 
-// Identity resolves the session's user and holds it to the allowlist, so a
-// session whose address was removed from GARE_ADMIN_EMAILS stops working on
-// its next request instead of living out its thirty days.
+// Identity resolves the session's user and holds it to the allowlist. A user
+// whose address was removed from GARE_ADMIN_EMAILS loses every session on
+// their next request, so putting the address back does not revive an old
+// cookie, and porte's own routes such as sync-profile stop accepting it too.
 func (s *Service) Identity(ctx context.Context, userID int64) (kit.Identity, error) {
 	identity, err := s.accounts.Identity(ctx, userID)
 	if err != nil {
 		return kit.Identity{}, err
 	}
-	if !s.allow.allows(identity.Email) {
-		return kit.Identity{}, troncerrors.Unauthorized(revokedMessage)
+	if s.allow.allows(identity.Email) {
+		return identity, nil
 	}
-	return identity, nil
+	if _, err := s.sessions.RevokeUser(ctx, userID); err != nil {
+		return kit.Identity{}, troncerrors.Internal("failed to end the sessions of a removed address", err)
+	}
+	return kit.Identity{}, troncerrors.Unauthorized(revokedMessage)
 }
 
 // RequireAuth is the middleware every operator route sits behind: porte
