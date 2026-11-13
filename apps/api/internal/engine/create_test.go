@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/FacileStudio/gare/apps/api/internal/appconfig"
-	"github.com/FacileStudio/gare/apps/api/internal/caddy"
+	"github.com/FacileStudio/gare/apps/api/internal/ingress"
 	"github.com/FacileStudio/gare/apps/api/internal/storage"
 )
 
@@ -123,10 +123,10 @@ func TestStaticIngressProxiesToTheContainerPort(t *testing.T) {
 	t.Setenv("GARE_CADDYFILE", filepath.Join(confDir, "Caddyfile"))
 	cfg := &storage.AppConfig{Name: "static-app", Domains: []string{"static.test"}, Port: 8080, AppType: "static", StaticDir: "public"}
 
-	if err := syncAppIngress(cfg); err != nil {
+	if err := ingress.WriteSnippet(confDir, cfg.Name, cfg.Domains, cfg.Port); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	content, err := os.ReadFile(caddy.GetSnippetPath(confDir, "static-app"))
+	content, err := os.ReadFile(ingress.GetSnippetPath(confDir, "static-app"))
 	if err != nil {
 		t.Fatalf("failed to read the snippet: %v", err)
 	}
