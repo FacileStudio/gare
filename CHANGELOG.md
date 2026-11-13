@@ -4,6 +4,8 @@
 
 ### Added
 
+- Every deploy is recorded under `apps/<name>/deploys/<id>/` with its status, trigger, commit and full log; the last 50 per app are kept. `gare deploys <app> [--json]` lists them and `gare deploys <app> <id> --log` prints a log, following it while the deploy runs.
+- Container deploys roll back by themselves: when the health check fails after the restart, gare runs the image of the last successful deploy again and records the failed deploy as `rolled-back`. `gare rollback <app> [<deploy id>]` does the same on demand. Static and compose apps cannot be rolled back.
 - Compose apps can name the `service` to route to and its `container_port` in `gare.yml`; gare publishes it on a gare-assigned loopback port through `apps/<name>/compose.gare.yml`, so a compose file that only `expose`s its port (as the Facile suite files do) runs unmodified.
 - The compose unit creates every network the compose file declares `external: true` (such as `dokploy-network`) before each start.
 - `gare server` serves the API under `/api` and the web UI from `CLIENT_DIR` once `OIDC_ISSUER` is set, listening on `GARE_LISTEN` (default `127.0.0.1:9120`). It migrates `DATABASE_URL` at start and exits non-zero when the migrations fail.
@@ -41,6 +43,7 @@
 
 ### Changed
 
+- Container images are tagged `localhost/<name>:<commit>` as well as `:latest`, and the pod manifest runs the commit tag; the last 5 commit tags are kept. `gare destroy` removes every tag of the app's image.
 - **Breaking:** `gare server` in webhook-only mode listens on `127.0.0.1:<port>` instead of every interface. Set `GARE_LISTEN=0.0.0.0:<port>` to keep receiving webhooks without a reverse proxy.
 - The daemon refuses to start with `OIDC_ISSUER` set and `GARE_ADMIN_EMAILS` empty, instead of refusing every sign-in silently.
 - `CLIENT_DIR` defaults to `$XDG_DATA_HOME/gare/client` instead of `./client`, and the start log says whether the web UI is served and from where.
