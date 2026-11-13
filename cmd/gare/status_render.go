@@ -47,8 +47,13 @@ func workloadSection(d *AppStatusDetails, bold lipgloss.Style) *tree.Tree {
 }
 
 // appendProbes lists the individual probes only when there is more than one, because a single probe
-// repeats the health path already shown above it.
+// repeats the health path already shown above it. A lone implicit probe has no path to show, so it
+// says what it accepts instead.
 func appendProbes(section *tree.Tree, d *AppStatusDetails) {
+	if len(d.Probes) == 1 && d.Probes[0].AnyAnswer {
+		section.Child("Health: any HTTP answer at " + probeTarget(d.Probes[0]))
+		return
+	}
 	if len(d.Probes) < 2 {
 		return
 	}

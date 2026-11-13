@@ -38,7 +38,8 @@ func (c *AppConfig) HealthPath() string {
 	return c.Health.Path
 }
 
-// HealthProbes returns the configured probes, defaulting to the primary port and path.
+// HealthProbes returns the configured probes, defaulting to the primary port and path. The default
+// probe is declared when a health path is set; without one it is implicit and passes on any answer.
 func (c *AppConfig) HealthProbes() []health.Probe {
 	if c == nil {
 		return nil
@@ -49,7 +50,8 @@ func (c *AppConfig) HealthProbes() []health.Probe {
 	if c.Port <= 0 {
 		return nil
 	}
-	return []health.Probe{{Name: c.Name, Port: c.Port, Path: c.HealthPath()}}
+	path := c.HealthPath()
+	return []health.Probe{{Name: c.Name, Port: c.Port, Path: path, AnyAnswer: path == ""}}
 }
 
 // SetHealth stores the primary health path and any explicit probes, clearing them when empty.

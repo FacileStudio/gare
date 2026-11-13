@@ -45,7 +45,7 @@ func verifyHealthProbes(ctx context.Context, probes []health.Probe, appName stri
 	for _, probe := range probes {
 		target := probeTarget(probe)
 		printInfo(fmt.Sprintf("Verifying health probe %s at %s...", probe.Label(), target))
-		if err := health.Verify(ctx, target, 30*time.Second); err != nil {
+		if err := health.Verify(ctx, probe, target, 30*time.Second); err != nil {
 			return fmt.Errorf("health probe %s failed — check the service with `gare logs %s`: %w", probe.Label(), appName, err)
 		}
 	}
