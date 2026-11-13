@@ -44,7 +44,7 @@ internal/
   caddy/              caddy configuration snippets and reloads
   compose/            compose file discovery, published ports, derived probes
   dotenv/             dotenv parsing and writing
-  git/                git clone, pull, commit lookup and credential plumbing
+  git/                git clone, fetch-and-reset sync, commit lookup and credential plumbing
   health/             the readiness probe type and HTTP polling
   manifest/           Pod manifest generation and env/port rewriting
   podman/             podman build, image, Containerfile and compose CLI invocation
@@ -73,7 +73,7 @@ internal/
 - Never add inline comments in Go code or comments in function bodies.
 - Package `cmd/gare` must remain `package main`: the rule covers every `.go` file directly under `cmd/gare/`, which are the Cobra commands, and a subdirectory there is free to declare its own package, as `cmd/gare/config` does.
 - Write systemd service units and Caddy configurations atomically: write temporary file, sync, rename.
-- Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git pull`).
+- Stream stdout and stderr directly to the terminal during long-running tasks (`podman build`, `git clone`, `git fetch`).
 - Clean up resources completely on destroy: stop unit, disable it, remove the unit file, its enable link and any Quadlet source an older gare left behind, remove Caddy snippet, remove storage directory, remove local container image, reload systemd and Caddy. Compose named volumes go only with `--volumes`, and a destroy runs only with `--yes` or the app name typed back on a terminal, because it cannot be undone.
 - Fail fast when podman cannot run the generated units: probe `podman kube play` for `--service-container` before touching anything else, so a podman older than 5.0 cannot leave a workload stopped or half-retired.
 - Every `localhost/<name>` image a generated or adopted Pod manifest runs carries `imagePullPolicy: Never`. The image exists only in Podman's local storage, since gare builds it, so an unset policy leaves `podman kube play` to resolve it as `docker://localhost/<name>` and fail wherever nothing answers as a registry on `localhost` — a restart loop whose journal looks like a deployment bug.

@@ -196,7 +196,7 @@ gare list -t prod
 gare deploy myapp
 ```
 
-Pulls latest Git changes, updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe. An application with domains is only reported deployed once Caddy has accepted the snippet and answered an HTTP request for every hostname it is configured with; an application reachable on its assigned port alone is deployed without an ingress probe. Compose workloads skip the image build and manifest sync and validate the compose file instead.
+Resets the checkout to the tip of the configured branch on the remote (fetch, forced checkout, then removal of untracked files; ignored files stay), updates Kubernetes manifests, builds the container image with rootless Podman, reloads systemd and Caddy, and verifies the readiness probe. An application with domains is only reported deployed once Caddy has accepted the snippet and answered an HTTP request for every hostname it is configured with; an application reachable on its assigned port alone is deployed without an ingress probe. Compose workloads skip the image build and manifest sync and validate the compose file instead.
 
 ### 7. Lifecycle and status inspection
 

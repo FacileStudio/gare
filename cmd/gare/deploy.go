@@ -54,9 +54,11 @@ func RunDeploy(ctx context.Context, name string) error {
 }
 
 func fetchAppRevision(ctx context.Context, baseDir, appDir, repoDir string, cfg *storage.AppConfig) error {
-	printInfo(fmt.Sprintf("Pulling latest git changes for %s...", cfg.Name))
-	if err := git.Pull(ctx, repoDir, settingsFrom(ctx).auth, os.Stdout, os.Stderr); err != nil {
-		return fmt.Errorf("git pull failed: %w", err)
+	printInfo(fmt.Sprintf("Syncing %s with its git remote...", cfg.Name))
+	opts := git.SyncOptions{RepoDir: repoDir, Branch: cfg.Branch, Auth: settingsFrom(ctx).auth,
+		Stdout: os.Stdout, Stderr: os.Stderr}
+	if err := git.Sync(ctx, opts); err != nil {
+		return fmt.Errorf("git sync failed: %w", err)
 	}
 	return syncDeployConfig(baseDir, repoDir, appDir, cfg)
 }
