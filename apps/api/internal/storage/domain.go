@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -34,39 +33,14 @@ func NormalizeDomain(hostname string) string {
 	return strings.ToLower(strings.TrimSpace(hostname))
 }
 
-// DomainHostPort splits a domain into the hostname an ingress serves it under and the explicit port
-// it carries, reporting no port when it names none, so a probe addresses the name the ingress serves
-// rather than the socket it serves it on.
-func DomainHostPort(hostname string) (string, int) {
-	idx := strings.LastIndex(hostname, ":")
-	if idx < 0 {
-		return hostname, 0
-	}
-	port, err := strconv.Atoi(hostname[idx+1:])
-	if err != nil || port <= 0 || port > 65535 {
-		return hostname, 0
-	}
-	return hostname[:idx], port
-}
-
-// AppByDomain scans all apps for one owning the given hostname.
-func AppByDomain(apps []*AppConfig, hostname string) *AppConfig {
-	normalized := NormalizeDomain(hostname)
-	for _, app := range apps {
-		if app.HasDomain(normalized) {
-			return app
-		}
-	}
-	return nil
-}
-
-// AddDomain validates and stores a hostname on the app, rejecting duplicates.
+// AddDomain validates and stores a hostname on the app, rejecting one that conflicts with a domain
+// it already has, since Caddy refuses a site address listed twice.
 func (c *AppConfig) AddDomain(hostname string) error {
 	if err := ValidateDomain(hostname); err != nil {
 		return err
 	}
 	normalized := NormalizeDomain(hostname)
-	if c.HasDomain(normalized) {
+	if AppByDomain([]*AppConfig{c}, normalized) != nil {
 		return fmt.Errorf("app %q already owns domain %q", c.Name, normalized)
 	}
 	c.Domains = append(c.Domains, normalized)

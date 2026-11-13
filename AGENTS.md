@@ -34,6 +34,7 @@ The version lives in two places and both move in the same `chore: release vX` co
 - Static content is served from a gare-written Caddyfile (`~/.local/share/gare/apps/<app-name>/Caddyfile`) mounted at `/etc/caddy/Caddyfile`, not from `caddy file-server` flags: `file-server` cannot express the SPA fallback (`try_files {path} /index.html`) that static sites depend on for deep links.
 - Ingress: Caddy drop-in snippets at `/etc/caddy/conf.d/<app-name>.caddy`.
 - Ingress changes are transactions: `ingress.Apply` and `ingress.Remove` keep the previous snippet (or its absence), write, reload Caddy, and when Caddy refuses, restore the previous state byte for byte and reload again, because a refused snippet left on disk makes every later reload by any app fail. The engine calls only `Apply`/`Remove`; the `ingress` package alone writes, reloads, restores and probes.
+- Domain uniqueness compares hosts without their port, case-insensitively: Caddy refuses one address declared twice and reads a bare host as port 443, so `example.com` and `example.com:443` are one site. The same host is shared only on two different explicit ports that are neither 80 nor 443.
 - Storage: predictable filesystem paths under `$XDG_DATA_HOME/gare/apps/<app-name>/`, defaulting to `~/.local/share/gare/apps/<app-name>/`.
 - Server: lightweight webhook receiver verifying HMAC-SHA256 signatures.
 
