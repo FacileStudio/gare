@@ -92,7 +92,8 @@ func assertLogout(t *testing.T, h *harness) {
 }
 
 // TestLeavingTheListEndsTheSession proves a session stops working once its
-// address is removed from GARE_ADMIN_EMAILS and the daemon restarts.
+// address is removed from GARE_ADMIN_EMAILS and the daemon restarts, and that
+// the refusal revokes it: putting the address back does not revive the cookie.
 func TestLeavingTheListEndsTheSession(t *testing.T) {
 	h := newHarness(t, "", "ops@example.test")
 	h.signIn("ops@example.test")
@@ -102,6 +103,13 @@ func TestLeavingTheListEndsTheSession(t *testing.T) {
 	h.restart("someone-else@example.test")
 	if response := h.do(http.MethodGet, h.base+"/api/me", nil); response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("GET /api/me after removal = %d, want 401", response.StatusCode)
+	}
+	if n := h.sessions(); n != 0 {
+		t.Fatalf("session rows after removal = %d, want 0", n)
+	}
+	h.restart("ops@example.test")
+	if response := h.do(http.MethodGet, h.base+"/api/me", nil); response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("GET /api/me with the old cookie after re-adding = %d, want 401", response.StatusCode)
 	}
 }
 
