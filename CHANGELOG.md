@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-14
+
 ### Added
 
 - An "Everything after git push" section on the landing, under the deploy demo: three looping tiles show a webhook deploy on `git push`, an automatic rollback after a failed health check, and a new domain served over HTTPS.
