@@ -101,15 +101,15 @@
 					{deploying ? 'Starting deploy' : 'Deploy'}
 				</Button>
 			</span>
-			{#if !compact}<Button variant="ghost">Details</Button>{/if}
 		</div>
 	</div>
 {/snippet}
 
 <Stage
-	width={960}
-	height={580}
-	compact={{ below: 640, width: 358, height: 468 }}
+	width={976}
+	height={564}
+	compact={{ below: 640, width: 358, height: 500 }}
+	class="gd-host"
 	label="Gare deploys an app: a click on Deploy streams the build and health check log, then the new commit runs."
 	{script}
 	{reset}
@@ -117,7 +117,7 @@
 >
 	{#snippet children({ compact })}
 		<Window
-			style={compact ? 'top:12px;left:12px;width:334px;height:256px' : 'top:20px;left:24px;width:912px;height:392px'}
+			style={compact ? 'top:8px;left:4px;width:350px;height:256px' : 'top:8px;left:4px;width:968px;height:300px'}
 			sidebar={compact ? undefined : nav}
 		>
 			<div class="gd-body" class:gd-compact={compact}>
@@ -146,7 +146,7 @@
 			</div>
 		</Window>
 
-		<Terminal style={compact ? 'top:280px;left:12px;width:334px;height:176px' : 'top:340px;left:332px;width:604px;height:220px'}>
+		<Terminal style={compact ? 'top:280px;left:4px;width:350px;height:176px' : 'top:324px;left:4px;width:968px;height:196px'}>
 			<div class="mb-3 flex items-center gap-2 text-fc-on-inverse-muted">
 				<span class="size-2 rounded-fc-pill {deploying ? 'bg-fc-info' : 'bg-fc-success'}"></span>Deploy log · shop
 			</div>
@@ -162,6 +162,9 @@
 </Stage>
 
 <style>
+	:global(.gd-host) {
+		--mes-shadow-hero: 0 14px 32px -14px rgb(0 0 0 / 0.2), 0 4px 12px -6px rgb(0 0 0 / 0.08);
+	}
 	.gd-body {
 		display: flex;
 		flex: 1;
@@ -178,6 +181,8 @@
 	}
 	.gd-grid {
 		display: grid;
+		flex: 1;
+		min-height: 0;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 14px;
 	}
@@ -188,7 +193,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		min-height: 196px;
 		padding: 16px;
 		border-radius: var(--radius-fc-lg);
 		background: var(--color-fc-surface);
