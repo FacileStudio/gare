@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-14
+
+### Fixed
+
+- The landing demo spans the same width as the text column and the feature cards, its deploy log sits under the apps window instead of over it, the shop card no longer clips its Details button, and the window shadow no longer draws a grey box at the demo's edges.
+
 ## [0.15.0] - 2026-11-14
 
 ### Added
