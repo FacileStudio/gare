@@ -1,7 +1,7 @@
 {
   "name": "Gare",
   "short_name": "Gare",
-  "description": "Deploy and run your apps on this server.",
+  "description": "Push to git: Gare builds the app, puts it live and rolls back to the last version if it breaks.",
   "icons": [
     {
       "src": "/icon-192.png",
