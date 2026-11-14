@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-14
+
+### Fixed
+
+- The landing feature list is now a two-column split (heading on one side, four features with icons on the other) instead of a second card grid right under the demo tiles.
+
 ## [0.16.0] - 2026-11-14
 
 ### Added

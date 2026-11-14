@@ -2,7 +2,7 @@
 	"name": "gare-client",
 	"license": "GPL-3.0-only",
 	"private": true,
-	"version": "0.16.0",
+	"version": "0.16.1",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
