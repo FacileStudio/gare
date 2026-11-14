@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-14
+
+### Fixed
+
+- Link previews: Gare now ships an og:image ("Deploy from git to your own server.") with og and twitter tags, and the static description and web manifest say "Push to git: Gare builds the app, puts it live and rolls back to the last version if it breaks." instead of "Deploy and run your apps on this server."
+
+### Changed
+
+- muse v0.25.1: long install commands on the landing and the downloads page wrap instead of scrolling.
+
 ## [0.17.0] - 2026-11-14
 
 ### Added
