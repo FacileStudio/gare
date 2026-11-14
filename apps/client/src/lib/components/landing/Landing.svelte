@@ -74,15 +74,21 @@
 			</div>
 		</section>
 
-		<section id="features" class="mx-auto max-w-5xl scroll-mt-20 px-4 py-12 sm:px-6">
-			<ul class="grid gap-4 sm:grid-cols-2">
+		<section id="features" class="mx-auto grid max-w-5xl scroll-mt-20 gap-10 px-4 py-16 sm:px-6 md:grid-cols-[2fr_3fr] md:items-center md:gap-16 md:py-20">
+			<div>
+				<h2 class="font-fc-title text-2xl font-bold tracking-tight text-fc-fg sm:text-3xl">Plain tools on your server</h2>
+				<p class="mt-4 text-fc-sm text-fc-fg-muted">Podman, systemd and Caddy do the work. Gare wires them together.</p>
+			</div>
+			<ul class="flex flex-col gap-6">
 				{#each features as feature (feature.title)}
-					<li class="rounded-fc-lg bg-fc-component p-6">
-						<div class="mb-4 flex size-10 items-center justify-center rounded-fc-md bg-fc-surface" aria-hidden="true">
+					<li class="flex items-start gap-4">
+						<div class="flex size-10 shrink-0 items-center justify-center rounded-fc-md bg-fc-component" aria-hidden="true">
 							<Icon icon={feature.icon} size={20} />
 						</div>
-						<h2 class="text-fc-lg font-bold">{feature.title}</h2>
-						<p class="mt-1.5 text-fc-sm text-fc-fg-muted">{feature.body}</p>
+						<div>
+							<h3 class="text-fc-md font-bold">{feature.title}</h3>
+							<p class="mt-1 text-fc-sm text-fc-fg-muted">{feature.body}</p>
+						</div>
 					</li>
 				{/each}
 			</ul>
