@@ -18,11 +18,14 @@
 	} from '@facile/muse';
 	import { session, theme } from '$lib/session';
 	import { errorText } from '$lib/status';
+	import Landing from '$lib/components/landing/Landing.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	let collapsed = $state(false);
 	let failure = $state<string | null>(null);
+	let guest = $state(false);
+	let ready = $state(false);
 	let scroller: HTMLElement | null = $state(null);
 
 	const path = $derived(page.url.pathname);
@@ -52,13 +55,17 @@
 		await goto('/login', { replaceState: true });
 	}
 
-	/** Reads the session; nobody signed in goes to the sign-in page, a broken API shows why. */
+	/** Reads the session; a signed-out visitor sees the landing on `/` and the sign-in page elsewhere. */
 	async function load(): Promise<void> {
 		failure = null;
 		try {
-			if (!(await session.refresh())) redirectToLogin();
+			const me = await session.refresh();
+			guest = !me && page.url.pathname === '/';
+			if (!me && !guest) redirectToLogin();
 		} catch (error) {
 			failure = errorText(error);
+		} finally {
+			ready = true;
 		}
 	}
 
@@ -71,31 +78,35 @@
 	});
 </script>
 
-<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
-	<div class="hidden h-full shrink-0 p-3 md:block">
-		<SideBar icon={logoIcon} title="Gare" bind:collapsed {pages} {user} {userMenu} class="h-full" />
+{#if guest}
+	<Landing />
+{:else if ready}
+	<div class="flex h-dvh w-full overflow-hidden bg-fc-page">
+		<div class="hidden h-full shrink-0 p-3 md:block">
+			<SideBar icon={logoIcon} title="Gare" bind:collapsed {pages} {user} {userMenu} class="h-full" />
+		</div>
+
+		<main bind:this={scroller} class="min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0">
+			<Topbar class="md:hidden">
+				<span class="text-fc-md font-semibold text-fc-fg">Gare</span>
+			</Topbar>
+
+			{#if failure}
+				<div class="mx-auto flex max-w-fc-lg flex-col items-start gap-4 px-4 py-8">
+					<Alert tone="danger" title="Gare's API did not answer">{failure}</Alert>
+					<Button size="lg" variant="secondary" icon={icons.refresh} onclick={load}>Try again</Button>
+				</div>
+			{:else if session.loading || !session.user}
+				<div class="flex justify-center py-20">
+					<Spinner label="Loading" />
+				</div>
+			{:else}
+				<PageTransition key={path.split('/').slice(0, 3).join('/')}>
+					{@render children()}
+				</PageTransition>
+			{/if}
+		</main>
+
+		<MobileNav items={pages} {user} {userMenu} />
 	</div>
-
-	<main bind:this={scroller} class="min-w-0 flex-1 overflow-auto overscroll-contain pb-28 md:pb-0">
-		<Topbar class="md:hidden">
-			<span class="text-fc-md font-semibold text-fc-fg">Gare</span>
-		</Topbar>
-
-		{#if failure}
-			<div class="mx-auto flex max-w-fc-lg flex-col items-start gap-4 px-4 py-8">
-				<Alert tone="danger" title="Gare's API did not answer">{failure}</Alert>
-				<Button size="lg" variant="secondary" icon={icons.refresh} onclick={load}>Try again</Button>
-			</div>
-		{:else if session.loading || !session.user}
-			<div class="flex justify-center py-20">
-				<Spinner label="Loading" />
-			</div>
-		{:else}
-			<PageTransition key={path.split('/').slice(0, 3).join('/')}>
-				{@render children()}
-			</PageTransition>
-		{/if}
-	</main>
-
-	<MobileNav items={pages} {user} {userMenu} />
-</div>
+{/if}
