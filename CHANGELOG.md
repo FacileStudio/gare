@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-14
+
+### Added
+
+- A public landing page at `/` for signed-out visitors, with a looping demo of a deploy from the apps list. Signed-in operators still land on their apps.
+- A `/downloads` page, open without sign-in, listing the Linux archives of the release the client ships in, the install commands, the releases page and the checksums. The landing shows only the visitor's platform and links to it.
+
+### Changed
+
+- The web client uses muse v0.23.0, so it renders in Magnetik, and adds mise-en-scene v0.2.1 for the demo.
+
 ## [0.14.1] - 2026-11-13
 
 ### Fixed
