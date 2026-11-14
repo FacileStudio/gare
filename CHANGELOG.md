@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-14
+
+### Added
+
+- The landing and the downloads page read in English, French, Spanish and German. The footer language picker now switches them and remembers the choice.
+- A second beat in the landing's deploy demo: the next push fails its health check and the previous build comes back.
+- A "Works with" row on the landing: a failed deploy alerts through Antenne.
+- A price note (free, GPL-3.0, on your own server) with one line and a link to the Facile suite, and a "For developers" block with the `gare` command and the source code.
+
+### Changed
+
+- "Install Gare" is the landing's main button. The console sign-in moves to a quiet "Already installed? Open your console" link, since only the server's admins can use it.
+- The landing states the outcome in the hero: push to git, the app goes live and rolls back if it breaks.
+- "Rootless, no daemon" becomes "No Docker daemon": gare-server does run as a daemon for webhooks and the console.
+- The landing's feature list uses muse `FeatureSplit` and lists what the tiles above it do not: workload types, deploy history, env files and rootless Podman.
+- The web client uses muse v0.24.0.
+
 ## [0.16.1] - 2026-11-14
 
 ### Fixed
