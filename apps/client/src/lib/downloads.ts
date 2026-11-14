@@ -1,5 +1,6 @@
 import type { CliCommand, DownloadEntry } from '@facile/muse';
 import { version } from '../../package.json';
+import { t } from './i18n/index.svelte';
 
 const RELEASE = `https://github.com/FacileStudio/gare/releases/download/v${version}`;
 
@@ -18,8 +19,10 @@ export const DOWNLOADS: DownloadEntry[] = (['amd64', 'arm64'] as const).map((arc
 	version
 }));
 
-/** The two install paths the README documents, both ending in `facile install gare`. */
-export const INSTALL_COMMANDS: CliCommand[] = [
-	{ label: 'Install script', command: 'curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash' },
-	{ label: 'With facile', command: 'facile install gare' }
-];
+/** The two install paths the README documents, both ending in `facile install gare`, labelled in the current locale. */
+export function installCommands(): CliCommand[] {
+	return [
+		{ label: t('install.script'), command: 'curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash' },
+		{ label: t('install.facile'), command: 'facile install gare' }
+	];
+}

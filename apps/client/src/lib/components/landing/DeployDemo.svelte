@@ -1,29 +1,15 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { Badge, Button, Icon, StatusDot, icons } from '@facile/muse';
+	import { Badge, Button, StatusDot, icons } from '@facile/muse';
 	import { Bar, Cursor, Roll, Stage, Terminal, Window, cursorAt, type Act } from '@facile/mise-en-scene';
-	import { logoIcon } from '$lib/brand';
-
-	type Line = { mark: '▸' | '✓'; text: string };
-
-	const OLD = 'a41c9e2';
-	const NEW = '4f2c1a9';
-	const LOG: Line[] = [
-		{ mark: '▸', text: 'Syncing shop with its git remote...' },
-		{ mark: '▸', text: `Building container image localhost/shop:${NEW}...` },
-		{ mark: '✓', text: 'Synced manifest.yaml from repository' },
-		{ mark: '▸', text: 'Verifying health probe port 8003 at http://127.0.0.1:8003/...' },
-		{ mark: '✓', text: '1 health probe(s) passed' },
-		{ mark: '✓', text: `Successfully deployed container app shop (${NEW}) -> shop.example.com` }
-	];
-	const OTHERS = [
-		{ name: 'blog', type: 'Static', widths: [54, 40] },
-		{ name: 'api', type: 'Compose', widths: [46, 58] }
-	];
+	import { t } from '$lib/i18n/index.svelte';
+	import DemoNav from './DemoNav.svelte';
+	import { BAD, FAIL_LOG, LOG, NEW, OLD, OTHERS, type Line } from './deploy-log';
 
 	let deploying = $state(false);
 	let starting = $state(false);
+	let failing = $state(false);
 	let commit = $state(OLD);
 	let lines = $state<Line[]>([]);
 	let cursor = $state(cursorAt());
@@ -32,6 +18,7 @@
 	function reset() {
 		deploying = false;
 		starting = false;
+		failing = false;
 		commit = OLD;
 		lines = [];
 		cursor.visible = false;
@@ -39,10 +26,19 @@
 
 	function poster() {
 		commit = NEW;
-		lines = [...LOG];
+		failing = true;
+		lines = [...FAIL_LOG];
 	}
 
-	async function script(act: Act) {
+	async function stream(act: Act, log: Line[], onLine: (i: number) => void) {
+		for (const [i, line] of log.entries()) {
+			lines.push(line);
+			onLine(i);
+			await act.wait(i === 1 ? 1300 : 700);
+		}
+	}
+
+	async function firstDeploy(act: Act) {
 		cursor.x = 640;
 		cursor.y = 420;
 		await act.wait(700);
@@ -53,34 +49,35 @@
 		deploying = true;
 		await act.wait(300);
 		cursor.visible = false;
-		for (const [i, line] of LOG.entries()) {
-			lines.push(line);
-			if (i === 3) starting = true;
-			await act.wait(i === 1 ? 1400 : 750);
-		}
+		await stream(act, LOG, (i) => (starting = i === 3));
 		starting = false;
 		deploying = false;
 		commit = NEW;
+	}
+
+	async function script(act: Act) {
+		await firstDeploy(act);
+		await act.wait(1800);
+		lines = [];
+		await act.wait(400);
+		deploying = true;
+		await stream(act, FAIL_LOG, (i) => {
+			if (i === 2) {
+				starting = true;
+				commit = BAD;
+			}
+			if (i === 3) failing = true;
+			if (i === 5) commit = NEW;
+		});
+		starting = false;
+		deploying = false;
 		await act.wait(2200);
 		reset();
 		await act.wait(500);
 	}
 </script>
 
-{#snippet nav()}
-	<div class="flex items-center gap-2 px-5 pt-3 pb-5 font-fc-title text-[15px] font-bold text-fc-fg">
-		<Icon icon={logoIcon} size={20} />
-		<span>Gare</span>
-	</div>
-	<div class="grid gap-1 px-3">
-		<div class="flex h-[34px] items-center gap-2.5 rounded-fc-md bg-fc-fg/5 px-2.5 text-[13px] font-bold text-fc-fg">
-			<Icon icon={icons.server} size={16} />Apps
-		</div>
-		<div class="flex h-[34px] items-center gap-2.5 rounded-fc-md px-2.5 text-[13px] text-fc-fg-muted">
-			<Icon icon={icons.plus} size={16} />New app
-		</div>
-	</div>
-{/snippet}
+{#snippet nav()}<DemoNav />{/snippet}
 
 {#snippet shop(compact: boolean)}
 	<div class="gd-card">
@@ -88,17 +85,17 @@
 			<span class="text-[16px] font-bold">shop</span>
 			<span class="flex items-center gap-1.5">
 				<StatusDot tone={starting ? 'info' : 'success'} pulse={starting} />
-				<Roll value={starting ? 'Starting' : 'Running'} class="gd-status" />
+				<Roll value={starting ? t('demo.starting') : t('demo.running')} class="gd-status" />
 			</span>
 		</div>
 		<div class="gd-meta">
-			<span class="text-fc-fg-muted">Type</span><span><Badge>Container</Badge></span>
-			<span class="text-fc-fg-muted">Commit</span><span class="gd-commit"><Roll value={commit} /></span>
+			<span class="text-fc-fg-muted">{t('demo.type')}</span><span><Badge>Container</Badge></span>
+			<span class="text-fc-fg-muted">{t('demo.commit')}</span><span class="gd-commit"><Roll value={commit} /></span>
 		</div>
 		<div class="mt-auto flex gap-2">
 			<span bind:this={button}>
 				<Button size={compact ? 'sm' : 'md'} icon={icons.refresh} disabled={deploying}>
-					{deploying ? 'Starting deploy' : 'Deploy'}
+					{deploying ? t('demo.deploying') : t('demo.deploy')}
 				</Button>
 			</span>
 		</div>
@@ -110,7 +107,7 @@
 	height={564}
 	compact={{ below: 640, width: 358, height: 500 }}
 	class="gd-host"
-	label="Gare deploys an app: a click on Deploy streams the build and health check log, then the new commit runs."
+	label={t('demo.label')}
 	{script}
 	{reset}
 	{poster}
@@ -122,8 +119,8 @@
 		>
 			<div class="gd-body" class:gd-compact={compact}>
 				<div class="flex items-center justify-between gap-3">
-					<span class="font-fc-title text-fc-lg font-bold">Apps</span>
-					{#if !compact}<Button icon={icons.plus}>New app</Button>{/if}
+					<span class="font-fc-title text-fc-lg font-bold">{t('demo.apps')}</span>
+					{#if !compact}<Button icon={icons.plus}>{t('demo.newApp')}</Button>{/if}
 				</div>
 				<div class="gd-grid">
 					{@render shop(compact)}
@@ -132,12 +129,12 @@
 							<div class="flex items-center justify-between gap-2">
 								<span class="text-[16px] font-bold">{app.name}</span>
 								<span class="flex items-center gap-1.5">
-									<StatusDot tone="success" /><span class="gd-status">Running</span>
+									<StatusDot tone="success" /><span class="gd-status">{t('demo.running')}</span>
 								</span>
 							</div>
 							<div class="gd-meta">
-								<span class="text-fc-fg-muted">Type</span><span><Badge>{app.type}</Badge></span>
-								<span class="text-fc-fg-muted">Commit</span><Bar w="{app.widths[0]}%" />
+								<span class="text-fc-fg-muted">{t('demo.type')}</span><span><Badge>{app.type}</Badge></span>
+								<span class="text-fc-fg-muted">{t('demo.commit')}</span><Bar w="{app.widths[0]}%" />
 							</div>
 							<div class="mt-auto"><Bar w="{app.widths[1]}%" /></div>
 						</div>
@@ -148,12 +145,12 @@
 
 		<Terminal style={compact ? 'top:280px;left:4px;width:350px;height:176px' : 'top:324px;left:4px;width:968px;height:196px'}>
 			<div class="mb-3 flex items-center gap-2 text-fc-on-inverse-muted">
-				<span class="size-2 rounded-fc-pill {deploying ? 'bg-fc-info' : 'bg-fc-success'}"></span>Deploy log · shop
+				<span class="size-2 rounded-fc-pill {deploying ? 'bg-fc-info' : failing ? 'bg-fc-warning' : 'bg-fc-success'}"></span>{t('demo.log')} · shop
 			</div>
 			{#each lines as line, i (i)}
 				<div class="gd-line" class:gd-wrap={compact} in:fade={{ duration: 160 }} out:fade={{ duration: 200 }}>
-					<span class:gd-ok={line.mark === '✓'} class:gd-dim={line.mark === '▸'}>{line.mark}</span>
-					<span class:gd-ok={i === LOG.length - 1}>{line.text}</span>
+					<span class:gd-ok={line.mark === '✓'} class:gd-dim={line.mark === '▸'} class:gd-warn={line.mark === '!'}>{line.mark}</span>
+					<span class:gd-ok={line.final} class:gd-warn={line.mark === '!'}>{line.text}</span>
 				</div>
 			{/each}
 		</Terminal>
@@ -241,6 +238,9 @@
 	}
 	.gd-dim {
 		color: var(--color-fc-on-inverse-muted);
+	}
+	.gd-warn {
+		color: color-mix(in oklab, var(--color-fc-warning), var(--color-fc-on-inverse) 35%);
 	}
 	.gd-ok {
 		color: color-mix(in oklab, var(--color-fc-success), var(--color-fc-on-inverse) 35%);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Badge, Button, Icon, Input, icons } from '@facile/muse';
 	import { Stage, Tile, grow, type Act } from '@facile/mise-en-scene';
+	import { t } from '$lib/i18n/index.svelte';
 
 	const HOST = 'www.example.com';
 
@@ -40,13 +41,13 @@
 	</div>
 {/snippet}
 
-<Tile title="A certificate per domain" body="Add a hostname and Caddy routes it over HTTPS.">
+<Tile title={t('demo.domain.title')} body={t('demo.domain.body')}>
 	<Stage width={320} height={240} {script} {reset} {poster}>
 		{#snippet children()}
 			<div class="panel absolute top-5 right-5 left-5 flex h-[188px] flex-col gap-3 rounded-fc-lg bg-fc-page p-4">
 				<div class="flex items-center gap-2">
 					<Input value={typed} placeholder="app.example.com" class="h-9 min-w-0 flex-1 text-fc-xs" tabindex={-1} readonly />
-					<Button size="sm" icon={icons.plus} disabled={busy}>{busy ? 'Adding' : 'Add'}</Button>
+					<Button size="sm" icon={icons.plus} disabled={busy}>{busy ? t('demo.adding') : t('demo.add')}</Button>
 				</div>
 				<div class="flex flex-col rounded-fc-md bg-fc-component px-3">
 					{@render row('example.com')}

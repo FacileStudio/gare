@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Badge } from '@facile/muse';
 	import { Caret, Roll, Stage, Terminal, Tile, grow, type Act } from '@facile/mise-en-scene';
+	import { t } from '$lib/i18n/index.svelte';
 
 	const COMMAND = 'git push origin main';
 
@@ -34,10 +35,10 @@
 </script>
 
 {#snippet live()}
-	<span in:grow={{ duration: 250 }} out:grow={{ duration: 200 }}><Badge tone="accent">Live</Badge></span>
+	<span in:grow={{ duration: 250 }} out:grow={{ duration: 200 }}><Badge tone="accent">{t('demo.live')}</Badge></span>
 {/snippet}
 
-<Tile title="Deploys on git push" body="A signed GitHub or GitLab webhook starts the deploy.">
+<Tile title={t('demo.push.title')} body={t('demo.push.body')}>
 	<Stage width={320} height={240} {script} {reset} {poster}>
 		{#snippet children()}
 			<Terminal style="top:20px;left:20px;right:20px;height:64px">
@@ -54,20 +55,20 @@
 				{#if pushed}
 					<li class="flex flex-col gap-1 py-1.5" in:grow={{ duration: 350 }} out:grow={{ duration: 250 }}>
 						<div class="flex items-center gap-2">
-							<Badge tone={done ? 'success' : 'info'}><Roll value={done ? 'Succeeded' : 'Running'} class="h-4 w-16 leading-4" /></Badge>
+							<Badge tone={done ? 'success' : 'info'}><Roll value={done ? t('demo.succeeded') : t('demo.inProgress')} class="h-4 w-[5.5rem] leading-4" /></Badge>
 							<span class="font-fc-mono text-fc-xs text-fc-fg">4f2c1a9</span>
 							{#if done}{@render live()}{/if}
 						</div>
-						<span class="text-[11px] leading-4 text-fc-fg-muted">just now by webhook</span>
+						<span class="text-[11px] leading-4 text-fc-fg-muted">{t('demo.justNow')}</span>
 					</li>
 				{/if}
 				<li class="flex flex-col gap-1 py-1.5">
 					<div class="flex items-center gap-2">
-						<Badge tone="success">Succeeded</Badge>
+						<Badge tone="success">{t('demo.succeeded')}</Badge>
 						<span class="font-fc-mono text-fc-xs text-fc-fg">a41c9e2</span>
 						{#if !done}{@render live()}{/if}
 					</div>
-					<span class="text-[11px] leading-4 text-fc-fg-muted">yesterday by webhook</span>
+					<span class="text-[11px] leading-4 text-fc-fg-muted">{t('demo.yesterday')}</span>
 				</li>
 			</ol>
 		{/snippet}
