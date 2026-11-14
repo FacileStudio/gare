@@ -26,6 +26,7 @@
 	},
 	"dependencies": {
 		"@facile/client": "github:FacileStudio/facile-client#v0.2.0",
-		"@facile/muse": "github:FacileStudio/muse#v0.19.2"
+		"@facile/muse": "github:FacileStudio/muse#v0.23.0",
+		"@facile/mise-en-scene": "github:FacileStudio/mise-en-scene#v0.2.1"
 	}
 }
