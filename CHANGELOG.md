@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-16
+
+### Added
+
+- A Settings page with the theme choice, linked from the avatar menu (muse v0.30.0 removed the theme row from the menu).
+
+### Changed
+
+- muse v0.32.0: tabs are 36px tall on pointer devices and 44px on touch.
+
+### Fixed
+
+- filet no longer scans `node_modules`, which now carries Go files from `@facile/blob`.
+
 ## [0.17.1] - 2026-11-14
 
 ### Fixed

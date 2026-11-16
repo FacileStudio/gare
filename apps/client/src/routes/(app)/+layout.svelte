@@ -13,10 +13,9 @@
 		Spinner,
 		Topbar,
 		icons,
-		type Theme,
 		type UserMenuOptions
 	} from '@facile/muse';
-	import { session, theme } from '$lib/session';
+	import { session } from '$lib/session';
 	import { errorText } from '$lib/status';
 	import Landing from '$lib/components/landing/Landing.svelte';
 
@@ -41,11 +40,8 @@
 	});
 
 	const userMenu: UserMenuOptions = $derived({
-		settingsHref: null,
+		settingsHref: '/settings',
 		helpHref: 'https://github.com/FacileStudio/gare',
-		showLanguage: false,
-		theme: theme.mode,
-		onThemeChange: (next: Theme) => theme.set(next),
 		onSignOut: () => void signOut()
 	});
 
