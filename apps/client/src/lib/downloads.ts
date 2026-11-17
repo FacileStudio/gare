@@ -19,10 +19,10 @@ export const DOWNLOADS: DownloadEntry[] = (['amd64', 'arm64'] as const).map((arc
 	version
 }));
 
-/** The two install paths the README documents, both ending in `facile install gare`, labelled in the current locale. */
+/** The two install paths the README documents, both ending in `kit add gare`, labelled in the current locale. */
 export function installCommands(): CliCommand[] {
 	return [
 		{ label: t('install.script'), command: 'curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash' },
-		{ label: t('install.facile'), command: 'facile install gare' }
+		{ label: t('install.kit'), command: 'kit add gare' }
 	];
 }

@@ -53,7 +53,7 @@ export const landing = {
 		'Installieren Sie Gare auf Ihrem Server. Dessen Admins melden sich dann in der Konsole an und sehen jede App, ihre Deployments und Logs.'
 	],
 	'install.script': ['Install script', "Script d'installation", 'Script de instalación', 'Installationsskript'],
-	'install.facile': ['With facile', 'Avec facile', 'Con facile', 'Mit facile'],
+	'install.kit': ['With kit', 'Avec kit', 'Con kit', 'Mit kit'],
 	'downloads.title': ['Downloads · Gare', 'Téléchargements · Gare', 'Descargas · Gare', 'Downloads · Gare'],
 	'downloads.heading': ['Downloads', 'Téléchargements', 'Descargas', 'Downloads']
 } satisfies Record<string, Row>;
