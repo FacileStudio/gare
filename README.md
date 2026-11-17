@@ -22,9 +22,17 @@ A zero-daemon, rootless deployment CLI and GitOps orchestrator for Podman and Ku
 curl -fsSL https://raw.githubusercontent.com/FacileStudio/gare/main/install.sh | bash
 ```
 
-The script installs the suite installer, which then runs `facile install gare`. With `facile` already on the machine, run `facile install gare` directly. Each [release](https://github.com/FacileStudio/gare/releases) also carries a `gare_<version>_<os>_<arch>.tar.gz` archive with the binary and the built web client under `client/`.
+Installs to `~/.local/bin` via [kit](https://github.com/FacileStudio/kit), the Facile package manager. Pass `--bin-dir <dir>` to change that, `--source` to build from source, `--no-skill` to skip AI agent skill registration.
 
-`facile install gare` installs the binary only. The web UI needs the client too: `gare server` serves it from `CLIENT_DIR`, which defaults to `$XDG_DATA_HOME/gare/client` (`~/.local/share/gare/client`). This puts the client of the installed version there, replacing an older one:
+Already have `kit`:
+
+```sh
+kit add gare
+```
+
+Each [release](https://github.com/FacileStudio/gare/releases) also carries a `gare_<version>_<os>_<arch>.tar.gz` archive with the binary and the built web client under `client/`.
+
+`kit add gare` installs the binary only. The web UI needs the client too: `gare server` serves it from `CLIENT_DIR`, which defaults to `$XDG_DATA_HOME/gare/client` (`~/.local/share/gare/client`). This puts the client of the installed version there, replacing an older one:
 
 ```sh
 v=$(gare --version | cut -d' ' -f2); a=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/'); d="${XDG_DATA_HOME:-$HOME/.local/share}/gare"
