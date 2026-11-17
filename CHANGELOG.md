@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-11-17
+
+### Changed
+
+- The install script, README and the downloads page install gare through kit, the Facile package manager: `kit add gare`.
+
 ## [0.18.0] - 2026-11-16
 
 ### Added
